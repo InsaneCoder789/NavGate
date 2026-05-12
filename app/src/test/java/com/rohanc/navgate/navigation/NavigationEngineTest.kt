@@ -39,6 +39,12 @@ class NavigationEngineTest {
                 ),
         )
 
+    private val drivingRoute =
+        route.copy(
+            travelMode = "driving",
+            durationSeconds = 18.0,
+        )
+
     @Test
     fun `step advancement happens only when user reaches the current step`() {
         val engine = NavigationEngine()
@@ -89,5 +95,42 @@ class NavigationEngineTest {
 
         requireNotNull(delta)
         assertTrue(delta in -180.0..180.0)
+    }
+
+    @Test
+    fun `starting navigation marks first instruction for voice guidance`() {
+        val engine = NavigationEngine()
+        engine.selectRoute(origin, sportsComplex, route)
+
+        val snapshot = engine.startNavigation()
+
+        assertTrue(snapshot.shouldSpeakInstruction)
+        val next = engine.updateUserProgress(origin, 0.0, 1000)
+        assertFalse(next.shouldSpeakInstruction)
+    }
+
+    @Test
+    fun `driving routes use faster eta assumptions`() {
+        val engine = NavigationEngine()
+        engine.selectRoute(origin, sportsComplex, drivingRoute)
+
+        val snapshot = engine.startNavigation()
+
+        assertTrue(snapshot.etaSeconds < route.durationSeconds)
+    }
+
+    @Test
+    fun `arriving at final step completes navigation and announces arrival`() {
+        val engine = NavigationEngine()
+        engine.selectRoute(origin, sportsComplex, route)
+        engine.startNavigation()
+        engine.updateUserProgress(library, 44.0, 1_500)
+
+        val arrived = engine.updateUserProgress(sportsComplex, 44.0, 1_500)
+
+        assertTrue(arrived.isArrived)
+        assertFalse(arrived.isNavigating)
+        assertTrue(arrived.shouldSpeakInstruction)
+        assertEquals("You have arrived at your destination", arrived.currentInstruction)
     }
 }

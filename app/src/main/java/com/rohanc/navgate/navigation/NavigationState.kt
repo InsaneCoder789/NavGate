@@ -37,8 +37,10 @@ data class NavigationSnapshot(
     val arAvailability: ArAvailabilityState = ArAvailabilityState.Checking,
     val presentationMode: PresentationMode = PresentationMode.MAP,
     val isNavigating: Boolean = false,
+    val isArrived: Boolean = false,
     val userLocation: Coordinate? = null,
     val userHeading: Double? = null,
+    val shouldSpeakInstruction: Boolean = false,
 ) {
     val canStartNavigation: Boolean = route != null && !isNavigating
 }

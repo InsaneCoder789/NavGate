@@ -48,3 +48,11 @@ data class RouteResponse(
     val supportsAr: Boolean = true,
     val warnings: List<String> = emptyList(),
 )
+
+data class RouteHistoryEntry(
+    val destinationId: String,
+    val destinationTitle: String,
+    val travelMode: TravelProfile,
+    val recordedAtEpochMillis: Long,
+    val etaSeconds: Double,
+)

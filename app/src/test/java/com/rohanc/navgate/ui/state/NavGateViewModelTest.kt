@@ -112,4 +112,21 @@ class NavGateViewModelTest {
         assertEquals(TravelProfile.Driving, viewModel.uiState.value.travelProfile)
         assertNotNull(viewModel.uiState.value.preview)
     }
+
+    @Test
+    fun `starting navigation records route history`() = runTest {
+        val repository = FakeCampusRepository()
+        val store = InMemoryUserPlacesStore()
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = store)
+        advanceUntilIdle()
+        val places = repository.allPlaces()
+
+        viewModel.selectOrigin(places[0])
+        viewModel.selectDestination(places[1])
+        advanceUntilIdle()
+        viewModel.startNavigation()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.routeHistory.any { it.destinationId == places[1].id })
+    }
 }

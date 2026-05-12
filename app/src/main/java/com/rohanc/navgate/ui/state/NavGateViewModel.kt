@@ -14,6 +14,7 @@ import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.PlaceType
 import com.rohanc.navgate.model.RouteRequest
+import com.rohanc.navgate.model.RouteHistoryEntry
 import com.rohanc.navgate.model.TravelProfile
 import com.rohanc.navgate.navigation.NavigationEngine
 import com.rohanc.navgate.navigation.NavigationSnapshot
@@ -91,6 +92,7 @@ class NavGateViewModel(
             )
         }
         _uiState.value.selectedDestination?.let(::recordRecent)
+        recordRouteHistory(_uiState.value.selectedDestination, snapshot.etaSeconds)
     }
 
     fun switchMode(mode: PresentationMode) {
@@ -116,6 +118,9 @@ class NavGateViewModel(
                 snapshot = liveSnapshot,
                 selectedOrigin = if (current.selectedOrigin?.id == LIVE_LOCATION_ID) liveLocationPlace(location) else current.selectedOrigin,
             )
+        }
+        if (!state.snapshot.isArrived && liveSnapshot.isArrived) {
+            recordRouteHistory(state.selectedDestination, 0.0)
         }
 
         val destination = state.selectedDestination?.coordinate ?: return
@@ -197,7 +202,8 @@ class NavGateViewModel(
         viewModelScope.launch {
             val saved = userPlacesStore.savedPlaces()
             val recents = userPlacesStore.recentPlaces()
-            _uiState.update { it.copy(savedPlaces = saved, recentPlaces = recents) }
+            val history = userPlacesStore.routeHistory()
+            _uiState.update { it.copy(savedPlaces = saved, recentPlaces = recents, routeHistory = history) }
         }
     }
 
@@ -205,6 +211,23 @@ class NavGateViewModel(
         viewModelScope.launch {
             val recents = userPlacesStore.recordRecent(place)
             _uiState.update { it.copy(recentPlaces = recents) }
+        }
+    }
+
+    private fun recordRouteHistory(destination: PlaceSearchResult?, etaSeconds: Double) {
+        destination ?: return
+        viewModelScope.launch {
+            val history =
+                userPlacesStore.recordRouteHistory(
+                    RouteHistoryEntry(
+                        destinationId = destination.id,
+                        destinationTitle = destination.title,
+                        travelMode = _uiState.value.travelProfile,
+                        recordedAtEpochMillis = System.currentTimeMillis(),
+                        etaSeconds = etaSeconds,
+                    ),
+                )
+            _uiState.update { it.copy(routeHistory = history) }
         }
     }
 
@@ -258,6 +281,7 @@ data class NavGateUiState(
     val travelProfile: TravelProfile = TravelProfile.Walking,
     val savedPlaces: List<PlaceSearchResult> = emptyList(),
     val recentPlaces: List<PlaceSearchResult> = emptyList(),
+    val routeHistory: List<RouteHistoryEntry> = emptyList(),
 )
 
 data class RoutePreview(

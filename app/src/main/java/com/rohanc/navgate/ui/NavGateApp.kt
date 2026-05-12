@@ -92,10 +92,12 @@ import com.rohanc.navgate.ar.ArAvailabilityState
 import com.rohanc.navgate.ar.ArCoreSupport
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.PlaceType
+import com.rohanc.navgate.model.RouteHistoryEntry
 import com.rohanc.navgate.navigation.GuidanceConfidence
 import com.rohanc.navgate.navigation.PresentationMode
 import com.rohanc.navgate.ui.ar.AlignmentLevel
 import com.rohanc.navgate.ui.ar.CameraPreview
+import com.rohanc.navgate.ui.ar.VoiceGuidance
 import com.rohanc.navgate.ui.ar.alignmentStatus
 import com.rohanc.navgate.ui.ar.rememberHeadingState
 import com.rohanc.navgate.ui.components.ConfidenceBadge
@@ -185,6 +187,16 @@ fun NavGateApp() {
 
     NavGateTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            VoiceGuidance(
+                enabled = uiState.snapshot.isNavigating,
+                utteranceKey = "${uiState.snapshot.currentStepIndex}-${uiState.snapshot.isRerouting}",
+                message =
+                    when {
+                        uiState.snapshot.isRerouting -> "Rerouting. ${uiState.snapshot.currentInstruction}"
+                        uiState.snapshot.shouldSpeakInstruction -> uiState.snapshot.currentInstruction
+                        else -> null
+                    },
+            )
             NavGateHome(
                 uiState = uiState,
                 arState = arState,
@@ -333,9 +345,12 @@ private fun NavGateHome(
                         distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
                         etaLabel = formatEta(uiState.snapshot.etaSeconds),
                         travelProfile = uiState.travelProfile,
+                        isArrived = uiState.snapshot.isArrived,
                         onTravelProfileChanged = onTravelProfileChanged,
                         onOpenAr = onSwitchToAr,
                     )
+                } else if (uiState.snapshot.isArrived) {
+                    ArrivalSheet(destination = uiState.selectedDestination?.title)
                 } else if (uiState.activeTab == AppTab.Go) {
                     GoPlanningSheet(
                         travelProfile = uiState.travelProfile,
@@ -371,10 +386,9 @@ private fun NavGateHome(
                         )
 
                     AppTab.Recents ->
-                        PlacesShelfPanel(
-                            title = "Recent places",
-                            caption = "Your latest searches and route destinations.",
+                        RecentsPanel(
                             places = uiState.recentPlaces,
+                            history = uiState.routeHistory,
                             savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
                             selectedOriginId = uiState.selectedOrigin?.id,
                             selectedDestinationId = uiState.selectedDestination?.id,
@@ -763,6 +777,7 @@ private fun LiveGuidanceSheet(
     distanceLabel: String,
     etaLabel: String,
     travelProfile: com.rohanc.navgate.model.TravelProfile,
+    isArrived: Boolean,
     onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
     onOpenAr: () -> Unit,
 ) {
@@ -770,7 +785,7 @@ private fun LiveGuidanceSheet(
         Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Rounded.Navigation, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Text("Live guidance", style = MaterialTheme.typography.titleLarge)
+                Text(if (isArrived) "Arrival" else "Live guidance", style = MaterialTheme.typography.titleLarge)
             }
             Text(instruction, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -783,6 +798,24 @@ private fun LiveGuidanceSheet(
                 Spacer(Modifier.width(8.dp))
                 Text("Switch to AR assist")
             }
+        }
+    }
+}
+
+@Composable
+private fun ArrivalSheet(destination: String?) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE6192134)) {
+        Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Rounded.ArrowOutward, contentDescription = null, tint = NavHighConfidence)
+                Text("Destination reached", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+            }
+            Text(
+                destination?.let { "You have arrived near $it. You can switch back to Explore or pick the next stop." }
+                    ?: "You have arrived at your destination.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -854,6 +887,67 @@ private fun PlacesShelfPanel(
                     onToggleSaved = onToggleSaved,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun RecentsPanel(
+    places: List<PlaceSearchResult>,
+    history: List<RouteHistoryEntry>,
+    savedPlaceIds: Set<String>,
+    selectedOriginId: String?,
+    selectedDestinationId: String?,
+    onSelectOrigin: (PlaceSearchResult) -> Unit,
+    onSelectDestination: (PlaceSearchResult) -> Unit,
+    onToggleSaved: (PlaceSearchResult) -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), containerColor = Color(0xD6192134)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Recent activity", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Your latest searches and route launches stay ready here.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (history.isNotEmpty()) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(history, key = { "${it.destinationId}-${it.recordedAtEpochMillis}" }) { entry ->
+                        RouteHistoryCard(entry)
+                    }
+                }
+            }
+            if (places.isEmpty()) {
+                Text("Nothing here yet. Search or start a route to build your recent activity.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                PlaceCarousel(
+                    places = places,
+                    selectedOriginId = selectedOriginId,
+                    selectedDestinationId = selectedDestinationId,
+                    savedPlaceIds = savedPlaceIds,
+                    onSelectOrigin = onSelectOrigin,
+                    onSelectDestination = onSelectDestination,
+                    onToggleSaved = onToggleSaved,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RouteHistoryCard(entry: RouteHistoryEntry) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0x7A25304A),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x24FFFFFF)),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(entry.destinationTitle, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                "${entry.travelMode.name.lowercase().replaceFirstChar { it.uppercase() }} • ${formatEta(entry.etaSeconds)}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -1048,6 +1142,12 @@ private fun ArAssistScreen(
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                RouteRibbonPreview(
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    alignment = alignment,
+                    distanceMeters = uiState.snapshot.distanceToNextStep,
+                )
+                Spacer(Modifier.height(18.dp))
                 AlignmentRing(alignment = alignment)
                 Spacer(Modifier.height(18.dp))
                 Text(alignment.label, color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
@@ -1110,6 +1210,45 @@ private fun AlignmentRing(alignment: com.rohanc.navgate.ui.ar.AlignmentStatus) {
                 fontWeight = FontWeight.Bold,
             )
         }
+    }
+}
+
+@Composable
+private fun RouteRibbonPreview(
+    modifier: Modifier = Modifier,
+    alignment: com.rohanc.navgate.ui.ar.AlignmentStatus,
+    distanceMeters: Double,
+) {
+    val ribbonColor = when (alignment.level) {
+        AlignmentLevel.Aligned -> NavHighConfidence
+        AlignmentLevel.Adjust -> NavMediumConfidence
+        AlignmentLevel.Recover -> NavLowConfidence
+    }
+    Canvas(modifier = modifier) {
+        val centerX = size.width / 2f
+        val startY = size.height
+        val endY = size.height * 0.12f
+        val horizontalOffset = (alignment.deltaDegrees.coerceIn(-70.0, 70.0) / 70.0 * (size.width * 0.28)).toFloat()
+        drawLine(
+            color = Color.White.copy(alpha = 0.10f),
+            start = androidx.compose.ui.geometry.Offset(centerX, startY),
+            end = androidx.compose.ui.geometry.Offset(centerX, endY),
+            strokeWidth = 34f,
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = ribbonColor.copy(alpha = 0.92f),
+            start = androidx.compose.ui.geometry.Offset(centerX, startY),
+            end = androidx.compose.ui.geometry.Offset(centerX + horizontalOffset, endY),
+            strokeWidth = 22f,
+            cap = StrokeCap.Round,
+        )
+        val markerY = size.height * 0.28f
+        drawCircle(
+            color = ribbonColor,
+            radius = 11f,
+            center = androidx.compose.ui.geometry.Offset(centerX + horizontalOffset, markerY),
+        )
     }
 }
 

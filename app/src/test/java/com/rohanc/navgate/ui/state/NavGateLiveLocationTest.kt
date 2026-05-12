@@ -69,6 +69,24 @@ class NavGateLiveLocationTest {
         assertTrue(repository.routeRequests >= 2)
         assertEquals(Coordinate(20.360000, 85.820000), viewModel.uiState.value.snapshot.origin)
     }
+
+    @Test
+    fun `arriving through live location marks route complete`() = runTest {
+        val repository = TrackingRepository()
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        advanceUntilIdle()
+
+        viewModel.selectOrigin(repository.origin)
+        viewModel.selectDestination(repository.destination)
+        advanceUntilIdle()
+        viewModel.startNavigation()
+        viewModel.onLocationSample(repository.midpoint, 42.0, 1500)
+        viewModel.onLocationSample(repository.destination.coordinate, 42.0, 1500)
+
+        val snapshot = viewModel.uiState.value.snapshot
+        assertTrue(snapshot.isArrived)
+        assertEquals(0.0, snapshot.etaSeconds, 0.0)
+    }
 }
 
 private class TrackingRepository : NavigationRepository {
