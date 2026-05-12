@@ -85,12 +85,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.rohanc.navgate.R
 import com.rohanc.navgate.ar.ArAvailabilityState
 import com.rohanc.navgate.ar.ArCoreSupport
 import com.rohanc.navgate.model.PlaceSearchResult
@@ -211,12 +213,10 @@ fun NavGateApp() {
                 onSearchChanged = viewModel::updateSearch,
                 onOpenMenu = { showMenuSheet = true },
                 onDismissMenu = { showMenuSheet = false },
-                onSelectOrigin = {
-                    viewModel.selectOrigin(it)
-                    viewModel.setCurrentLocationAsOrigin(it.coordinate)
-                },
+                onSelectOrigin = viewModel::selectOrigin,
                 onSelectDestination = viewModel::selectDestination,
                 onStartNavigation = viewModel::startNavigation,
+                onDismissOnboarding = viewModel::dismissOnboarding,
                 onToggleSaved = viewModel::toggleSaved,
                 onTabSelected = viewModel::selectTab,
                 onTravelProfileChanged = viewModel::setTravelProfile,
@@ -251,6 +251,7 @@ private fun NavGateHome(
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
     onStartNavigation: () -> Unit,
+    onDismissOnboarding: () -> Unit,
     onToggleSaved: (PlaceSearchResult) -> Unit,
     onTabSelected: (AppTab) -> Unit,
     onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
@@ -260,6 +261,11 @@ private fun NavGateHome(
     onSwitchToMap: () -> Unit,
     onRequestLocationPermission: () -> Unit,
 ) {
+    if (uiState.showOnboarding) {
+        OnboardingScreen(onContinue = onDismissOnboarding)
+        return
+    }
+
     val canUseArBeta = uiState.cityMode == CityMode.KiitBeta && uiState.kiitBetaAccess
     if (uiState.snapshot.presentationMode == PresentationMode.AR_ASSIST && hasCameraPermission && arState == ArAvailabilityState.Supported) {
         ArAssistScreen(uiState = uiState, hasLocationPermission = hasLocationPermission, onSwitchToMap = onSwitchToMap)
@@ -333,7 +339,17 @@ private fun NavGateHome(
                     onSearchChanged = onSearchChanged,
                     onOpenMenu = onOpenMenu,
                 )
+                PlannerStatusRow(
+                    origin = uiState.selectedOrigin?.title,
+                    destination = uiState.selectedDestination?.title,
+                )
                 QuickCategoryRow(cityMode = uiState.cityMode, onCategorySelected = onSearchChanged)
+                SearchResultsPanel(
+                    query = uiState.searchQuery,
+                    places = uiState.places,
+                    onSelectOrigin = onSelectOrigin,
+                    onSelectDestination = onSelectDestination,
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -449,10 +465,68 @@ private fun AppTitleRow() {
             modifier = Modifier.size(20.dp),
         )
         Text(
-            text = "Explore · Navigation App",
+            text = "NavGate",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
+    }
+}
+
+@Composable
+private fun PlannerStatusRow(origin: String?, destination: String?) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        MetricPill("From", origin ?: "Live location")
+        MetricPill("To", destination ?: "Choose place")
+    }
+}
+
+@Composable
+private fun OnboardingScreen(onContinue: () -> Unit) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF09111F), Color(0xFF101A2E), Color(0xFF0B1326)),
+                    ),
+                )
+                .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xD9192237)) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Surface(shape = RoundedCornerShape(24.dp), color = Color(0xFF111C31), modifier = Modifier.size(72.dp)) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_navgate),
+                                contentDescription = "NavGate logo",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(56.dp),
+                            )
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("NavGate", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text("Map-first navigation with KIIT 3D beta rollout", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Text(
+                    "Use Mumbai mode for daily route testing and KIIT Beta for Bhubaneswar campus search, assigned spreadsheet locations, and student-only 3D navigation trials.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("1. Search any place and set it as From or To.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("2. Preview the route on the 2D map before starting.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("3. Unlock KIIT Beta in the menu when students need the 3D AR pilot.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Button(onClick = onContinue, shape = RoundedCornerShape(999.dp), modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(vertical = 14.dp)) {
+                    Text("Enter NavGate")
+                }
+            }
+        }
     }
 }
 
@@ -581,6 +655,58 @@ private fun QuickCategoryRow(cityMode: CityMode, onCategorySelected: (String) ->
                     Text(category.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultsPanel(
+    query: String,
+    places: List<PlaceSearchResult>,
+    onSelectOrigin: (PlaceSearchResult) -> Unit,
+    onSelectDestination: (PlaceSearchResult) -> Unit,
+) {
+    if (query.isBlank()) return
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp), containerColor = Color(0xD5192134)) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Search results", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            if (places.isEmpty()) {
+                Text(
+                    "No locations matched yet. Try a broader query or switch city mode.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                places.take(4).forEach { place ->
+                    SearchResultRow(
+                        place = place,
+                        onSelectOrigin = { onSelectOrigin(place) },
+                        onSelectDestination = { onSelectDestination(place) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultRow(
+    place: PlaceSearchResult,
+    onSelectOrigin: () -> Unit,
+    onSelectDestination: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(place.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            place.subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedButton(onClick = onSelectOrigin, shape = RoundedCornerShape(999.dp)) { Text("Set as from") }
+            Button(onClick = onSelectDestination, shape = RoundedCornerShape(999.dp)) { Text("Set as to") }
         }
     }
 }

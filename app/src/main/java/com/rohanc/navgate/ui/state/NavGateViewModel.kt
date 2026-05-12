@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.rohanc.navgate.data.BackendNavigationRepository
+import com.rohanc.navgate.data.AppPreferencesStore
+import com.rohanc.navgate.data.SharedPrefsAppPreferencesStore
 import com.rohanc.navgate.data.NavigationRepository
 import com.rohanc.navgate.data.SharedPrefsUserPlacesStore
 import com.rohanc.navgate.data.UserPlacesStore
@@ -44,11 +46,13 @@ class NavGateViewModel(
     private val repository: NavigationRepository = BackendNavigationRepository(),
     private val engine: NavigationEngine = NavigationEngine(),
     private val userPlacesStore: UserPlacesStore,
+    private val appPreferencesStore: AppPreferencesStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(NavGateUiState())
     val uiState: StateFlow<NavGateUiState> = _uiState.asStateFlow()
 
     init {
+        loadPreferences()
         refreshPlaces()
         loadPersistedPlaces()
     }
@@ -68,11 +72,18 @@ class NavGateViewModel(
                 isPreviewVisible = false,
             )
         }
+        viewModelScope.launch { appPreferencesStore.setCityMode(mode) }
         refreshPlaces(_uiState.value.searchQuery)
     }
 
     fun setKiitBetaAccess(enabled: Boolean) {
         _uiState.update { it.copy(kiitBetaAccess = enabled) }
+        viewModelScope.launch { appPreferencesStore.setKiitBetaAccess(enabled) }
+    }
+
+    fun dismissOnboarding() {
+        _uiState.update { it.copy(showOnboarding = false) }
+        viewModelScope.launch { appPreferencesStore.markOnboardingSeen() }
     }
 
     fun selectOrigin(place: PlaceSearchResult) {
@@ -82,6 +93,7 @@ class NavGateViewModel(
                 preview = null,
                 snapshot = it.snapshot.copy(origin = place.coordinate),
                 activeTab = AppTab.Go,
+                searchQuery = place.title,
             )
         }
         recordRecent(place)
@@ -101,6 +113,7 @@ class NavGateViewModel(
                         destination = place.coordinate,
                     ),
                 activeTab = AppTab.Go,
+                searchQuery = place.title,
             )
         }
         recordRecent(place)
@@ -232,6 +245,22 @@ class NavGateViewModel(
         }
     }
 
+    private fun loadPreferences() {
+        viewModelScope.launch {
+            val onboardingSeen = appPreferencesStore.isOnboardingSeen()
+            val cityMode = appPreferencesStore.cityMode()
+            val kiitBeta = appPreferencesStore.kiitBetaAccess()
+            _uiState.update {
+                it.copy(
+                    showOnboarding = !onboardingSeen,
+                    cityMode = cityMode,
+                    kiitBetaAccess = kiitBeta,
+                )
+            }
+            refreshPlaces(_uiState.value.searchQuery)
+        }
+    }
+
     private fun recordRecent(place: PlaceSearchResult) {
         viewModelScope.launch {
             val recents = userPlacesStore.recordRecent(place)
@@ -272,9 +301,10 @@ class NavGateViewModel(
             viewModelFactory {
                 initializer {
                     NavGateViewModel(
-                        repository = BackendNavigationRepository(),
+                        repository = BackendNavigationRepository(application = application),
                         engine = NavigationEngine(),
                         userPlacesStore = SharedPrefsUserPlacesStore(application),
+                        appPreferencesStore = SharedPrefsAppPreferencesStore(application),
                     )
                 }
             }
@@ -309,6 +339,7 @@ data class NavGateUiState(
     val routeHistory: List<RouteHistoryEntry> = emptyList(),
     val cityMode: CityMode = CityMode.Mumbai,
     val kiitBetaAccess: Boolean = false,
+    val showOnboarding: Boolean = true,
 )
 
 data class RoutePreview(

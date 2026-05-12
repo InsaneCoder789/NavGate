@@ -1,6 +1,7 @@
 package com.rohanc.navgate.ui.state
 
 import com.rohanc.navgate.data.FakeCampusRepository
+import com.rohanc.navgate.data.InMemoryAppPreferencesStore
 import com.rohanc.navgate.data.InMemoryUserPlacesStore
 import com.rohanc.navgate.model.TravelProfile
 import com.rohanc.navgate.navigation.PresentationMode
@@ -36,7 +37,7 @@ class NavGateViewModelTest {
     @Test
     fun `route preview appears when origin and destination are selected`() = runTest {
         val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
 
         val places = repository.allPlaces()
@@ -54,7 +55,7 @@ class NavGateViewModelTest {
     @Test
     fun `starting navigation hides preview and keeps shared route state`() = runTest {
         val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
 
         val places = repository.allPlaces()
@@ -73,7 +74,7 @@ class NavGateViewModelTest {
     @Test
     fun `mode switching updates the shared presentation mode`() = runTest {
         val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
 
         viewModel.switchMode(PresentationMode.AR_ASSIST)
@@ -84,7 +85,7 @@ class NavGateViewModelTest {
     @Test
     fun `saved and recent places update through store`() = runTest {
         val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
         val place = repository.allPlaces().first()
 
@@ -99,7 +100,7 @@ class NavGateViewModelTest {
     @Test
     fun `travel profile changes and recomputes route preview`() = runTest {
         val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
         val places = repository.allPlaces()
 
@@ -117,7 +118,7 @@ class NavGateViewModelTest {
     fun `starting navigation records route history`() = runTest {
         val repository = FakeCampusRepository()
         val store = InMemoryUserPlacesStore()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = store)
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = store, appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
         val places = repository.allPlaces()
 
@@ -133,7 +134,7 @@ class NavGateViewModelTest {
     @Test
     fun `switching to mumbai updates place context`() = runTest {
         val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
 
         viewModel.setCityMode(CityMode.Mumbai)
@@ -146,7 +147,7 @@ class NavGateViewModelTest {
     @Test
     fun `kiit beta access can be toggled`() = runTest {
         val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
 
         viewModel.setKiitBetaAccess(true)
