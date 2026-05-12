@@ -2,6 +2,7 @@ package com.rohanc.navgate.navigation
 
 import com.rohanc.navgate.ar.ArAvailabilityState
 import com.rohanc.navgate.model.Coordinate
+import com.rohanc.navgate.model.ManeuverType
 import com.rohanc.navgate.model.RouteResponse
 import com.rohanc.navgate.model.RouteStep
 import kotlin.math.abs
@@ -161,6 +162,8 @@ class NavigationEngine {
                     currentStep != null -> currentStep.instruction
                     else -> "Choose a route to begin"
                 },
+            nextInstructionHint = currentRoute?.steps?.getOrNull(stepIndex + 1)?.instruction,
+            currentManeuverType = currentStep?.maneuverType ?: ManeuverType.Start,
             distanceToNextStep = distanceToStep,
             etaSeconds = if (isArrived) 0.0 else remainingEta(currentRoute, stepIndex, distanceToStep),
             isOffRoute = isOffRoute,

@@ -90,6 +90,7 @@ class NavGateViewModel(
         _uiState.update {
             it.copy(
                 selectedOrigin = place,
+                focusedPlace = null,
                 preview = null,
                 snapshot = it.snapshot.copy(origin = place.coordinate),
                 activeTab = AppTab.Go,
@@ -106,6 +107,7 @@ class NavGateViewModel(
             it.copy(
                 selectedOrigin = inferredOrigin ?: it.selectedOrigin,
                 selectedDestination = place,
+                focusedPlace = null,
                 preview = null,
                 snapshot =
                     it.snapshot.copy(
@@ -125,6 +127,7 @@ class NavGateViewModel(
         _uiState.update {
             it.copy(
                 snapshot = snapshot,
+                focusedPlace = null,
                 isPreviewVisible = false,
                 activeTab = AppTab.Go,
             )
@@ -138,6 +141,30 @@ class NavGateViewModel(
         _uiState.update {
             it.copy(snapshot = it.snapshot.copy(presentationMode = mode))
         }
+    }
+
+    fun stopNavigation() {
+        val snapshot = engine.stopNavigation()
+        _uiState.update {
+            it.copy(
+                snapshot = snapshot,
+                isPreviewVisible = false,
+                activeTab = AppTab.Go,
+            )
+        }
+    }
+
+    fun focusPlace(place: PlaceSearchResult) {
+        _uiState.update {
+            it.copy(
+                focusedPlace = place,
+                activeTab = AppTab.Explore,
+            )
+        }
+    }
+
+    fun dismissFocusedPlace() {
+        _uiState.update { it.copy(focusedPlace = null) }
     }
 
     fun updateProgress(lastFixAgeMillis: Long = 0, heading: Double? = null) {
@@ -326,6 +353,7 @@ class NavGateViewModel(
 data class NavGateUiState(
     val searchQuery: String = "",
     val places: List<PlaceSearchResult> = emptyList(),
+    val focusedPlace: PlaceSearchResult? = null,
     val selectedOrigin: PlaceSearchResult? = null,
     val selectedDestination: PlaceSearchResult? = null,
     val preview: RoutePreview? = null,

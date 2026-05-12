@@ -2,6 +2,7 @@ package com.rohanc.navgate.navigation
 
 import com.rohanc.navgate.ar.ArAvailabilityState
 import com.rohanc.navgate.model.Coordinate
+import com.rohanc.navgate.model.ManeuverType
 import com.rohanc.navgate.model.RouteResponse
 
 
@@ -27,6 +28,8 @@ data class NavigationSnapshot(
     val route: RouteResponse? = null,
     val currentStepIndex: Int = 0,
     val currentInstruction: String = "Select a route",
+    val nextInstructionHint: String? = null,
+    val currentManeuverType: ManeuverType = ManeuverType.Start,
     val distanceToNextStep: Double = 0.0,
     val etaSeconds: Double = 0.0,
     val isOffRoute: Boolean = false,

@@ -32,11 +32,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.DirectionsWalk
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Coffee
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DirectionsCar
+import androidx.compose.material.icons.rounded.DirectionsWalk
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Layers
@@ -46,10 +52,12 @@ import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.material.icons.rounded.NorthEast
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -215,7 +223,10 @@ fun NavGateApp() {
                 onDismissMenu = { showMenuSheet = false },
                 onSelectOrigin = viewModel::selectOrigin,
                 onSelectDestination = viewModel::selectDestination,
+                onFocusPlace = viewModel::focusPlace,
+                onDismissFocusedPlace = viewModel::dismissFocusedPlace,
                 onStartNavigation = viewModel::startNavigation,
+                onStopNavigation = viewModel::stopNavigation,
                 onDismissOnboarding = viewModel::dismissOnboarding,
                 onToggleSaved = viewModel::toggleSaved,
                 onTabSelected = viewModel::selectTab,
@@ -250,7 +261,10 @@ private fun NavGateHome(
     onDismissMenu: () -> Unit,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
+    onFocusPlace: (PlaceSearchResult) -> Unit,
+    onDismissFocusedPlace: () -> Unit,
     onStartNavigation: () -> Unit,
+    onStopNavigation: () -> Unit,
     onDismissOnboarding: () -> Unit,
     onToggleSaved: (PlaceSearchResult) -> Unit,
     onTabSelected: (AppTab) -> Unit,
@@ -329,123 +343,169 @@ private fun NavGateHome(
         }
 
         Box(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 18.dp)) {
-            Column(
-                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                AppTitleRow()
-                TopSearchShell(
-                    query = uiState.searchQuery,
-                    onSearchChanged = onSearchChanged,
-                    onOpenMenu = onOpenMenu,
+            val isNavigating = uiState.snapshot.isNavigating
+            val savedIds = uiState.savedPlaces.map { it.id }.toSet()
+            val showSearchResults = uiState.searchQuery.isNotBlank() && !isNavigating
+
+            if (isNavigating) {
+                ActiveNavigationBanner(
+                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                    instruction = uiState.snapshot.currentInstruction,
+                    nextHint = uiState.snapshot.nextInstructionHint,
+                    distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
+                    travelProfile = uiState.travelProfile,
                 )
-                PlannerStatusRow(
-                    origin = uiState.selectedOrigin?.title,
-                    destination = uiState.selectedDestination?.title,
-                )
-                QuickCategoryRow(cityMode = uiState.cityMode, onCategorySelected = onSearchChanged)
-                SearchResultsPanel(
-                    query = uiState.searchQuery,
-                    places = uiState.places,
-                    onSelectOrigin = onSelectOrigin,
-                    onSelectDestination = onSelectDestination,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+            } else {
+                Column(
+                    modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    ConfidenceBadge(confidence = uiState.snapshot.guidanceConfidence)
-                    if (!hasLocationPermission) {
-                        MiniPermissionPill(onRequestLocationPermission = onRequestLocationPermission)
+                    AppTitleRow()
+                    TopSearchShell(
+                        query = uiState.searchQuery,
+                        onSearchChanged = onSearchChanged,
+                        onOpenMenu = onOpenMenu,
+                    )
+                    PlannerStatusRow(
+                        origin = uiState.selectedOrigin?.title,
+                        destination = uiState.selectedDestination?.title,
+                    )
+                    QuickCategoryRow(cityMode = uiState.cityMode, onCategorySelected = onSearchChanged)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ConfidenceBadge(confidence = uiState.snapshot.guidanceConfidence)
+                        if (!hasLocationPermission) {
+                            MiniPermissionPill(onRequestLocationPermission = onRequestLocationPermission)
+                        }
                     }
                 }
             }
 
-            FloatingActionRail(
-                modifier = Modifier.align(Alignment.BottomEnd).offset(y = (-128).dp),
+            NavigationFloatingControls(
+                modifier = Modifier.align(Alignment.CenterEnd).offset(y = 88.dp),
+                isNavigating = isNavigating,
                 onCenterOnUser = onRequestLocationPermission,
             )
 
+            if (showSearchResults) {
+                SearchResultsPanel(
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 196.dp),
+                    query = uiState.searchQuery,
+                    places = uiState.places,
+                    onFocusPlace = onFocusPlace,
+                    onSelectOrigin = onSelectOrigin,
+                    onSelectDestination = onSelectDestination,
+                )
+            }
+
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (uiState.isLoadingRoute) {
-                    LoadingRouteCard()
-                } else if (uiState.preview != null && uiState.isPreviewVisible) {
-                    RoutePreviewSheet(
-                        preview = uiState.preview,
-                        travelProfile = uiState.travelProfile,
-                        confidence = uiState.snapshot.guidanceConfidence.reason,
-                        onStartNavigation = onStartNavigation,
-                        onTravelProfileChanged = onTravelProfileChanged,
-                        onOpenAr = onSwitchToAr,
-                        canUseAr = canUseArBeta,
-                    )
-                } else if (uiState.snapshot.isNavigating) {
-                    LiveGuidanceSheet(
-                        instruction = uiState.snapshot.currentInstruction,
-                        distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
-                        etaLabel = formatEta(uiState.snapshot.etaSeconds),
-                        travelProfile = uiState.travelProfile,
-                        isArrived = uiState.snapshot.isArrived,
-                        onTravelProfileChanged = onTravelProfileChanged,
-                        onOpenAr = onSwitchToAr,
-                        canUseAr = canUseArBeta,
-                    )
-                } else if (uiState.snapshot.isArrived) {
-                    ArrivalSheet(destination = uiState.selectedDestination?.title)
-                } else if (uiState.activeTab == AppTab.Go) {
-                    GoPlanningSheet(
-                        travelProfile = uiState.travelProfile,
-                        selectedOrigin = uiState.selectedOrigin?.title,
-                        selectedDestination = uiState.selectedDestination?.title,
-                        cityMode = uiState.cityMode,
-                        kiitBetaAccess = uiState.kiitBetaAccess,
-                        onTravelProfileChanged = onTravelProfileChanged,
-                    )
+                when {
+                    uiState.isLoadingRoute -> LoadingRouteCard()
+                    uiState.snapshot.isArrived -> ArrivalSheet(destination = uiState.selectedDestination?.title)
+                    uiState.snapshot.isNavigating -> {
+                        if (canUseArBeta) {
+                            ArTransitionStrip(
+                                distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
+                                onOpenAr = onSwitchToAr,
+                            )
+                        }
+                        NavigationTripBar(
+                            etaLabel = formatEta(uiState.snapshot.etaSeconds),
+                            distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
+                            travelProfile = uiState.travelProfile,
+                            onOpenAr = onSwitchToAr,
+                            onStopNavigation = onStopNavigation,
+                            canUseAr = canUseArBeta,
+                        )
+                    }
+                    uiState.preview != null && uiState.isPreviewVisible ->
+                        RoutePreviewSheet(
+                            preview = uiState.preview,
+                            travelProfile = uiState.travelProfile,
+                            confidence = uiState.snapshot.guidanceConfidence.reason,
+                            onStartNavigation = onStartNavigation,
+                            onTravelProfileChanged = onTravelProfileChanged,
+                            onOpenAr = onSwitchToAr,
+                            canUseAr = canUseArBeta,
+                        )
+                    uiState.focusedPlace != null ->
+                        PlaceDetailsSheet(
+                            place = uiState.focusedPlace,
+                            isSaved = savedIds.contains(uiState.focusedPlace.id),
+                            isOrigin = uiState.selectedOrigin?.id == uiState.focusedPlace.id,
+                            isDestination = uiState.selectedDestination?.id == uiState.focusedPlace.id,
+                            onDismiss = onDismissFocusedPlace,
+                            onToggleSaved = { onToggleSaved(uiState.focusedPlace) },
+                            onSelectOrigin = { onSelectOrigin(uiState.focusedPlace) },
+                            onSelectDestination = { onSelectDestination(uiState.focusedPlace) },
+                        )
+                    uiState.activeTab == AppTab.Go ->
+                        GoPlanningSheet(
+                            travelProfile = uiState.travelProfile,
+                            selectedOrigin = uiState.selectedOrigin?.title,
+                            selectedDestination = uiState.selectedDestination?.title,
+                            cityMode = uiState.cityMode,
+                            kiitBetaAccess = uiState.kiitBetaAccess,
+                            onTravelProfileChanged = onTravelProfileChanged,
+                        )
                 }
 
-                val showDiscoveryCards = uiState.searchQuery.isBlank()
-                when (uiState.activeTab) {
-                    AppTab.Explore, AppTab.Go ->
-                        if (showDiscoveryCards) {
-                            PlaceCarousel(
-                                places = uiState.places,
+                if (!showSearchResults && !uiState.snapshot.isNavigating && uiState.focusedPlace == null) {
+                    when (uiState.activeTab) {
+                        AppTab.Explore, AppTab.Go ->
+                            DiscoverySheet(
+                                title = if (uiState.activeTab == AppTab.Go) "Choose a destination" else "Explore nearby",
+                                caption = if (uiState.activeTab == AppTab.Go) {
+                                    "Pick a place to preview the route before you start."
+                                } else {
+                                    "Search-first navigation with places you can route to immediately."
+                                },
+                            ) {
+                                PlaceCarousel(
+                                    places = uiState.places,
+                                    selectedOriginId = uiState.selectedOrigin?.id,
+                                    selectedDestinationId = uiState.selectedDestination?.id,
+                                    savedPlaceIds = savedIds,
+                                    onFocusPlace = onFocusPlace,
+                                    onSelectOrigin = onSelectOrigin,
+                                    onSelectDestination = onSelectDestination,
+                                    onToggleSaved = onToggleSaved,
+                                )
+                            }
+
+                        AppTab.Saved ->
+                            PlacesShelfPanel(
+                                title = "Saved places",
+                                caption = "Pinned places stay ready for one-tap routing.",
+                                places = uiState.savedPlaces,
+                                savedPlaceIds = savedIds,
                                 selectedOriginId = uiState.selectedOrigin?.id,
                                 selectedDestinationId = uiState.selectedDestination?.id,
-                                savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
+                                onFocusPlace = onFocusPlace,
                                 onSelectOrigin = onSelectOrigin,
                                 onSelectDestination = onSelectDestination,
                                 onToggleSaved = onToggleSaved,
                             )
-                        }
 
-                    AppTab.Saved ->
-                        PlacesShelfPanel(
-                            title = "Saved places",
-                            caption = "Pinned places stay ready for one-tap routing.",
-                            places = uiState.savedPlaces,
-                            savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
-                            selectedOriginId = uiState.selectedOrigin?.id,
-                            selectedDestinationId = uiState.selectedDestination?.id,
-                            onSelectOrigin = onSelectOrigin,
-                            onSelectDestination = onSelectDestination,
-                            onToggleSaved = onToggleSaved,
-                        )
-
-                    AppTab.Recents ->
-                        RecentsPanel(
-                            places = uiState.recentPlaces,
-                            history = uiState.routeHistory,
-                            savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
-                            selectedOriginId = uiState.selectedOrigin?.id,
-                            selectedDestinationId = uiState.selectedDestination?.id,
-                            onSelectOrigin = onSelectOrigin,
-                            onSelectDestination = onSelectDestination,
-                            onToggleSaved = onToggleSaved,
-                        )
+                        AppTab.Recents ->
+                            RecentsPanel(
+                                places = uiState.recentPlaces,
+                                history = uiState.routeHistory,
+                                savedPlaceIds = savedIds,
+                                selectedOriginId = uiState.selectedOrigin?.id,
+                                selectedDestinationId = uiState.selectedDestination?.id,
+                                onFocusPlace = onFocusPlace,
+                                onSelectOrigin = onSelectOrigin,
+                                onSelectDestination = onSelectDestination,
+                                onToggleSaved = onToggleSaved,
+                            )
+                    }
                 }
 
                 HomeBottomBar(selectedTab = uiState.activeTab, onTabSelected = onTabSelected)
@@ -664,13 +724,15 @@ private fun QuickCategoryRow(cityMode: CityMode, onCategorySelected: (String) ->
 
 @Composable
 private fun SearchResultsPanel(
+    modifier: Modifier = Modifier,
     query: String,
     places: List<PlaceSearchResult>,
+    onFocusPlace: (PlaceSearchResult) -> Unit,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
 ) {
     if (query.isBlank()) return
-    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp), containerColor = Color(0xD5192134)) {
+    GlassCard(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(30.dp), containerColor = Color(0xE5192134)) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Search results", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
             if (places.isEmpty()) {
@@ -683,6 +745,7 @@ private fun SearchResultsPanel(
                 places.take(4).forEach { place ->
                     SearchResultRow(
                         place = place,
+                        onOpenDetails = { onFocusPlace(place) },
                         onSelectOrigin = { onSelectOrigin(place) },
                         onSelectDestination = { onSelectDestination(place) },
                     )
@@ -695,21 +758,33 @@ private fun SearchResultsPanel(
 @Composable
 private fun SearchResultRow(
     place: PlaceSearchResult,
+    onOpenDetails: () -> Unit,
     onSelectOrigin: () -> Unit,
     onSelectDestination: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(place.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-        Text(
-            place.subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = onSelectOrigin, shape = RoundedCornerShape(999.dp)) { Text("Set as from") }
-            Button(onClick = onSelectDestination, shape = RoundedCornerShape(999.dp)) { Text("Set as to") }
+    Surface(
+        onClick = onOpenDetails,
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0x7A25304A),
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(place.title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        place.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onSelectOrigin, shape = RoundedCornerShape(999.dp)) { Text("From") }
+                Button(onClick = onSelectDestination, shape = RoundedCornerShape(999.dp)) { Text("Directions") }
+            }
         }
     }
 }
@@ -734,8 +809,9 @@ private fun MiniPermissionPill(onRequestLocationPermission: () -> Unit) {
 }
 
 @Composable
-private fun FloatingActionRail(
+private fun NavigationFloatingControls(
     modifier: Modifier = Modifier,
+    isNavigating: Boolean,
     onCenterOnUser: () -> Unit,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.End) {
@@ -746,6 +822,17 @@ private fun FloatingActionRail(
         ) {
             IconButton(onClick = {}) {
                 Icon(Icons.Rounded.Layers, contentDescription = "Layers", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (isNavigating) {
+            Surface(
+                shape = CircleShape,
+                color = Color(0xCC222A3D),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x28FFFFFF)),
+            ) {
+                IconButton(onClick = {}) {
+                    Icon(Icons.AutoMirrored.Rounded.VolumeUp, contentDescription = "Audio", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         Surface(
@@ -766,6 +853,7 @@ private fun PlaceCarousel(
     selectedOriginId: String?,
     selectedDestinationId: String?,
     savedPlaceIds: Set<String>,
+    onFocusPlace: (PlaceSearchResult) -> Unit,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
     onToggleSaved: (PlaceSearchResult) -> Unit,
@@ -781,6 +869,7 @@ private fun PlaceCarousel(
                 isOrigin = selectedOriginId == place.id,
                 isDestination = selectedDestinationId == place.id,
                 isSaved = savedPlaceIds.contains(place.id),
+                onOpenDetails = { onFocusPlace(place) },
                 onSelectOrigin = { onSelectOrigin(place) },
                 onSelectDestination = { onSelectDestination(place) },
                 onToggleSaved = { onToggleSaved(place) },
@@ -795,61 +884,68 @@ private fun FeaturedPlaceCard(
     isOrigin: Boolean,
     isDestination: Boolean,
     isSaved: Boolean,
+    onOpenDetails: () -> Unit,
     onSelectOrigin: () -> Unit,
     onSelectDestination: () -> Unit,
     onToggleSaved: () -> Unit,
 ) {
     val icon = placeIcon(place.type)
-    GlassCard(
+    Surface(
+        onClick = onOpenDetails,
         modifier = Modifier.width(314.dp),
         shape = RoundedCornerShape(30.dp),
-        containerColor = Color(0xD9222A3D),
+        color = Color.Transparent,
     ) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(place.title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        text = "${place.subtitle} • ${place.type.name.lowercase().replaceFirstChar { it.uppercase() }}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                PlaceThumbnail(icon = icon, label = place.title)
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(
-                    onClick = onSelectDestination,
-                    shape = RoundedCornerShape(999.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Rounded.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (isDestination) "Destination set" else "Directions")
-                }
-                Surface(
-                    onClick = onToggleSaved,
-                    shape = CircleShape,
-                    color = if (isSaved) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x2EFFFFFF)),
-                ) {
-                    Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.BookmarkBorder,
-                            contentDescription = null,
-                            tint = if (isSaved) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        GlassCard(
+            shape = RoundedCornerShape(30.dp),
+            containerColor = Color(0xD9222A3D),
+        ) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(place.title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            text = "${place.subtitle} • ${place.type.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    PlaceThumbnail(icon = icon, label = place.title)
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = onSelectDestination,
+                        shape = RoundedCornerShape(999.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Icon(Icons.Rounded.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isDestination) "Destination set" else "Directions")
+                    }
+                    Surface(
+                        onClick = onToggleSaved,
+                        shape = CircleShape,
+                        color = if (isSaved) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x2EFFFFFF)),
+                    ) {
+                        Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.BookmarkBorder,
+                                contentDescription = null,
+                                tint = if (isSaved) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                TextButton(onClick = onSelectOrigin) {
+                    Text(if (isOrigin) "Start point locked" else "Use as start")
+                }
+                OriginDestinationState(place = place, isOrigin = isOrigin, isDestination = isDestination)
             }
-            TextButton(onClick = onSelectOrigin) {
-                Text(if (isOrigin) "Start point locked" else "Use as start")
-            }
-            OriginDestinationState(place = place, isOrigin = isOrigin, isDestination = isDestination)
         }
     }
 }
@@ -903,22 +999,23 @@ private fun RoutePreviewSheet(
     onOpenAr: () -> Unit,
     canUseAr: Boolean,
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE61A2236)) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(34.dp), containerColor = Color(0xEB1A2236)) {
         Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Route preview", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        "${preview.originTitle} to ${preview.destinationTitle}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Text("${preview.originTitle} to ${preview.destinationTitle}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                Surface(shape = CircleShape, color = Color(0x66252E42)) {
+                    Box(modifier = Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+                    }
+                }
             }
+            RouteTrackRow(from = preview.originTitle, to = preview.destinationTitle)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricPill("Distance", preview.distanceLabel)
-                MetricPill("ETA", preview.etaLabel)
+                TripMetricCard(label = "ETA", value = preview.etaLabel, modifier = Modifier.weight(1f))
+                TripMetricCard(label = "Distance", value = preview.distanceLabel, modifier = Modifier.weight(1f))
             }
             TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
             Text(preview.firstInstruction, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -949,32 +1046,164 @@ private fun RoutePreviewSheet(
 }
 
 @Composable
-private fun LiveGuidanceSheet(
+private fun ActiveNavigationBanner(
+    modifier: Modifier = Modifier,
     instruction: String,
+    nextHint: String?,
     distanceLabel: String,
-    etaLabel: String,
     travelProfile: com.rohanc.navgate.model.TravelProfile,
-    isArrived: Boolean,
-    onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
+) {
+    GlassCard(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(30.dp), containerColor = Color(0xF0146C53)) {
+        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.14f)) {
+                        Box(modifier = Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (travelProfile == com.rohanc.navgate.model.TravelProfile.Driving) Icons.Rounded.DirectionsCar else Icons.AutoMirrored.Rounded.DirectionsWalk,
+                                contentDescription = null,
+                                tint = Color.White,
+                            )
+                        }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+                        Text(distanceLabel, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(instruction, color = Color.White, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Surface(shape = CircleShape, color = Color.White) {
+                    Box(modifier = Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.Mic, contentDescription = null, tint = Color(0xFF146C53))
+                    }
+                }
+            }
+            if (nextHint != null) {
+                Surface(shape = RoundedCornerShape(999.dp), color = Color(0x26000000)) {
+                    Text(
+                        text = "Then $nextHint",
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaceDetailsSheet(
+    place: PlaceSearchResult,
+    isSaved: Boolean,
+    isOrigin: Boolean,
+    isDestination: Boolean,
+    onDismiss: () -> Unit,
+    onToggleSaved: () -> Unit,
+    onSelectOrigin: () -> Unit,
+    onSelectDestination: () -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(34.dp), containerColor = Color(0xEC171F33)) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(place.title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                    Text(place.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(place.city ?: "Unknown city", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
+                }
+                Surface(onClick = onDismiss, shape = CircleShape, color = Color(0x66242D42)) {
+                    Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onSelectDestination, modifier = Modifier.weight(1f), shape = RoundedCornerShape(999.dp)) {
+                    Icon(Icons.Rounded.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isDestination) "Destination set" else "Directions")
+                }
+                FilledTonalButton(onClick = onSelectOrigin, modifier = Modifier.weight(1f), shape = RoundedCornerShape(999.dp)) {
+                    Icon(Icons.Rounded.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isOrigin) "Start set" else "Use as start")
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = onToggleSaved, modifier = Modifier.weight(1f), shape = RoundedCornerShape(999.dp)) {
+                    Icon(Icons.Rounded.BookmarkBorder, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isSaved) "Saved" else "Save")
+                }
+                OutlinedButton(onClick = {}, modifier = Modifier.weight(1f), shape = RoundedCornerShape(999.dp)) {
+                    Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Share")
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                TripMetricCard(label = "Type", value = place.type.name.lowercase().replaceFirstChar { it.uppercase() }, modifier = Modifier.weight(1f))
+                TripMetricCard(label = "Area", value = place.category?.ifBlank { "General" } ?: "General", modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavigationTripBar(
+    etaLabel: String,
+    distanceLabel: String,
+    travelProfile: com.rohanc.navgate.model.TravelProfile,
     onOpenAr: () -> Unit,
+    onStopNavigation: () -> Unit,
     canUseAr: Boolean,
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE6192134)) {
-        Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Rounded.Navigation, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                Text(if (isArrived) "Arrival" else "Live guidance", style = MaterialTheme.typography.titleLarge)
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(30.dp), containerColor = Color(0xEF101829)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(etaLabel, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    "$distanceLabel remaining • ${travelProfile.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-            Text(instruction, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MetricPill("Next", distanceLabel)
-                MetricPill("ETA", etaLabel)
+            if (canUseAr) {
+                Surface(onClick = onOpenAr, shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
+                    Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.CameraAlt, contentDescription = "AR assist", tint = MaterialTheme.colorScheme.onPrimary)
+                    }
+                }
             }
-            TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
-            FilledTonalButton(onClick = onOpenAr, enabled = canUseAr, shape = RoundedCornerShape(999.dp), contentPadding = PaddingValues(vertical = 14.dp)) {
-                Icon(Icons.Rounded.CameraAlt, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (canUseAr) "Switch to AR assist" else "3D locked to KIIT beta")
+            Surface(onClick = onStopNavigation, shape = CircleShape, color = Color(0x7A25304A)) {
+                Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Close, contentDescription = "End navigation", tint = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArTransitionStrip(distanceLabel: String, onOpenAr: () -> Unit) {
+    Surface(
+        onClick = onOpenAr,
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xCC121D31),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x24FFFFFF)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Switch to 3D assist", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text("Best near the next turn in $distanceLabel", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -1119,27 +1348,25 @@ private fun PlacesShelfPanel(
     savedPlaceIds: Set<String>,
     selectedOriginId: String?,
     selectedDestinationId: String?,
+    onFocusPlace: (PlaceSearchResult) -> Unit,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
     onToggleSaved: (PlaceSearchResult) -> Unit,
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), containerColor = Color(0xD6192134)) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text(caption, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (places.isEmpty()) {
-                Text("Nothing here yet. Search a place or save a destination to build this list.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                PlaceCarousel(
-                    places = places,
-                    selectedOriginId = selectedOriginId,
-                    selectedDestinationId = selectedDestinationId,
-                    savedPlaceIds = savedPlaceIds,
-                    onSelectOrigin = onSelectOrigin,
-                    onSelectDestination = onSelectDestination,
-                    onToggleSaved = onToggleSaved,
-                )
-            }
+    DiscoverySheet(title = title, caption = caption) {
+        if (places.isEmpty()) {
+            Text("Nothing here yet. Search a place or save a destination to build this list.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            PlaceCarousel(
+                places = places,
+                selectedOriginId = selectedOriginId,
+                selectedDestinationId = selectedDestinationId,
+                savedPlaceIds = savedPlaceIds,
+                onFocusPlace = onFocusPlace,
+                onSelectOrigin = onSelectOrigin,
+                onSelectDestination = onSelectDestination,
+                onToggleSaved = onToggleSaved,
+            )
         }
     }
 }
@@ -1151,38 +1378,47 @@ private fun RecentsPanel(
     savedPlaceIds: Set<String>,
     selectedOriginId: String?,
     selectedDestinationId: String?,
+    onFocusPlace: (PlaceSearchResult) -> Unit,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
     onToggleSaved: (PlaceSearchResult) -> Unit,
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), containerColor = Color(0xD6192134)) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Recent activity", style = MaterialTheme.typography.titleLarge)
-            Text(
-                "Your latest searches and route launches stay ready here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (history.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(history, key = { "${it.destinationId}-${it.recordedAtEpochMillis}" }) { entry ->
-                        RouteHistoryCard(entry)
-                    }
+    DiscoverySheet(title = "Recent activity", caption = "Your latest searches and route launches stay ready here.") {
+        if (history.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(history, key = { "${it.destinationId}-${it.recordedAtEpochMillis}" }) { entry ->
+                    RouteHistoryCard(entry)
                 }
             }
-            if (places.isEmpty()) {
-                Text("Nothing here yet. Search or start a route to build your recent activity.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                PlaceCarousel(
-                    places = places,
-                    selectedOriginId = selectedOriginId,
-                    selectedDestinationId = selectedDestinationId,
-                    savedPlaceIds = savedPlaceIds,
-                    onSelectOrigin = onSelectOrigin,
-                    onSelectDestination = onSelectDestination,
-                    onToggleSaved = onToggleSaved,
-                )
-            }
+        }
+        if (places.isEmpty()) {
+            Text("Nothing here yet. Search or start a route to build your recent activity.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            PlaceCarousel(
+                places = places,
+                selectedOriginId = selectedOriginId,
+                selectedDestinationId = selectedDestinationId,
+                savedPlaceIds = savedPlaceIds,
+                onFocusPlace = onFocusPlace,
+                onSelectOrigin = onSelectOrigin,
+                onSelectDestination = onSelectDestination,
+                onToggleSaved = onToggleSaved,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DiscoverySheet(
+    title: String,
+    caption: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xD6192134)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(caption, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            content()
         }
     }
 }
@@ -1308,6 +1544,44 @@ private fun MetricPill(label: String, value: String) {
         ) {
             Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
             Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun TripMetricCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0x7A25304A),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x24FFFFFF)),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun RouteTrackRow(from: String, to: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)) {
+                Box(modifier = Modifier.size(10.dp))
+            }
+            Box(modifier = Modifier.width(2.dp).height(22.dp).background(Color.White.copy(alpha = 0.18f)))
+            Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f)) {
+                Box(modifier = Modifier.size(10.dp))
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
+            Text(from, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(to, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
