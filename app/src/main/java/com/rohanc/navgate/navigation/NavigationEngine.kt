@@ -35,10 +35,10 @@ class NavigationEngine {
         arAvailability = state
     }
 
-    fun startNavigation(): NavigationSnapshot =
-        buildSnapshot(userLocation = origin, userHeading = null, lastFixAgeMillis = 0).also {
-            isNavigating = route != null
-        }
+    fun startNavigation(): NavigationSnapshot {
+        isNavigating = route != null
+        return buildSnapshot(userLocation = origin, userHeading = null, lastFixAgeMillis = 0)
+    }
 
     fun stopNavigation(): NavigationSnapshot {
         isNavigating = false
@@ -47,6 +47,24 @@ class NavigationEngine {
 
     fun markRerouting(value: Boolean) {
         isRerouting = value
+    }
+
+
+    fun replaceActiveRoute(
+        origin: Coordinate,
+        destination: Coordinate,
+        route: RouteResponse,
+        userLocation: Coordinate,
+        userHeading: Double?,
+        lastFixAgeMillis: Long,
+    ): NavigationSnapshot {
+        this.origin = origin
+        this.destination = destination
+        this.route = route
+        this.stepIndex = 0
+        this.isNavigating = true
+        this.isRerouting = false
+        return buildSnapshot(userLocation, userHeading, lastFixAgeMillis)
     }
 
     fun updateUserProgress(
@@ -74,11 +92,11 @@ class NavigationEngine {
         return nearestDistance > OFF_ROUTE_DISTANCE_METERS
     }
 
-    fun headingDelta(userHeading: Double?): Double? {
+    fun headingDelta(userHeading: Double?, userLocation: Coordinate? = null): Double? {
         val step = route?.steps?.getOrNull(stepIndex) ?: return null
-        val currentOrigin = origin ?: return null
+        val currentPosition = userLocation ?: this.origin ?: return null
         val currentHeading = userHeading ?: return null
-        val targetBearing = currentOrigin.bearingTo(step.target)
+        val targetBearing = currentPosition.bearingTo(step.target)
         val raw = targetBearing - currentHeading
         return when {
             raw > 180 -> raw - 360

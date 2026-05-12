@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rohanc.navgate.data.BackendNavigationRepository
 import com.rohanc.navgate.data.NavigationRepository
+import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.RouteRequest
 import com.rohanc.navgate.navigation.NavigationEngine
@@ -57,7 +58,7 @@ class NavGateViewModel(
         val snapshot = engine.startNavigation()
         _uiState.update {
             it.copy(
-                snapshot = snapshot.copy(isNavigating = true),
+                snapshot = snapshot,
                 isPreviewVisible = false,
             )
         }
@@ -78,9 +79,36 @@ class NavGateViewModel(
         _uiState.update { it.copy(snapshot = snapshot) }
     }
 
-    fun useDemoUserLocation(place: PlaceSearchResult) {
+    fun onLocationSample(location: Coordinate, heading: Double?, lastFixAgeMillis: Long) {
+        val state = _uiState.value
+        val liveSnapshot = engine.updateUserProgress(location, heading, lastFixAgeMillis)
+        _uiState.update { it.copy(snapshot = liveSnapshot) }
+
+        val destination = state.selectedDestination?.coordinate ?: return
+        if (!liveSnapshot.isNavigating) return
+        if (!engine.shouldReroute(location)) return
+
+        engine.markRerouting(true)
+        _uiState.update { it.copy(snapshot = it.snapshot.copy(isRerouting = true)) }
+        viewModelScope.launch {
+            val route = repository.fetchRoute(RouteRequest(origin = location, destination = destination))
+            val rerouted = engine.replaceActiveRoute(location, destination, route, location, heading, lastFixAgeMillis)
+            _uiState.update {
+                it.copy(
+                    snapshot = rerouted,
+                    preview = it.preview?.copy(
+                        distanceLabel = route.distanceMeters.asDistanceLabel(),
+                        etaLabel = route.durationSeconds.asEtaLabel(),
+                        firstInstruction = route.steps.firstOrNull()?.instruction ?: "Route updated",
+                    ),
+                )
+            }
+        }
+    }
+
+    fun setCurrentLocationAsOrigin(location: Coordinate) {
         _uiState.update {
-            it.copy(snapshot = it.snapshot.copy(userLocation = place.coordinate))
+            it.copy(snapshot = it.snapshot.copy(userLocation = location))
         }
     }
 
@@ -144,14 +172,14 @@ data class RoutePreview(
     }
 }
 
-private fun Double.asDistanceLabel(): String =
+internal fun Double.asDistanceLabel(): String =
     if (this >= 1000) {
         "%.1f km".format(this / 1000.0)
     } else {
         "${kotlin.math.round(this).toInt()} m"
     }
 
-private fun Double.asEtaLabel(): String {
+internal fun Double.asEtaLabel(): String {
     val minutes = kotlin.math.ceil(this / 60.0).toInt().coerceAtLeast(1)
     return if (minutes < 60) "$minutes min" else "${minutes / 60} hr ${minutes % 60} min"
 }

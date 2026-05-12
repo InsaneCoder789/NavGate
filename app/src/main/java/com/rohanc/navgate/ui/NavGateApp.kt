@@ -67,6 +67,8 @@ import com.rohanc.navgate.ui.ar.CameraPreview
 import com.rohanc.navgate.ui.ar.alignmentStatus
 import com.rohanc.navgate.ui.ar.rememberHeadingState
 import com.rohanc.navgate.ui.components.ConfidenceBadge
+import com.rohanc.navgate.ui.location.BindLocationTracking
+import com.rohanc.navgate.ui.location.hasLocationPermission
 import com.rohanc.navgate.ui.map.MapRouteGeoJson
 import com.rohanc.navgate.ui.state.NavGateViewModel
 import com.rohanc.navgate.ui.state.RoutePreview
@@ -92,6 +94,10 @@ fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     var arState by remember { mutableStateOf<ArAvailabilityState>(ArAvailabilityState.Checking) }
+    var hasLocationPermissionState by remember {
+        mutableStateOf(hasLocationPermission(context))
+    }
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
@@ -100,6 +106,9 @@ fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasCameraPermission = granted
+    }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        hasLocationPermissionState = grants.values.any { it }
     }
 
     LaunchedEffect(activity) {
@@ -116,15 +125,20 @@ fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
         viewModel.updateProgress()
     }
 
+    BindLocationTracking(enabled = hasLocationPermissionState) { coordinate, heading, fixAgeMillis ->
+        viewModel.onLocationSample(coordinate, heading, fixAgeMillis)
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
         NavGateHome(
             uiState = uiState,
             arState = arState,
             hasCameraPermission = hasCameraPermission,
+            hasLocationPermission = hasLocationPermissionState,
             onSearchChanged = viewModel::updateSearch,
             onSelectOrigin = {
                 viewModel.selectOrigin(it)
-                viewModel.useDemoUserLocation(it)
+                viewModel.setCurrentLocationAsOrigin(it.coordinate)
             },
             onSelectDestination = viewModel::selectDestination,
             onStartNavigation = viewModel::startNavigation,
@@ -136,6 +150,9 @@ fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
                 }
             },
             onSwitchToMap = { viewModel.switchMode(PresentationMode.MAP) },
+            onRequestLocationPermission = {
+                locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            },
         )
     }
 }
@@ -145,15 +162,17 @@ private fun NavGateHome(
     uiState: com.rohanc.navgate.ui.state.NavGateUiState,
     arState: ArAvailabilityState,
     hasCameraPermission: Boolean,
+    hasLocationPermission: Boolean,
     onSearchChanged: (String) -> Unit,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
     onStartNavigation: () -> Unit,
     onSwitchToAr: () -> Unit,
     onSwitchToMap: () -> Unit,
+    onRequestLocationPermission: () -> Unit,
 ) {
     if (uiState.snapshot.presentationMode == PresentationMode.AR_ASSIST && hasCameraPermission && arState == ArAvailabilityState.Supported) {
-        ArAssistScreen(uiState = uiState, onSwitchToMap = onSwitchToMap)
+        ArAssistScreen(uiState = uiState, hasLocationPermission = hasLocationPermission, onSwitchToMap = onSwitchToMap)
         return
     }
 
@@ -217,6 +236,8 @@ private fun NavGateHome(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HeaderCard(
+                    hasLocationPermission = hasLocationPermission,
+                    onRequestLocationPermission = onRequestLocationPermission,
                     query = uiState.searchQuery,
                     onSearchChanged = onSearchChanged,
                     onSwitchToMap = onSwitchToMap,
@@ -224,7 +245,13 @@ private fun NavGateHome(
                 )
                 ConfidenceBadge(uiState.snapshot.guidanceConfidence)
                 if (uiState.snapshot.presentationMode == PresentationMode.AR_ASSIST) {
-                    ArAssistBanner(arState = arState, hasCameraPermission = hasCameraPermission, onSwitchToMap = onSwitchToMap)
+                    ArAssistBanner(
+                        arState = arState,
+                        hasCameraPermission = hasCameraPermission,
+                        hasLocationPermission = hasLocationPermission,
+                        onSwitchToMap = onSwitchToMap,
+                        onRequestLocationPermission = onRequestLocationPermission,
+                    )
                 }
             }
 
@@ -261,9 +288,11 @@ private fun NavGateHome(
 
 @Composable
 private fun HeaderCard(
+    hasLocationPermission: Boolean,
     query: String,
     onSearchChanged: (String) -> Unit,
     onSwitchToMap: () -> Unit,
+    onRequestLocationPermission: () -> Unit,
     isArMode: Boolean,
 ) {
     Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
@@ -279,6 +308,13 @@ private fun HeaderCard(
                         Spacer(Modifier.size(8.dp))
                         Text("Return to map")
                     }
+                }
+            }
+            if (!hasLocationPermission) {
+                FilledTonalButton(onClick = onRequestLocationPermission) {
+                    Icon(Icons.Rounded.MyLocation, contentDescription = null)
+                    Spacer(Modifier.size(8.dp))
+                    Text("Enable live GPS")
                 }
             }
             OutlinedTextField(
@@ -412,18 +448,25 @@ private fun LiveHudCard(
 private fun ArAssistBanner(
     arState: ArAvailabilityState,
     hasCameraPermission: Boolean,
+    hasLocationPermission: Boolean,
     onSwitchToMap: () -> Unit,
+    onRequestLocationPermission: () -> Unit,
 ) {
     Card(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("AR assist preview", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text(
                 when {
+                    !hasLocationPermission -> "Enable location first so live route progress stays accurate."
+                    !hasLocationPermission -> "Enable location first so live route progress stays accurate."
                     !hasCameraPermission -> "Grant camera access to enter the camera overlay."
                     arState == ArAvailabilityState.Supported -> "AR mode uses the shared route and will prioritize map truth if heading confidence drops."
                     else -> "AR is not fully available on this device, so map mode remains the authority."
                 },
             )
+            if (!hasLocationPermission) {
+                FilledTonalButton(onClick = onRequestLocationPermission) { Text("Enable location") }
+            }
             OutlinedButton(onClick = onSwitchToMap) { Text("Keep navigating on map") }
         }
     }
@@ -468,6 +511,7 @@ private fun formatEta(seconds: Double): String {
 @Composable
 private fun ArAssistScreen(
     uiState: com.rohanc.navgate.ui.state.NavGateUiState,
+    hasLocationPermission: Boolean,
     onSwitchToMap: () -> Unit,
 ) {
     val headingState = rememberHeadingState()
@@ -523,7 +567,7 @@ private fun ArAssistScreen(
                     ConfidenceBadge(uiState.snapshot.guidanceConfidence)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         MetricPill("ETA", formatEta(uiState.snapshot.etaSeconds))
-                        MetricPill("Mode", "AR Assist")
+                        MetricPill("Mode", if (hasLocationPermission) "AR Assist" else "Map fallback")
                     }
                     Text(
                         "Map truth stays active underneath this camera view. If alignment confidence drops, return to the map and continue safely.",
