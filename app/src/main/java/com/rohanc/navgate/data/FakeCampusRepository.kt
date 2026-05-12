@@ -12,20 +12,24 @@ import kotlinx.coroutines.delay
 class FakeCampusRepository : NavigationRepository {
     private val places =
         listOf(
-            PlaceSearchResult("gate-1", "North Gate", "Main arrival gate", 20.349884, 85.807529, PlaceType.Gate),
-            PlaceSearchResult("lib-1", "Central Library", "Quiet study hub", 20.350080, 85.808021, PlaceType.Academic),
-            PlaceSearchResult("sport-1", "Sports Complex", "Indoor courts and arena", 20.350412, 85.808665, PlaceType.Sports),
-            PlaceSearchResult("hostel-1", "Maple Residence", "Student housing block", 20.349210, 85.808990, PlaceType.Residential),
-            PlaceSearchResult("cafe-1", "Terrace Cafe", "Coffee and quick meals", 20.349560, 85.808330, PlaceType.Food),
-            PlaceSearchResult("bus-1", "Transit Plaza", "Shuttle and bus pickup zone", 20.350905, 85.807775, PlaceType.Transit),
+            PlaceSearchResult("gate-1", "North Gate", "Main arrival gate", 20.349884, 85.807529, PlaceType.Gate, city = "Bhubaneswar", campusLabel = "KIIT Campus 1", category = "Gate"),
+            PlaceSearchResult("lib-1", "Central Library", "Quiet study hub", 20.350080, 85.808021, PlaceType.Academic, city = "Bhubaneswar", campusLabel = "KIIT Campus 1", category = "Academic"),
+            PlaceSearchResult("sport-1", "Sports Complex", "Indoor courts and arena", 20.350412, 85.808665, PlaceType.Sports, city = "Bhubaneswar", campusLabel = "KIIT Campus 1", category = "Sports"),
+            PlaceSearchResult("hostel-1", "Maple Residence", "Student housing block", 20.349210, 85.808990, PlaceType.Residential, city = "Bhubaneswar", campusLabel = "KIIT Campus 1", category = "Residential"),
+            PlaceSearchResult("cafe-1", "Terrace Cafe", "Coffee and quick meals", 20.349560, 85.808330, PlaceType.Food, city = "Bhubaneswar", campusLabel = "KIIT Campus 1", category = "Food"),
+            PlaceSearchResult("bus-1", "Transit Plaza", "Shuttle and bus pickup zone", 20.350905, 85.807775, PlaceType.Transit, city = "Bhubaneswar", campusLabel = "KIIT Campus 1", category = "Transit"),
+            PlaceSearchResult("mum-1", "Bandra Reclamation", "Sea-link side connector", 19.046901, 72.819145, PlaceType.Landmark, city = "Mumbai", category = "Landmark"),
+            PlaceSearchResult("mum-2", "BKC Connector", "Business district navigation test", 19.066731, 72.869102, PlaceType.Commercial, city = "Mumbai", category = "Commercial"),
+            PlaceSearchResult("mum-3", "Juhu Signal", "Coffee and urban route test", 19.107512, 72.826314, PlaceType.Food, city = "Mumbai", category = "Cafe"),
         )
 
-    override suspend fun searchPlaces(query: String): List<PlaceSearchResult> {
+    override suspend fun searchPlaces(query: String, cityHint: String?): List<PlaceSearchResult> {
         delay(100)
-        if (query.isBlank()) return places
+        val cityFiltered = cityHint?.takeIf { it.isNotBlank() }?.let { hint -> places.filter { it.city.equals(hint, ignoreCase = true) } } ?: places
+        if (query.isBlank()) return cityFiltered
         val token = query.trim().lowercase()
-        return places.filter {
-            it.title.lowercase().contains(token) || it.subtitle.lowercase().contains(token)
+        return cityFiltered.filter {
+            it.title.lowercase().contains(token) || it.subtitle.lowercase().contains(token) || (it.category?.lowercase()?.contains(token) == true)
         }
     }
 

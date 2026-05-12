@@ -129,4 +129,28 @@ class NavGateViewModelTest {
 
         assertTrue(viewModel.uiState.value.routeHistory.any { it.destinationId == places[1].id })
     }
+
+    @Test
+    fun `switching to mumbai updates place context`() = runTest {
+        val repository = FakeCampusRepository()
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        advanceUntilIdle()
+
+        viewModel.setCityMode(CityMode.Mumbai)
+        advanceUntilIdle()
+
+        assertEquals(CityMode.Mumbai, viewModel.uiState.value.cityMode)
+        assertTrue(viewModel.uiState.value.places.all { it.city == "Mumbai" })
+    }
+
+    @Test
+    fun `kiit beta access can be toggled`() = runTest {
+        val repository = FakeCampusRepository()
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
+        advanceUntilIdle()
+
+        viewModel.setKiitBetaAccess(true)
+
+        assertTrue(viewModel.uiState.value.kiitBetaAccess)
+    }
 }

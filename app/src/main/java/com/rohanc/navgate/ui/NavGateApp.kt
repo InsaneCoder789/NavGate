@@ -58,11 +58,14 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -105,6 +108,7 @@ import com.rohanc.navgate.ui.location.BindLocationTracking
 import com.rohanc.navgate.ui.location.hasLocationPermission
 import com.rohanc.navgate.ui.map.MapRouteGeoJson
 import com.rohanc.navgate.ui.state.AppTab
+import com.rohanc.navgate.ui.state.CityMode
 import com.rohanc.navgate.ui.state.NavGateUiState
 import com.rohanc.navgate.ui.state.NavGateViewModel
 import com.rohanc.navgate.ui.state.RoutePreview
@@ -154,6 +158,7 @@ fun NavGateApp() {
 
     var arState by remember { mutableStateOf<ArAvailabilityState>(ArAvailabilityState.Checking) }
     var hasLocationPermissionState by remember { mutableStateOf(hasLocationPermission(context)) }
+    var showMenuSheet by remember { mutableStateOf(false) }
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
@@ -202,7 +207,10 @@ fun NavGateApp() {
                 arState = arState,
                 hasCameraPermission = hasCameraPermission,
                 hasLocationPermission = hasLocationPermissionState,
+                showMenuSheet = showMenuSheet,
                 onSearchChanged = viewModel::updateSearch,
+                onOpenMenu = { showMenuSheet = true },
+                onDismissMenu = { showMenuSheet = false },
                 onSelectOrigin = {
                     viewModel.selectOrigin(it)
                     viewModel.setCurrentLocationAsOrigin(it.coordinate)
@@ -212,6 +220,8 @@ fun NavGateApp() {
                 onToggleSaved = viewModel::toggleSaved,
                 onTabSelected = viewModel::selectTab,
                 onTravelProfileChanged = viewModel::setTravelProfile,
+                onCityModeChanged = viewModel::setCityMode,
+                onKiitBetaAccessChanged = viewModel::setKiitBetaAccess,
                 onSwitchToAr = {
                     if (!hasCameraPermission) {
                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -234,17 +244,23 @@ private fun NavGateHome(
     arState: ArAvailabilityState,
     hasCameraPermission: Boolean,
     hasLocationPermission: Boolean,
+    showMenuSheet: Boolean,
     onSearchChanged: (String) -> Unit,
+    onOpenMenu: () -> Unit,
+    onDismissMenu: () -> Unit,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
     onStartNavigation: () -> Unit,
     onToggleSaved: (PlaceSearchResult) -> Unit,
     onTabSelected: (AppTab) -> Unit,
     onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
+    onCityModeChanged: (CityMode) -> Unit,
+    onKiitBetaAccessChanged: (Boolean) -> Unit,
     onSwitchToAr: () -> Unit,
     onSwitchToMap: () -> Unit,
     onRequestLocationPermission: () -> Unit,
 ) {
+    val canUseArBeta = uiState.cityMode == CityMode.KiitBeta && uiState.kiitBetaAccess
     if (uiState.snapshot.presentationMode == PresentationMode.AR_ASSIST && hasCameraPermission && arState == ArAvailabilityState.Supported) {
         ArAssistScreen(uiState = uiState, hasLocationPermission = hasLocationPermission, onSwitchToMap = onSwitchToMap)
         return
@@ -296,6 +312,16 @@ private fun NavGateHome(
 
         MapAtmosphere()
 
+        if (showMenuSheet) {
+            NavGateMenuSheet(
+                cityMode = uiState.cityMode,
+                kiitBetaAccess = uiState.kiitBetaAccess,
+                onDismiss = onDismissMenu,
+                onCityModeChanged = onCityModeChanged,
+                onKiitBetaAccessChanged = onKiitBetaAccessChanged,
+            )
+        }
+
         Box(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 18.dp)) {
             Column(
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
@@ -305,8 +331,9 @@ private fun NavGateHome(
                 TopSearchShell(
                     query = uiState.searchQuery,
                     onSearchChanged = onSearchChanged,
+                    onOpenMenu = onOpenMenu,
                 )
-                QuickCategoryRow(onCategorySelected = onSearchChanged)
+                QuickCategoryRow(cityMode = uiState.cityMode, onCategorySelected = onSearchChanged)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -338,6 +365,7 @@ private fun NavGateHome(
                         onStartNavigation = onStartNavigation,
                         onTravelProfileChanged = onTravelProfileChanged,
                         onOpenAr = onSwitchToAr,
+                        canUseAr = canUseArBeta,
                     )
                 } else if (uiState.snapshot.isNavigating) {
                     LiveGuidanceSheet(
@@ -348,6 +376,7 @@ private fun NavGateHome(
                         isArrived = uiState.snapshot.isArrived,
                         onTravelProfileChanged = onTravelProfileChanged,
                         onOpenAr = onSwitchToAr,
+                        canUseAr = canUseArBeta,
                     )
                 } else if (uiState.snapshot.isArrived) {
                     ArrivalSheet(destination = uiState.selectedDestination?.title)
@@ -356,6 +385,8 @@ private fun NavGateHome(
                         travelProfile = uiState.travelProfile,
                         selectedOrigin = uiState.selectedOrigin?.title,
                         selectedDestination = uiState.selectedDestination?.title,
+                        cityMode = uiState.cityMode,
+                        kiitBetaAccess = uiState.kiitBetaAccess,
                         onTravelProfileChanged = onTravelProfileChanged,
                     )
                 }
@@ -429,6 +460,7 @@ private fun AppTitleRow() {
 private fun TopSearchShell(
     query: String,
     onSearchChanged: (String) -> Unit,
+    onOpenMenu: () -> Unit,
 ) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -441,7 +473,7 @@ private fun TopSearchShell(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            GlassIconButton(icon = Icons.Rounded.Menu, contentDescription = "Menu")
+            GlassIconButton(icon = Icons.Rounded.Menu, contentDescription = "Menu", onClick = onOpenMenu)
             SearchPill(
                 modifier = Modifier.weight(1f),
                 query = query,
@@ -517,8 +549,22 @@ private fun ProfileOrb() {
 }
 
 @Composable
-private fun QuickCategoryRow(onCategorySelected: (String) -> Unit) {
+private fun QuickCategoryRow(cityMode: CityMode, onCategorySelected: (String) -> Unit) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
+        item {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = Color(0xA51B2841),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x24FFFFFF)),
+            ) {
+                Text(
+                    text = if (cityMode == CityMode.KiitBeta) "KIIT beta" else "Mumbai live",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+        }
         items(QuickCategories) { category ->
             Surface(
                 onClick = { onCategorySelected(category.query) },
@@ -726,6 +772,7 @@ private fun RoutePreviewSheet(
     onStartNavigation: () -> Unit,
     onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
     onOpenAr: () -> Unit,
+    canUseAr: Boolean,
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE61A2236)) {
         Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -758,13 +805,14 @@ private fun RoutePreviewSheet(
                 }
                 FilledTonalButton(
                     onClick = onOpenAr,
+                    enabled = canUseAr,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(999.dp),
                     contentPadding = PaddingValues(vertical = 14.dp),
                 ) {
                     Icon(Icons.Rounded.CameraAlt, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("AR assist")
+                    Text(if (canUseAr) "AR assist" else "KIIT beta only")
                 }
             }
         }
@@ -780,6 +828,7 @@ private fun LiveGuidanceSheet(
     isArrived: Boolean,
     onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
     onOpenAr: () -> Unit,
+    canUseAr: Boolean,
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE6192134)) {
         Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -793,10 +842,10 @@ private fun LiveGuidanceSheet(
                 MetricPill("ETA", etaLabel)
             }
             TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
-            FilledTonalButton(onClick = onOpenAr, shape = RoundedCornerShape(999.dp), contentPadding = PaddingValues(vertical = 14.dp)) {
+            FilledTonalButton(onClick = onOpenAr, enabled = canUseAr, shape = RoundedCornerShape(999.dp), contentPadding = PaddingValues(vertical = 14.dp)) {
                 Icon(Icons.Rounded.CameraAlt, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Switch to AR assist")
+                Text(if (canUseAr) "Switch to AR assist" else "3D locked to KIIT beta")
             }
         }
     }
@@ -839,6 +888,8 @@ private fun GoPlanningSheet(
     travelProfile: com.rohanc.navgate.model.TravelProfile,
     selectedOrigin: String?,
     selectedDestination: String?,
+    cityMode: CityMode,
+    kiitBetaAccess: Boolean,
     onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), containerColor = Color(0xD6192134)) {
@@ -849,11 +900,84 @@ private fun GoPlanningSheet(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+                if (cityMode == CityMode.KiitBeta && kiitBetaAccess) {
+                    "KIIT students can trial the 3D AR guidance in this mode and report bugs during the pilot."
+                } else {
+                    "3D AR is reserved for the KIIT beta right now. Mumbai stays available for 2D route testing."
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
             TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MetricPill("Origin", selectedOrigin ?: "Live GPS")
                 MetricPill("Destination", selectedDestination ?: "Not set")
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NavGateMenuSheet(
+    cityMode: CityMode,
+    kiitBetaAccess: Boolean,
+    onDismiss: () -> Unit,
+    onCityModeChanged: (CityMode) -> Unit,
+    onKiitBetaAccessChanged: (Boolean) -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF10192C)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("NavGate", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                "Use Mumbai as the daily live map mode. Enable KIIT beta access to let students trial 3D routing first.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text("City mode", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CityMode.entries.forEach { mode ->
+                    Surface(
+                        onClick = { onCityModeChanged(mode) },
+                        shape = RoundedCornerShape(999.dp),
+                        color = if (cityMode == mode) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) else Color(0x7A25304A),
+                    ) {
+                        Text(
+                            text = mode.label,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (cityMode == mode) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), containerColor = Color(0xCC171F33)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("KIIT student 3D beta", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "Unlock AR-first navigation only for the KIIT pilot so students can test and report issues.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = kiitBetaAccess,
+                        onCheckedChange = onKiitBetaAccessChanged,
+                    )
+                }
+            }
+            Text(
+                "Supabase and production backend deployment still need your project credentials. I can wire the code paths, but I can’t truthfully activate your hosted stack without those secrets.",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
@@ -1037,9 +1161,9 @@ private fun GlassCard(
 }
 
 @Composable
-private fun GlassIconButton(icon: ImageVector, contentDescription: String) {
+private fun GlassIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     Surface(shape = CircleShape, color = Color(0x66242D42)) {
-        IconButton(onClick = {}) {
+        IconButton(onClick = onClick) {
             Icon(icon, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.primary)
         }
     }

@@ -36,7 +36,7 @@ class BackendNavigationRepositoryTest {
         )
         val repository = BackendNavigationRepository(baseUrl = server.url("/").toString().removeSuffix("/"))
 
-        val places = repository.searchPlaces("library")
+        val places = repository.searchPlaces("library", "Bhubaneswar")
 
         assertEquals(1, places.size)
         assertEquals("Central Library", places.first().title)

@@ -32,6 +32,14 @@ enum class AppTab {
     Recents,
 }
 
+enum class CityMode(
+    val label: String,
+    val backendCity: String?,
+) {
+    Mumbai("Mumbai", "Mumbai"),
+    KiitBeta("KIIT Beta", "Bhubaneswar"),
+}
+
 class NavGateViewModel(
     private val repository: NavigationRepository = BackendNavigationRepository(),
     private val engine: NavigationEngine = NavigationEngine(),
@@ -48,6 +56,23 @@ class NavGateViewModel(
     fun updateSearch(query: String) {
         _uiState.update { it.copy(searchQuery = query, activeTab = AppTab.Explore) }
         refreshPlaces(query)
+    }
+
+    fun setCityMode(mode: CityMode) {
+        _uiState.update {
+            it.copy(
+                cityMode = mode,
+                selectedOrigin = if (mode == CityMode.Mumbai && it.selectedOrigin?.campusLabel != null) null else it.selectedOrigin,
+                selectedDestination = if (mode == CityMode.Mumbai && it.selectedDestination?.campusLabel != null) null else it.selectedDestination,
+                preview = null,
+                isPreviewVisible = false,
+            )
+        }
+        refreshPlaces(_uiState.value.searchQuery)
+    }
+
+    fun setKiitBetaAccess(enabled: Boolean) {
+        _uiState.update { it.copy(kiitBetaAccess = enabled) }
     }
 
     fun selectOrigin(place: PlaceSearchResult) {
@@ -116,7 +141,7 @@ class NavGateViewModel(
         _uiState.update { current ->
             current.copy(
                 snapshot = liveSnapshot,
-                selectedOrigin = if (current.selectedOrigin?.id == LIVE_LOCATION_ID) liveLocationPlace(location) else current.selectedOrigin,
+                selectedOrigin = if (current.selectedOrigin == null || current.selectedOrigin.id == LIVE_LOCATION_ID) liveLocationPlace(location) else current.selectedOrigin,
             )
         }
         if (!state.snapshot.isArrived && liveSnapshot.isArrived) {
@@ -193,7 +218,7 @@ class NavGateViewModel(
 
     private fun refreshPlaces(query: String = _uiState.value.searchQuery) {
         viewModelScope.launch {
-            val places = repository.searchPlaces(query)
+            val places = repository.searchPlaces(query, _uiState.value.cityMode.backendCity)
             _uiState.update { it.copy(places = places) }
         }
     }
@@ -237,7 +262,7 @@ class NavGateViewModel(
             destination = destination,
             profile = _uiState.value.travelProfile,
             destinationPlaceId = destinationPlace?.id,
-            cityHint = destinationPlace?.city,
+            cityHint = destinationPlace?.city ?: _uiState.value.cityMode.backendCity,
         )
 
     companion object {
@@ -282,6 +307,8 @@ data class NavGateUiState(
     val savedPlaces: List<PlaceSearchResult> = emptyList(),
     val recentPlaces: List<PlaceSearchResult> = emptyList(),
     val routeHistory: List<RouteHistoryEntry> = emptyList(),
+    val cityMode: CityMode = CityMode.Mumbai,
+    val kiitBetaAccess: Boolean = false,
 )
 
 data class RoutePreview(

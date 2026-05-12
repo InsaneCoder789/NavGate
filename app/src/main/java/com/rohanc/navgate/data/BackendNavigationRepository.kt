@@ -24,18 +24,23 @@ class BackendNavigationRepository(
     private val client: OkHttpClient = defaultHttpClient(),
     private val fallback: NavigationRepository = FakeCampusRepository(),
 ) : NavigationRepository {
-    override suspend fun searchPlaces(query: String): List<PlaceSearchResult> =
+    override suspend fun searchPlaces(query: String, cityHint: String?): List<PlaceSearchResult> =
         runCatching {
             withContext(Dispatchers.IO) {
                 val encoded = URLEncoder.encode(query, Charsets.UTF_8.name())
-                val request = Request.Builder().url("$baseUrl/places?query=$encoded&city=Bhubaneswar").build()
+                val cityQuery =
+                    cityHint
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { "&city=${URLEncoder.encode(it, Charsets.UTF_8.name())}" }
+                        .orEmpty()
+                val request = Request.Builder().url("$baseUrl/places?query=$encoded$cityQuery").build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) error("search failed with ${response.code}")
                     parsePlaces(JSONArray(response.body?.string().orEmpty()))
                 }
             }
         }.getOrElse {
-            fallback.searchPlaces(query)
+            fallback.searchPlaces(query, cityHint)
         }
 
     override suspend fun fetchRoute(request: RouteRequest): RouteResponse =

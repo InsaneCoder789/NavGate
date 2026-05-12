@@ -95,7 +95,7 @@ private class TrackingRepository : NavigationRepository {
     val destination = place("destination", "Sports Complex", Coordinate(20.350412, 85.808665))
     var routeRequests = 0
 
-    override suspend fun searchPlaces(query: String): List<PlaceSearchResult> = listOf(origin, destination)
+    override suspend fun searchPlaces(query: String, cityHint: String?): List<PlaceSearchResult> = listOf(origin, destination)
 
     override suspend fun fetchRoute(request: RouteRequest): RouteResponse {
         routeRequests += 1
