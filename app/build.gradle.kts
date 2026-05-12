@@ -69,6 +69,9 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("com.google.ar:core:1.33.0")
+    implementation("org.maplibre.compose:maplibre-compose:0.12.1")
+
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
