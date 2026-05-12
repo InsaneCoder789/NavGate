@@ -2,7 +2,7 @@ package com.rohanc.navgate.ui.state
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rohanc.navgate.data.FakeCampusRepository
+import com.rohanc.navgate.data.BackendNavigationRepository
 import com.rohanc.navgate.data.NavigationRepository
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.RouteRequest
@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class NavGateViewModel(
-    private val repository: NavigationRepository = FakeCampusRepository(),
+    private val repository: NavigationRepository = BackendNavigationRepository(),
     private val engine: NavigationEngine = NavigationEngine(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(NavGateUiState())
