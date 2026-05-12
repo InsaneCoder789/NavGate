@@ -1,6 +1,7 @@
 package com.rohanc.navgate.data
 
 import android.content.Context
+import androidx.core.content.edit
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.PlaceType
 import com.rohanc.navgate.model.RouteHistoryEntry
@@ -76,7 +77,7 @@ class SharedPrefsUserPlacesStore(
     private fun writeList(key: String, places: List<PlaceSearchResult>) {
         val array = JSONArray()
         places.forEach { place -> array.put(place.toJson()) }
-        prefs.edit().putString(key, array.toString()).apply()
+        prefs.edit { putString(key, array.toString()) }
     }
 
     private fun readRouteHistory(): List<RouteHistoryEntry> {
@@ -110,7 +111,7 @@ class SharedPrefsUserPlacesStore(
                     .put("etaSeconds", entry.etaSeconds),
             )
         }
-        prefs.edit().putString(HISTORY_KEY, array.toString()).apply()
+        prefs.edit { putString(HISTORY_KEY, array.toString()) }
     }
 
     private fun JSONObject.toPlace(): PlaceSearchResult =
