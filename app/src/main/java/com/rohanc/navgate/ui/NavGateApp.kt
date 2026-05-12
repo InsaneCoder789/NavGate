@@ -295,6 +295,11 @@ private fun NavGateHome(
                     zoom = if (uiState.snapshot.route == null) 15.5 else 16.6,
                 ),
         )
+    val featuredPlace = uiState.focusedPlace ?: uiState.selectedDestination ?: uiState.places.firstOrNull()
+    val savedIds = uiState.savedPlaces.map { it.id }.toSet()
+    val isNavigating = uiState.snapshot.isNavigating
+    val isPreviewing = uiState.preview != null && uiState.isPreviewVisible
+    val showSearchResults = uiState.searchQuery.isNotBlank() && !isNavigating
 
     Box(modifier = Modifier.fillMaxSize().background(NavBackground)) {
         MaplibreMap(
@@ -342,58 +347,52 @@ private fun NavGateHome(
             )
         }
 
-        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 18.dp)) {
-            val isNavigating = uiState.snapshot.isNavigating
-            val savedIds = uiState.savedPlaces.map { it.id }.toSet()
-            val showSearchResults = uiState.searchQuery.isNotBlank() && !isNavigating
-
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 14.dp)) {
             if (isNavigating) {
-                ActiveNavigationBanner(
+                GoogleNavTurnBanner(
                     modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                    distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
                     instruction = uiState.snapshot.currentInstruction,
                     nextHint = uiState.snapshot.nextInstructionHint,
-                    distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
-                    travelProfile = uiState.travelProfile,
                 )
             } else {
                 Column(
                     modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    AppTitleRow()
-                    TopSearchShell(
+                    GoogleExploreSearchBar(
                         query = uiState.searchQuery,
                         onSearchChanged = onSearchChanged,
                         onOpenMenu = onOpenMenu,
                     )
-                    PlannerStatusRow(
-                        origin = uiState.selectedOrigin?.title,
-                        destination = uiState.selectedDestination?.title,
+                    GoogleQuickAccessRow(
+                        onSelectChip = onSearchChanged,
+                        cityMode = uiState.cityMode,
                     )
-                    QuickCategoryRow(cityMode = uiState.cityMode, onCategorySelected = onSearchChanged)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        ConfidenceBadge(confidence = uiState.snapshot.guidanceConfidence)
-                        if (!hasLocationPermission) {
-                            MiniPermissionPill(onRequestLocationPermission = onRequestLocationPermission)
+                    if (!showSearchResults) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ConfidenceBadge(confidence = uiState.snapshot.guidanceConfidence)
+                            if (!hasLocationPermission) {
+                                MiniPermissionPill(onRequestLocationPermission = onRequestLocationPermission)
+                            }
                         }
                     }
                 }
             }
 
-            NavigationFloatingControls(
-                modifier = Modifier.align(Alignment.CenterEnd).offset(y = 88.dp),
+            GoogleMapControls(
+                modifier = Modifier.align(Alignment.CenterEnd).offset(y = if (isNavigating) 16.dp else 96.dp),
                 isNavigating = isNavigating,
                 onCenterOnUser = onRequestLocationPermission,
             )
 
             if (showSearchResults) {
-                SearchResultsPanel(
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 196.dp),
-                    query = uiState.searchQuery,
+                GoogleSearchResultsSheet(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 132.dp),
                     places = uiState.places,
                     onFocusPlace = onFocusPlace,
                     onSelectOrigin = onSelectOrigin,
@@ -401,114 +400,615 @@ private fun NavGateHome(
                 )
             }
 
+            if (isNavigating) {
+                GoogleRecenterChip(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 118.dp),
+                )
+            }
+
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 when {
                     uiState.isLoadingRoute -> LoadingRouteCard()
                     uiState.snapshot.isArrived -> ArrivalSheet(destination = uiState.selectedDestination?.title)
-                    uiState.snapshot.isNavigating -> {
-                        if (canUseArBeta) {
-                            ArTransitionStrip(
-                                distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
-                                onOpenAr = onSwitchToAr,
-                            )
-                        }
-                        NavigationTripBar(
+                    isNavigating ->
+                        GoogleNavigationBottomBar(
                             etaLabel = formatEta(uiState.snapshot.etaSeconds),
                             distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
-                            travelProfile = uiState.travelProfile,
-                            onOpenAr = onSwitchToAr,
+                            arrivalLabel = formatArrivalTime(uiState.snapshot.etaSeconds),
                             onStopNavigation = onStopNavigation,
-                            canUseAr = canUseArBeta,
                         )
-                    }
-                    uiState.preview != null && uiState.isPreviewVisible ->
-                        RoutePreviewSheet(
+                    isPreviewing ->
+                        GoogleDirectionsSheet(
                             preview = uiState.preview,
                             travelProfile = uiState.travelProfile,
-                            confidence = uiState.snapshot.guidanceConfidence.reason,
+                            destination = uiState.selectedDestination,
                             onStartNavigation = onStartNavigation,
                             onTravelProfileChanged = onTravelProfileChanged,
-                            onOpenAr = onSwitchToAr,
-                            canUseAr = canUseArBeta,
                         )
                     uiState.focusedPlace != null ->
-                        PlaceDetailsSheet(
+                        GooglePlaceProfileSheet(
                             place = uiState.focusedPlace,
                             isSaved = savedIds.contains(uiState.focusedPlace.id),
-                            isOrigin = uiState.selectedOrigin?.id == uiState.focusedPlace.id,
                             isDestination = uiState.selectedDestination?.id == uiState.focusedPlace.id,
                             onDismiss = onDismissFocusedPlace,
                             onToggleSaved = { onToggleSaved(uiState.focusedPlace) },
                             onSelectOrigin = { onSelectOrigin(uiState.focusedPlace) },
                             onSelectDestination = { onSelectDestination(uiState.focusedPlace) },
                         )
-                    uiState.activeTab == AppTab.Go ->
-                        GoPlanningSheet(
-                            travelProfile = uiState.travelProfile,
-                            selectedOrigin = uiState.selectedOrigin?.title,
-                            selectedDestination = uiState.selectedDestination?.title,
-                            cityMode = uiState.cityMode,
-                            kiitBetaAccess = uiState.kiitBetaAccess,
-                            onTravelProfileChanged = onTravelProfileChanged,
+                    uiState.activeTab == AppTab.Saved ->
+                        GoogleCollectionSheet(
+                            title = "Saved",
+                            subtitle = "Pinned places ready for one-tap directions.",
+                            places = uiState.savedPlaces,
+                            savedPlaceIds = savedIds,
+                            onFocusPlace = onFocusPlace,
+                            onSelectDestination = onSelectDestination,
+                        )
+                    uiState.activeTab == AppTab.Recents ->
+                        GoogleCollectionSheet(
+                            title = "Recents",
+                            subtitle = "Your latest searches and route launches.",
+                            places = uiState.recentPlaces,
+                            savedPlaceIds = savedIds,
+                            onFocusPlace = onFocusPlace,
+                            onSelectDestination = onSelectDestination,
+                        )
+                    else ->
+                        GoogleExploreSheet(
+                            place = featuredPlace,
+                            isSaved = featuredPlace?.id?.let(savedIds::contains) == true,
+                            activeTab = uiState.activeTab,
+                            onFocusPlace = { featuredPlace?.let(onFocusPlace) },
+                            onSelectDestination = { featuredPlace?.let(onSelectDestination) },
+                            onToggleSaved = { featuredPlace?.let(onToggleSaved) },
+                            onTabSelected = onTabSelected,
                         )
                 }
+            }
+        }
+    }
+}
 
-                if (!showSearchResults && !uiState.snapshot.isNavigating && uiState.focusedPlace == null) {
-                    when (uiState.activeTab) {
-                        AppTab.Explore, AppTab.Go ->
-                            DiscoverySheet(
-                                title = if (uiState.activeTab == AppTab.Go) "Choose a destination" else "Explore nearby",
-                                caption = if (uiState.activeTab == AppTab.Go) {
-                                    "Pick a place to preview the route before you start."
-                                } else {
-                                    "Search-first navigation with places you can route to immediately."
-                                },
-                            ) {
-                                PlaceCarousel(
-                                    places = uiState.places,
-                                    selectedOriginId = uiState.selectedOrigin?.id,
-                                    selectedDestinationId = uiState.selectedDestination?.id,
-                                    savedPlaceIds = savedIds,
-                                    onFocusPlace = onFocusPlace,
-                                    onSelectOrigin = onSelectOrigin,
-                                    onSelectDestination = onSelectDestination,
-                                    onToggleSaved = onToggleSaved,
-                                )
+@Composable
+private fun GoogleExploreSearchBar(
+    query: String,
+    onSearchChanged: (String) -> Unit,
+    onOpenMenu: () -> Unit,
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(999.dp),
+        containerColor = Color(0xC92D2D30),
+        borderColor = Color(0x22FFFFFF),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            GlassIconButton(icon = Icons.Rounded.Menu, contentDescription = "Menu", onClick = onOpenMenu)
+            TextField(
+                value = query,
+                onValueChange = onSearchChanged,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
+                placeholder = {
+                    Text("Search here", style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.48f))
+                },
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.72f)) },
+                trailingIcon = { Icon(Icons.Rounded.Mic, contentDescription = null, tint = Color.White.copy(alpha = 0.72f)) },
+                shape = RoundedCornerShape(999.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                ),
+            )
+            ProfileOrb()
+        }
+    }
+}
+
+@Composable
+private fun GoogleQuickAccessRow(
+    cityMode: CityMode,
+    onSelectChip: (String) -> Unit,
+) {
+    val chips = listOf("Home" to "home", "Work" to "office", "Restaurants" to "restaurant", "Gas" to "gas station")
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
+        items(chips) { (label, query) ->
+            Surface(
+                onClick = { onSelectChip("${cityMode.backendCity.orEmpty()} $query".trim()) },
+                shape = RoundedCornerShape(999.dp),
+                color = Color(0xB2252528),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x18FFFFFF)),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        imageVector =
+                            when (label) {
+                                "Home" -> Icons.Rounded.Map
+                                "Work" -> Icons.Rounded.Route
+                                "Restaurants" -> Icons.Rounded.Restaurant
+                                else -> Icons.Rounded.LocalGasStation
+                            },
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.78f),
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(label, style = MaterialTheme.typography.labelLarge, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoogleMapControls(
+    modifier: Modifier = Modifier,
+    isNavigating: Boolean,
+    onCenterOnUser: () -> Unit,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.End) {
+        Surface(shape = RoundedCornerShape(18.dp), color = Color(0xB8252528), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x1EFFFFFF))) {
+            IconButton(onClick = {}) {
+                Icon(Icons.Rounded.Layers, contentDescription = "Layers", tint = Color.White.copy(alpha = 0.82f))
+            }
+        }
+        Surface(shape = RoundedCornerShape(18.dp), color = Color(0xB8252528), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x1EFFFFFF))) {
+            IconButton(onClick = {}) {
+                Icon(Icons.Rounded.Explore, contentDescription = "Compass", tint = Color.White.copy(alpha = 0.82f))
+            }
+        }
+        if (isNavigating) {
+            Surface(shape = RoundedCornerShape(18.dp), color = Color(0xB8252528), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x1EFFFFFF))) {
+                IconButton(onClick = {}) {
+                    Icon(Icons.AutoMirrored.Rounded.VolumeUp, contentDescription = "Volume", tint = Color.White.copy(alpha = 0.82f))
+                }
+            }
+        }
+        Surface(shape = RoundedCornerShape(18.dp), color = Color(0xB8252528), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x1EFFFFFF))) {
+            IconButton(onClick = onCenterOnUser) {
+                Icon(Icons.Rounded.MyLocation, contentDescription = "My location", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoogleSearchResultsSheet(
+    modifier: Modifier = Modifier,
+    places: List<PlaceSearchResult>,
+    onFocusPlace: (PlaceSearchResult) -> Unit,
+    onSelectOrigin: (PlaceSearchResult) -> Unit,
+    onSelectDestination: (PlaceSearchResult) -> Unit,
+) {
+    GlassCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        containerColor = Color(0xE0212124),
+        borderColor = Color(0x1AFFFFFF),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Results", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            if (places.isEmpty()) {
+                Text("No places matched yet. Try a broader search.", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.65f))
+            } else {
+                places.take(5).forEach { place ->
+                    Surface(
+                        onClick = { onFocusPlace(place) },
+                        shape = RoundedCornerShape(22.dp),
+                        color = Color(0x7A3A3A40),
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(place.title, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                            Text(place.subtitle, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.65f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { onSelectOrigin(place) }, shape = RoundedCornerShape(999.dp)) { Text("From") }
+                                Button(onClick = { onSelectDestination(place) }, shape = RoundedCornerShape(999.dp)) { Text("Directions") }
                             }
-
-                        AppTab.Saved ->
-                            PlacesShelfPanel(
-                                title = "Saved places",
-                                caption = "Pinned places stay ready for one-tap routing.",
-                                places = uiState.savedPlaces,
-                                savedPlaceIds = savedIds,
-                                selectedOriginId = uiState.selectedOrigin?.id,
-                                selectedDestinationId = uiState.selectedDestination?.id,
-                                onFocusPlace = onFocusPlace,
-                                onSelectOrigin = onSelectOrigin,
-                                onSelectDestination = onSelectDestination,
-                                onToggleSaved = onToggleSaved,
-                            )
-
-                        AppTab.Recents ->
-                            RecentsPanel(
-                                places = uiState.recentPlaces,
-                                history = uiState.routeHistory,
-                                savedPlaceIds = savedIds,
-                                selectedOriginId = uiState.selectedOrigin?.id,
-                                selectedDestinationId = uiState.selectedDestination?.id,
-                                onFocusPlace = onFocusPlace,
-                                onSelectOrigin = onSelectOrigin,
-                                onSelectDestination = onSelectDestination,
-                                onToggleSaved = onToggleSaved,
-                            )
+                        }
                     }
                 }
+            }
+        }
+    }
+}
 
-                HomeBottomBar(selectedTab = uiState.activeTab, onTabSelected = onTabSelected)
+@Composable
+private fun GoogleExploreSheet(
+    place: PlaceSearchResult?,
+    isSaved: Boolean,
+    activeTab: AppTab,
+    onFocusPlace: () -> Unit,
+    onSelectDestination: () -> Unit,
+    onToggleSaved: () -> Unit,
+    onTabSelected: (AppTab) -> Unit,
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(32.dp),
+        containerColor = Color(0xDE26272B),
+        borderColor = Color(0x1AFFFFFF),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(modifier = Modifier.align(Alignment.CenterHorizontally).width(32.dp).height(4.dp).background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp)))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(place?.title ?: "Explore nearby", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+                    Text(place?.subtitle ?: "Search for a place to preview a route.", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.64f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CircleActionButton(icon = Icons.Rounded.Share, onClick = {})
+                    CircleActionButton(icon = Icons.Rounded.Close, onClick = {})
+                }
+            }
+            Text(
+                text = if (place != null) "12 min • 4.8 km via fastest route" else "Select a place to get ETA and directions",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.68f),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onSelectDestination, modifier = Modifier.weight(1f), shape = RoundedCornerShape(999.dp)) {
+                    Icon(Icons.Rounded.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Directions")
+                }
+                OutlinedButton(onClick = onFocusPlace, modifier = Modifier.weight(1f), shape = RoundedCornerShape(999.dp)) {
+                    Icon(Icons.Rounded.Explore, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Start")
+                }
+            }
+            ExploreTabStrip(selectedTab = activeTab, onTabSelected = onTabSelected, saved = isSaved, onToggleSaved = onToggleSaved)
+        }
+    }
+}
+
+@Composable
+private fun GooglePlaceProfileSheet(
+    place: PlaceSearchResult,
+    isSaved: Boolean,
+    isDestination: Boolean,
+    onDismiss: () -> Unit,
+    onToggleSaved: () -> Unit,
+    onSelectOrigin: () -> Unit,
+    onSelectDestination: () -> Unit,
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp, bottomStart = 28.dp, bottomEnd = 28.dp),
+        containerColor = Color(0xDE26272B),
+        borderColor = Color(0x1AFFFFFF),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(modifier = Modifier.align(Alignment.CenterHorizontally).width(44.dp).height(5.dp).background(Color.White.copy(alpha = 0.20f), RoundedCornerShape(999.dp)))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(place.title, style = MaterialTheme.typography.headlineSmall, color = Color.White)
+                    Text("4.8 ★★★★★ • 12 min", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    Text("${place.type.name.lowercase().replaceFirstChar { it.uppercase() }} • ${place.city ?: "Open now"}", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.64f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CircleActionButton(icon = Icons.Rounded.Share, onClick = {})
+                    CircleActionButton(icon = Icons.Rounded.Close, onClick = onDismiss)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onSelectDestination, modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp)) {
+                    Icon(Icons.Rounded.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Directions")
+                }
+                FilledTonalButton(onClick = onSelectOrigin, modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp)) {
+                    Icon(Icons.Rounded.MyLocation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (isDestination) "Start" else "Use as from")
+                }
+                Surface(onClick = onToggleSaved, shape = RoundedCornerShape(18.dp), color = Color(0x9D3A3A40), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x14FFFFFF))) {
+                    Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.BookmarkBorder, contentDescription = null, tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White)
+                    }
+                }
+            }
+            PhotoGrid()
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf("Overview", "Menu", "Reviews", "Photos").forEachIndexed { index, label ->
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (index == 0) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.44f),
+                    )
+                }
+            }
+            Text(
+                text = "A premium destination preview for NavGate. Use Directions to build the route or pin this stop for quick access later.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.7f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun GoogleDirectionsSheet(
+    preview: RoutePreview,
+    travelProfile: com.rohanc.navgate.model.TravelProfile,
+    destination: PlaceSearchResult?,
+    onStartNavigation: () -> Unit,
+    onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        containerColor = Color(0xD724341F),
+        borderColor = Color(0x1AFFFFFF),
+    ) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    CircleActionButton(icon = Icons.Rounded.ArrowOutward, onClick = {})
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("To", style = MaterialTheme.typography.labelLarge, color = Color(0xFFA5C893))
+                        Text(destination?.title ?: preview.destinationTitle, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                    }
+                }
+                Icon(
+                    imageVector = if (travelProfile == com.rohanc.navgate.model.TravelProfile.Driving) Icons.Rounded.DirectionsCar else Icons.AutoMirrored.Rounded.DirectionsWalk,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+                Text(preview.etaLabel, style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                Text("(${preview.distanceLabel})", style = MaterialTheme.typography.bodyLarge, color = Color(0xFFA5C893))
+            }
+            Text("Fastest route via NavGate routing", style = MaterialTheme.typography.bodySmall, color = Color(0xFFA5C893))
+            Surface(shape = RoundedCornerShape(22.dp), color = Color(0x661E2F1A), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x143FFFFF))) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        CircleActionButton(icon = Icons.Rounded.Navigation, onClick = {})
+                        Column {
+                            Text(preview.firstInstruction, style = MaterialTheme.typography.bodyMedium, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text("Primary step preview", style = MaterialTheme.typography.bodySmall, color = Color(0xFFA5C893))
+                        }
+                    }
+                    Text("12 km", style = MaterialTheme.typography.bodySmall, color = Color(0xFFA5C893))
+                }
+            }
+            TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onStartNavigation, modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp)) {
+                    Icon(Icons.Rounded.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Start")
+                }
+                OutlinedButton(onClick = {}, modifier = Modifier.weight(1f), shape = RoundedCornerShape(18.dp)) {
+                    Text("Steps")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoogleNavTurnBanner(
+    modifier: Modifier = Modifier,
+    distanceLabel: String,
+    instruction: String,
+    nextHint: String?,
+) {
+    GlassCard(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        containerColor = Color(0xF005523C),
+        borderColor = Color(0x15000000),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(18.dp), color = Color.White.copy(alpha = 0.14f)) {
+                        Box(modifier = Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Rounded.Navigation, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                        }
+                    }
+                    Column {
+                        Text(distanceLabel, style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(instruction, style = MaterialTheme.typography.bodyLarge, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                CircleActionButton(icon = Icons.Rounded.Mic, onClick = {})
+            }
+            if (!nextHint.isNullOrBlank()) {
+                Surface(shape = RoundedCornerShape(999.dp), color = Color.White.copy(alpha = 0.10f)) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text("Then", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.78f))
+                        Icon(Icons.Rounded.Navigation, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoogleRecenterChip(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xC8222226),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x18FFFFFF)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.Navigation, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+            Text("Re-center", style = MaterialTheme.typography.labelLarge, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun GoogleNavigationBottomBar(
+    etaLabel: String,
+    distanceLabel: String,
+    arrivalLabel: String,
+    onStopNavigation: () -> Unit,
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        containerColor = Color(0xD61B1B1E),
+        borderColor = Color(0x14FFFFFF),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircleActionButton(icon = Icons.Rounded.Route, onClick = {})
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+                Text(etaLabel, style = MaterialTheme.typography.headlineSmall, color = Color(0xFF5BE06C), fontWeight = FontWeight.Bold)
+                Text("$distanceLabel • $arrivalLabel", style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.64f))
+            }
+            Surface(onClick = onStopNavigation, shape = CircleShape, color = Color(0x44FF4B4B)) {
+                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Close, contentDescription = "Stop navigation", tint = Color(0xFFFF6B6B))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GoogleCollectionSheet(
+    title: String,
+    subtitle: String,
+    places: List<PlaceSearchResult>,
+    savedPlaceIds: Set<String>,
+    onFocusPlace: (PlaceSearchResult) -> Unit,
+    onSelectDestination: (PlaceSearchResult) -> Unit,
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(32.dp),
+        containerColor = Color(0xDE26272B),
+        borderColor = Color(0x1AFFFFFF),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(modifier = Modifier.align(Alignment.CenterHorizontally).width(32.dp).height(4.dp).background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp)))
+            Text(title, style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.62f))
+            if (places.isEmpty()) {
+                Text("Nothing here yet.", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.62f))
+            } else {
+                places.take(3).forEach { place ->
+                    Surface(onClick = { onFocusPlace(place) }, shape = RoundedCornerShape(22.dp), color = Color(0x7A3A3A40)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(place.title, style = MaterialTheme.typography.titleMedium, color = Color.White)
+                                Text(place.subtitle, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.62f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (savedPlaceIds.contains(place.id)) {
+                                    Icon(Icons.Rounded.BookmarkBorder, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                }
+                                Button(onClick = { onSelectDestination(place) }, shape = RoundedCornerShape(999.dp)) { Text("Go") }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExploreTabStrip(
+    selectedTab: AppTab,
+    onTabSelected: (AppTab) -> Unit,
+    saved: Boolean,
+    onToggleSaved: () -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        ExploreTabItem(label = "Explore", selected = selectedTab == AppTab.Explore, icon = Icons.Rounded.Explore) { onTabSelected(AppTab.Explore) }
+        ExploreTabItem(label = "Go", selected = selectedTab == AppTab.Go, icon = Icons.Rounded.Navigation) { onTabSelected(AppTab.Go) }
+        ExploreTabItem(label = "Saved", selected = selectedTab == AppTab.Saved || saved, icon = Icons.Rounded.BookmarkBorder) {
+            if (selectedTab == AppTab.Saved) onToggleSaved() else onTabSelected(AppTab.Saved)
+        }
+        ExploreTabItem(label = "Updates", selected = selectedTab == AppTab.Recents, icon = Icons.Rounded.History) { onTabSelected(AppTab.Recents) }
+    }
+}
+
+@Composable
+private fun ExploreTabItem(
+    label: String,
+    selected: Boolean,
+    icon: ImageVector,
+    onClick: () -> Unit,
+) {
+    Surface(onClick = onClick, color = Color.Transparent) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(icon, contentDescription = label, tint = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.46f), modifier = Modifier.size(22.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.46f))
+        }
+    }
+}
+
+@Composable
+private fun CircleActionButton(icon: ImageVector, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = CircleShape, color = Color(0x662D2D30), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x14FFFFFF))) {
+        Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun PhotoGrid() {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        Surface(modifier = Modifier.weight(2f).height(148.dp), shape = RoundedCornerShape(22.dp), color = Color(0xFF433022)) {
+            Box(
+                modifier = Modifier.fillMaxSize().background(
+                    Brush.linearGradient(listOf(Color(0xFF6B4F37), Color(0xFF1F1814))),
+                ),
+            ) {
+                Text("INTERIOR", modifier = Modifier.padding(10.dp), style = MaterialTheme.typography.labelSmall, color = Color.White)
+            }
+        }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(modifier = Modifier.fillMaxWidth().height(69.dp), shape = RoundedCornerShape(22.dp), color = Color(0xFF5A4528)) {
+                Box(modifier = Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color(0xFFE6C792), Color(0xFF5A4528)))))
+            }
+            Surface(modifier = Modifier.fillMaxWidth().height(69.dp), shape = RoundedCornerShape(22.dp), color = Color(0xFF281F1A)) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("+24", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                }
             }
         }
     }
@@ -1623,6 +2123,16 @@ private fun formatDistance(distanceMeters: Double): String =
 private fun formatEta(seconds: Double): String {
     val minutes = kotlin.math.ceil(seconds / 60.0).toInt().coerceAtLeast(1)
     return if (minutes < 60) "$minutes min" else "${minutes / 60} hr ${minutes % 60} min"
+}
+
+private fun formatArrivalTime(seconds: Double): String {
+    val totalMinutes = kotlin.math.ceil(seconds / 60.0).toInt()
+    val calendar = java.util.Calendar.getInstance().apply { add(java.util.Calendar.MINUTE, totalMinutes) }
+    val hour = calendar.get(java.util.Calendar.HOUR)
+    val normalizedHour = if (hour == 0) 12 else hour
+    val minute = calendar.get(java.util.Calendar.MINUTE).toString().padStart(2, '0')
+    val meridiem = if (calendar.get(java.util.Calendar.AM_PM) == java.util.Calendar.AM) "AM" else "PM"
+    return "$normalizedHour:$minute $meridiem"
 }
 
 @Composable
