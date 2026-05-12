@@ -407,17 +407,20 @@ private fun NavGateHome(
                     )
                 }
 
+                val showDiscoveryCards = uiState.searchQuery.isBlank()
                 when (uiState.activeTab) {
                     AppTab.Explore, AppTab.Go ->
-                        PlaceCarousel(
-                            places = uiState.places,
-                            selectedOriginId = uiState.selectedOrigin?.id,
-                            selectedDestinationId = uiState.selectedDestination?.id,
-                            savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
-                            onSelectOrigin = onSelectOrigin,
-                            onSelectDestination = onSelectDestination,
-                            onToggleSaved = onToggleSaved,
-                        )
+                        if (showDiscoveryCards) {
+                            PlaceCarousel(
+                                places = uiState.places,
+                                selectedOriginId = uiState.selectedOrigin?.id,
+                                selectedDestinationId = uiState.selectedDestination?.id,
+                                savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
+                                onSelectOrigin = onSelectOrigin,
+                                onSelectDestination = onSelectDestination,
+                                onToggleSaved = onToggleSaved,
+                            )
+                        }
 
                     AppTab.Saved ->
                         PlacesShelfPanel(

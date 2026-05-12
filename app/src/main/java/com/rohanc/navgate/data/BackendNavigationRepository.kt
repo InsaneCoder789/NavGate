@@ -44,7 +44,7 @@ class BackendNavigationRepository(
             }
         }.getOrElse {
             runCatching {
-                val bundled = application?.let { searchBundledPois(it, query, cityHint) }.orEmpty()
+                val bundled = application?.let { searchBundledPlaces(it, query, cityHint) }.orEmpty()
                 val openMap = searchOpenMap(query, cityHint)
                 (bundled + openMap)
                     .distinctBy { "${it.title}-${it.latitude}-${it.longitude}" }
@@ -192,41 +192,51 @@ class BackendNavigationRepository(
             }
         }
 
-    private fun searchBundledPois(context: Context, query: String, cityHint: String?): List<PlaceSearchResult> {
+    private fun searchBundledPlaces(context: Context, query: String, cityHint: String?): List<PlaceSearchResult> {
         val token = query.trim().lowercase()
         val targetCity = cityHint?.lowercase()
-        val content = context.assets.open("custom_pois.json").bufferedReader().use { it.readText() }
-        val array = JSONArray(content)
         val results = mutableListOf<PlaceSearchResult>()
-        for (index in 0 until array.length()) {
-            val item = array.getJSONObject(index)
-            val city = item.optString("city")
-            if (targetCity != null && !city.equals(cityHint, ignoreCase = true)) continue
-            if (token.isNotBlank()) {
-                val joined =
-                    listOf(
-                        item.optString("name"),
-                        item.optString("subtitle"),
-                        item.optString("normalizedName"),
-                        item.optString("categoryNormalized"),
-                    ).joinToString(" ").lowercase()
-                if (!joined.contains(token)) continue
+        val assetFiles =
+            when (targetCity) {
+                "mumbai" -> listOf("mumbai_popular_places.json")
+                "bhubaneswar" -> listOf("custom_pois.json", "bhubaneswar_student_places.json")
+                else -> listOf("mumbai_popular_places.json", "custom_pois.json", "bhubaneswar_student_places.json")
             }
-            results +=
-                PlaceSearchResult(
-                    id = item.getString("id"),
-                    title = item.getString("name"),
-                    subtitle = item.getString("subtitle"),
-                    latitude = item.getDouble("latitude"),
-                    longitude = item.getDouble("longitude"),
-                    type = item.optString("placeType").toPlaceType(),
-                    city = city,
-                    campusLabel = item.optString("campusLabel").takeIf { it.isNotBlank() },
-                    category = item.optString("categoryNormalized").takeIf { it.isNotBlank() },
-                )
-            if (results.size >= 12) break
+        for (assetFile in assetFiles) {
+            val content = context.assets.open(assetFile).bufferedReader().use { it.readText() }
+            val array = JSONArray(content)
+            for (index in 0 until array.length()) {
+                val item = array.getJSONObject(index)
+                val city = item.optString("city")
+                if (targetCity != null && !city.equals(cityHint, ignoreCase = true)) continue
+                if (token.isNotBlank()) {
+                    val joined =
+                        listOf(
+                            item.optString("name"),
+                            item.optString("title"),
+                            item.optString("subtitle"),
+                            item.optString("normalizedName"),
+                            item.optString("categoryNormalized"),
+                        ).joinToString(" ").lowercase()
+                    if (!joined.contains(token)) continue
+                }
+                results +=
+                    PlaceSearchResult(
+                        id = item.optString("id").ifBlank { "${assetFile.removeSuffix(".json")}-$index" },
+                        title = item.optString("name").ifBlank { item.optString("title", "Location") },
+                        subtitle = item.optString("subtitle"),
+                        latitude = item.getDouble("latitude"),
+                        longitude = item.getDouble("longitude"),
+                        type = (item.optString("placeType").ifBlank { item.optString("type") }).toPlaceType(),
+                        city = city.takeIf { it.isNotBlank() },
+                        campusLabel = item.optString("campusLabel").takeIf { it.isNotBlank() },
+                        category = item.optString("categoryNormalized").ifBlank { item.optString("category") }.takeIf { it.isNotBlank() },
+                    )
+                if (results.size >= 20) break
+            }
+            if (results.size >= 20) break
         }
-        return results
+        return results.distinctBy { "${it.title}-${it.latitude}-${it.longitude}" }
     }
 
     private fun parsePlaces(array: JSONArray): List<PlaceSearchResult> =

@@ -1,0 +1,218 @@
+[
+  {
+    "query": "KIIT Campus 6, Bhubaneswar",
+    "result": {
+      "place_id": 250255319,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 1109132946,
+      "lat": "20.3530675",
+      "lon": "85.8201467",
+      "category": "amenity",
+      "type": "university",
+      "place_rank": 30,
+      "importance": 0.31353539144981896,
+      "addresstype": "amenity",
+      "name": "KIIT Campus 6 (Main Campus)",
+      "display_name": "KIIT Campus 6 (Main Campus), KIIT Road, North Zone, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751024, India",
+      "boundingbox": [
+        "20.3523582",
+        "20.3534889",
+        "85.8192844",
+        "85.8210235"
+      ]
+    }
+  },
+  {
+    "query": "KIIT Square, Bhubaneswar",
+    "result": null
+  },
+  {
+    "query": "Patia Square, Bhubaneswar",
+    "result": null
+  },
+  {
+    "query": "Infocity Road, Bhubaneswar",
+    "result": {
+      "place_id": 232169455,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 1208791975,
+      "lat": "20.3428251",
+      "lon": "85.8063721",
+      "category": "highway",
+      "type": "tertiary",
+      "place_rank": 26,
+      "importance": 0.053394946974898876,
+      "addresstype": "road",
+      "name": "Infocity Road",
+      "display_name": "Infocity Road, Ward 1, North Zone, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751021, India",
+      "boundingbox": [
+        "20.3427904",
+        "20.3428591",
+        "85.8055629",
+        "85.8071812"
+      ]
+    }
+  },
+  {
+    "query": "Infocity Square, Bhubaneswar",
+    "result": null
+  },
+  {
+    "query": "DN Regalia, Bhubaneswar",
+    "result": null
+  },
+  {
+    "query": "Nexus Esplanade, Bhubaneswar",
+    "result": null
+  },
+  {
+    "query": "Utkal Kanika Galleria, Bhubaneswar",
+    "result": null
+  },
+  {
+    "query": "Master Canteen, Bhubaneswar",
+    "result": {
+      "place_id": 250387119,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 305236191,
+      "lat": "20.2681216",
+      "lon": "85.8437854",
+      "category": "shop",
+      "type": "supermarket",
+      "place_rank": 30,
+      "importance": 6.161364156553013e-05,
+      "addresstype": "shop",
+      "name": "Relience Super",
+      "display_name": "Relience Super, Master Canteen, Chandrama Complex Lane, Ward 41, Bhubaneswar, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751000, India",
+      "boundingbox": [
+        "20.2678380",
+        "20.2683917",
+        "85.8434965",
+        "85.8440809"
+      ]
+    }
+  },
+  {
+    "query": "Jaydev Vihar, Bhubaneswar",
+    "result": {
+      "place_id": 250446421,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 26755523,
+      "lat": "20.2962317",
+      "lon": "85.8264588",
+      "category": "highway",
+      "type": "trunk",
+      "place_rank": 26,
+      "importance": 0.053394946974898876,
+      "addresstype": "road",
+      "name": "Jaydev Vihar Flyover",
+      "display_name": "Jaydev Vihar Flyover, Ward 12, North Zone, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751013, India",
+      "boundingbox": [
+        "20.2952148",
+        "20.2969213",
+        "85.8245453",
+        "85.8285125"
+      ]
+    }
+  },
+  {
+    "query": "Kalinga Stadium, Bhubaneswar",
+    "result": {
+      "place_id": 250929006,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 573405182,
+      "lat": "20.2903875",
+      "lon": "85.8244174",
+      "category": "leisure",
+      "type": "sports_centre",
+      "place_rank": 30,
+      "importance": 0.40647197265303264,
+      "addresstype": "leisure",
+      "name": "Kalinga Stadium",
+      "display_name": "Kalinga Stadium, Akhandalamani Temple road, Ward 37, South West Zone, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751001, India",
+      "boundingbox": [
+        "20.2862621",
+        "20.2946616",
+        "85.8204143",
+        "85.8263331"
+      ]
+    }
+  },
+  {
+    "query": "BMC Bhawani Mall, Bhubaneswar",
+    "result": {
+      "place_id": 250357738,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 279038113,
+      "lat": "20.2866465",
+      "lon": "85.8472159",
+      "category": "shop",
+      "type": "mall",
+      "place_rank": 30,
+      "importance": 6.161364156553013e-05,
+      "addresstype": "shop",
+      "name": "BMC Bhawani Mall",
+      "display_name": "BMC Bhawani Mall, Saheed nagar main road, Ward 30, South East Zone, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751007, India",
+      "boundingbox": [
+        "20.2861649",
+        "20.2871369",
+        "85.8462872",
+        "85.8475810"
+      ]
+    }
+  },
+  {
+    "query": "Forum Mart, Bhubaneswar",
+    "result": {
+      "place_id": 260075870,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 468697063,
+      "lat": "20.2784314",
+      "lon": "85.8454704",
+      "category": "building",
+      "type": "commercial",
+      "place_rank": 30,
+      "importance": 6.161364156553013e-05,
+      "addresstype": "building",
+      "name": "Forum Mart",
+      "display_name": "Forum Mart, Mother Teresa Marg, Ward 34, South East Zone, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751006, India",
+      "boundingbox": [
+        "20.2782160",
+        "20.2785832",
+        "85.8451738",
+        "85.8457500"
+      ]
+    }
+  },
+  {
+    "query": "Ekamra Haat, Bhubaneswar",
+    "result": {
+      "place_id": 250373065,
+      "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+      "osm_type": "way",
+      "osm_id": 421695074,
+      "lat": "20.2771118",
+      "lon": "85.8402838",
+      "category": "shop",
+      "type": "craft",
+      "place_rank": 30,
+      "importance": 6.161364156553013e-05,
+      "addresstype": "shop",
+      "name": "Ekamra Haat",
+      "display_name": "Ekamra Haat, Madhusudan Marg, Unit-3, Ward 35, South East Zone, Bhubaneswar Municipal Corporation, Bhubaneswar (M.Corp.), Khordha, Odisha, 751000, India",
+      "boundingbox": [
+        "20.2767718",
+        "20.2774499",
+        "85.8397075",
+        "85.8408657"
+      ]
+    }
+  }
+]

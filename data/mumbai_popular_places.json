@@ -1,0 +1,137 @@
+[
+  {
+    "id": "mumbai-gateway-of-india-mumbai",
+    "name": "Gateway of India",
+    "subtitle": "Gateway of India - \u0917\u0947\u091f\u0935\u0947 \u0911\u092b \u0907\u0902\u0921\u093f\u092f\u093e, Apollo Bandar, Fort, A Ward, Mumbai Zone 1, Mumbai, Mumbai City District, Maharashtra, 400039, India",
+    "city": "Mumbai",
+    "latitude": 18.9219661,
+    "longitude": 72.8345657,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-marine-drive-mumbai",
+    "name": "Marine Drive",
+    "subtitle": "Marine Drive, Mumbai, Marine Drive, Fort, A Ward, Mumbai Zone 1, Mumbai City District, Maharashtra, 400020, India",
+    "city": "Mumbai",
+    "latitude": 18.9414868,
+    "longitude": 72.8238464,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-chhatrapati-shivaji-maharaj-terminus-mumbai",
+    "name": "Chhatrapati Shivaji Maharaj Terminus",
+    "subtitle": "Chhatrapati Shivaji Maharaj Terminus, CSMT, Bori Bunder, Fort, A Ward, Mumbai Zone 1, Mumbai, Mumbai City District, Maharashtra, 400038, India",
+    "city": "Mumbai",
+    "latitude": 18.939856,
+    "longitude": 72.8355191,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-bandra-worli-sea-link-mumbai",
+    "name": "Bandra Worli Sea Link",
+    "subtitle": "Rajiv Gandhi Sea Link, Worli Koliwada, Worli, Mumbai, 400030, India",
+    "city": "Mumbai",
+    "latitude": 19.0174963,
+    "longitude": 72.8125508,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-juhu-beach-mumbai",
+    "name": "Juhu Beach",
+    "subtitle": "Juhu Beach, K/W Ward, Mumbai Zone 3, Mumbai, Mumbai Suburban District, Maharashtra, India",
+    "city": "Mumbai",
+    "latitude": 19.1026521,
+    "longitude": 72.8246792,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-siddhivinayak-temple-mumbai",
+    "name": "Siddhivinayak Temple",
+    "subtitle": "Siddhivinayak Temple, 123, Gokhale Road, Dadar West, G/N Ward, Mumbai Zone 2, Mumbai, Mumbai City District, Maharashtra, 400028, India",
+    "city": "Mumbai",
+    "latitude": 19.0158047,
+    "longitude": 72.8313392,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-powai-lake-mumbai",
+    "name": "Powai Lake",
+    "subtitle": "Powai Lake, S Ward, Mumbai Zone 6, Mumbai, Mumbai Suburban District, Maharashtra, India",
+    "city": "Mumbai",
+    "latitude": 19.1277203,
+    "longitude": 72.9062142,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-bandra-fort-mumbai",
+    "name": "Bandra Fort",
+    "subtitle": "Bandra Fort, Mumbai Coastal Road - Phase II, Chimbai Village, Khar, H/W Ward, Mumbai Zone 3, Mumbai, Mumbai Suburban District, Maharashtra, 400035, India",
+    "city": "Mumbai",
+    "latitude": 19.0418641,
+    "longitude": 72.8183782,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-nehru-planetarium-mumbai",
+    "name": "Nehru Planetarium",
+    "subtitle": "Nehru Planetarium, M Sanghi Marg, Mariammar Nagar, Mahalakshmi, G/S Ward, Mumbai Zone 2, Mumbai City District, Maharashtra, 400018, India",
+    "city": "Mumbai",
+    "latitude": 18.9906699,
+    "longitude": 72.8186097,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-carter-road-mumbai",
+    "name": "Carter Road",
+    "subtitle": "Carter Road, Union Park, Khar, Bandra West, Mumbai Zone 3, Mumbai, Mumbai Suburban District, Maharashtra, 400052, India",
+    "city": "Mumbai",
+    "latitude": 19.0699267,
+    "longitude": 72.8228008,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-versova-beach-mumbai",
+    "name": "Versova Beach",
+    "subtitle": "Versova Beach, Versova, K/W Ward, Mumbai Zone 3, Mumbai, Mumbai Suburban District, Maharashtra, India",
+    "city": "Mumbai",
+    "latitude": 19.1300123,
+    "longitude": 72.8133251,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-bandra-kurla-complex-mumbai",
+    "name": "Bandra Kurla Complex",
+    "subtitle": "Securities Exchange Board of India, mumbai, Bandra Kurla Complex Road, Sant Dnyaneshwar Nagar, Bandra Kurla Complex, H/E Ward, Mumbai Zone 3, Mumbai, Mumbai Suburban District, Maharashtra, 400051, India",
+    "city": "Mumbai",
+    "latitude": 19.0592671,
+    "longitude": 72.861326,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-high-street-phoenix-mumbai",
+    "name": "High Street Phoenix",
+    "subtitle": "High Street Phoenix, Mahalakshmi, G/S Ward, Mumbai Zone 2, Mumbai City District, Maharashtra, India",
+    "city": "Mumbai",
+    "latitude": 18.9946688,
+    "longitude": 72.8243102,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-colaba-causeway-mumbai",
+    "name": "Colaba Causeway",
+    "subtitle": "Nanabhai Moos Marg (Upper Colaba Road), Cusrow Baug, Koli Nagar, A Ward, Mumbai Zone 1, Mumbai City District, Maharashtra, 400039, India",
+    "city": "Mumbai",
+    "latitude": 18.9223263,
+    "longitude": 72.8313184,
+    "source": "nominatim"
+  },
+  {
+    "id": "mumbai-haji-ali-dargah-mumbai",
+    "name": "Haji Ali Dargah",
+    "subtitle": "\u0939\u093e\u091c\u0940 \u0905\u0932\u0940 \u0926\u0930\u094d\u0917\u093e, 23, Haji Ali Causeway, Mahalakshmi, G/S Ward, Mumbai Zone 2, Mumbai, Mumbai City District, Maharashtra, 400027, India",
+    "city": "Mumbai",
+    "latitude": 18.9828229,
+    "longitude": 72.8089926,
+    "source": "nominatim"
+  }
+]

@@ -154,4 +154,19 @@ class NavGateViewModelTest {
 
         assertTrue(viewModel.uiState.value.kiitBetaAccess)
     }
+
+    @Test
+    fun `selecting a result clears the active search query`() = runTest {
+        val repository = FakeCampusRepository()
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
+        advanceUntilIdle()
+        val place = repository.allPlaces().first()
+
+        viewModel.updateSearch("north")
+        advanceUntilIdle()
+        viewModel.selectDestination(place)
+        advanceUntilIdle()
+
+        assertEquals("", viewModel.uiState.value.searchQuery)
+    }
 }

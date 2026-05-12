@@ -93,7 +93,7 @@ class NavGateViewModel(
                 preview = null,
                 snapshot = it.snapshot.copy(origin = place.coordinate),
                 activeTab = AppTab.Go,
-                searchQuery = place.title,
+                searchQuery = "",
             )
         }
         recordRecent(place)
@@ -113,7 +113,7 @@ class NavGateViewModel(
                         destination = place.coordinate,
                     ),
                 activeTab = AppTab.Go,
-                searchQuery = place.title,
+                searchQuery = "",
             )
         }
         recordRecent(place)
