@@ -1,5 +1,6 @@
 package com.rohanc.navgate.ui.state
 
+import com.rohanc.navgate.data.InMemoryUserPlacesStore
 import com.rohanc.navgate.data.NavigationRepository
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.PlaceSearchResult
@@ -38,7 +39,7 @@ class NavGateLiveLocationTest {
     @Test
     fun `location samples update shared user position while navigating`() = runTest {
         val repository = TrackingRepository()
-        val viewModel = NavGateViewModel(repository = repository)
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
         advanceUntilIdle()
 
         viewModel.selectOrigin(repository.origin)
@@ -55,7 +56,7 @@ class NavGateLiveLocationTest {
     @Test
     fun `off route movement fetches a replacement route`() = runTest {
         val repository = TrackingRepository()
-        val viewModel = NavGateViewModel(repository = repository)
+        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore())
         advanceUntilIdle()
 
         viewModel.selectOrigin(repository.origin)

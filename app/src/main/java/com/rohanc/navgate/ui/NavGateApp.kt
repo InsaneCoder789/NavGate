@@ -1,5 +1,6 @@
 package com.rohanc.navgate.ui
 
+import android.app.Application
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
@@ -65,6 +66,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -100,6 +102,7 @@ import com.rohanc.navgate.ui.components.ConfidenceBadge
 import com.rohanc.navgate.ui.location.BindLocationTracking
 import com.rohanc.navgate.ui.location.hasLocationPermission
 import com.rohanc.navgate.ui.map.MapRouteGeoJson
+import com.rohanc.navgate.ui.state.AppTab
 import com.rohanc.navgate.ui.state.NavGateUiState
 import com.rohanc.navgate.ui.state.NavGateViewModel
 import com.rohanc.navgate.ui.state.RoutePreview
@@ -126,18 +129,11 @@ import org.maplibre.spatialk.geojson.Position
 
 private val QuickCategories =
     listOf(
-        QuickCategory("Restaurants", Icons.Rounded.Restaurant, "food"),
-        QuickCategory("Gas", Icons.Rounded.LocalGasStation, "transit"),
-        QuickCategory("Coffee", Icons.Rounded.Coffee, "food"),
-        QuickCategory("Campus", Icons.Rounded.School, ""),
+        QuickCategory("Restaurants", Icons.Rounded.Restaurant, "cafeteria"),
+        QuickCategory("Gas", Icons.Rounded.LocalGasStation, "commercial"),
+        QuickCategory("Coffee", Icons.Rounded.Coffee, "cafe"),
+        QuickCategory("Campus", Icons.Rounded.School, "kiit"),
     )
-
-private enum class HomeTab(val label: String, val icon: ImageVector) {
-    Explore("Explore", Icons.Rounded.Explore),
-    Go("Go", Icons.Rounded.Navigation),
-    Saved("Saved", Icons.Rounded.BookmarkBorder),
-    Recents("Recents", Icons.Rounded.History),
-}
 
 private data class QuickCategory(
     val label: String,
@@ -146,9 +142,11 @@ private data class QuickCategory(
 )
 
 @Composable
-fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
+fun NavGateApp() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val activity = context as? ComponentActivity
+    val application = context.applicationContext as Application
+    val viewModel: NavGateViewModel = viewModel(factory = NavGateViewModel.factory(application))
     val arCoreSupport = remember { ArCoreSupport() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -199,6 +197,9 @@ fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
                 },
                 onSelectDestination = viewModel::selectDestination,
                 onStartNavigation = viewModel::startNavigation,
+                onToggleSaved = viewModel::toggleSaved,
+                onTabSelected = viewModel::selectTab,
+                onTravelProfileChanged = viewModel::setTravelProfile,
                 onSwitchToAr = {
                     if (!hasCameraPermission) {
                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -225,6 +226,9 @@ private fun NavGateHome(
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
     onStartNavigation: () -> Unit,
+    onToggleSaved: (PlaceSearchResult) -> Unit,
+    onTabSelected: (AppTab) -> Unit,
+    onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
     onSwitchToAr: () -> Unit,
     onSwitchToMap: () -> Unit,
     onRequestLocationPermission: () -> Unit,
@@ -317,8 +321,10 @@ private fun NavGateHome(
                 } else if (uiState.preview != null && uiState.isPreviewVisible) {
                     RoutePreviewSheet(
                         preview = uiState.preview,
+                        travelProfile = uiState.travelProfile,
                         confidence = uiState.snapshot.guidanceConfidence.reason,
                         onStartNavigation = onStartNavigation,
+                        onTravelProfileChanged = onTravelProfileChanged,
                         onOpenAr = onSwitchToAr,
                     )
                 } else if (uiState.snapshot.isNavigating) {
@@ -326,19 +332,59 @@ private fun NavGateHome(
                         instruction = uiState.snapshot.currentInstruction,
                         distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
                         etaLabel = formatEta(uiState.snapshot.etaSeconds),
+                        travelProfile = uiState.travelProfile,
+                        onTravelProfileChanged = onTravelProfileChanged,
                         onOpenAr = onSwitchToAr,
+                    )
+                } else if (uiState.activeTab == AppTab.Go) {
+                    GoPlanningSheet(
+                        travelProfile = uiState.travelProfile,
+                        selectedOrigin = uiState.selectedOrigin?.title,
+                        selectedDestination = uiState.selectedDestination?.title,
+                        onTravelProfileChanged = onTravelProfileChanged,
                     )
                 }
 
-                PlaceCarousel(
-                    places = uiState.places,
-                    selectedOriginId = uiState.selectedOrigin?.id,
-                    selectedDestinationId = uiState.selectedDestination?.id,
-                    onSelectOrigin = onSelectOrigin,
-                    onSelectDestination = onSelectDestination,
-                )
+                when (uiState.activeTab) {
+                    AppTab.Explore, AppTab.Go ->
+                        PlaceCarousel(
+                            places = uiState.places,
+                            selectedOriginId = uiState.selectedOrigin?.id,
+                            selectedDestinationId = uiState.selectedDestination?.id,
+                            savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
+                            onSelectOrigin = onSelectOrigin,
+                            onSelectDestination = onSelectDestination,
+                            onToggleSaved = onToggleSaved,
+                        )
 
-                HomeBottomBar()
+                    AppTab.Saved ->
+                        PlacesShelfPanel(
+                            title = "Saved places",
+                            caption = "Pinned places stay ready for one-tap routing.",
+                            places = uiState.savedPlaces,
+                            savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
+                            selectedOriginId = uiState.selectedOrigin?.id,
+                            selectedDestinationId = uiState.selectedDestination?.id,
+                            onSelectOrigin = onSelectOrigin,
+                            onSelectDestination = onSelectDestination,
+                            onToggleSaved = onToggleSaved,
+                        )
+
+                    AppTab.Recents ->
+                        PlacesShelfPanel(
+                            title = "Recent places",
+                            caption = "Your latest searches and route destinations.",
+                            places = uiState.recentPlaces,
+                            savedPlaceIds = uiState.savedPlaces.map { it.id }.toSet(),
+                            selectedOriginId = uiState.selectedOrigin?.id,
+                            selectedDestinationId = uiState.selectedDestination?.id,
+                            onSelectOrigin = onSelectOrigin,
+                            onSelectDestination = onSelectDestination,
+                            onToggleSaved = onToggleSaved,
+                        )
+                }
+
+                HomeBottomBar(selectedTab = uiState.activeTab, onTabSelected = onTabSelected)
             }
         }
     }
@@ -530,8 +576,10 @@ private fun PlaceCarousel(
     places: List<PlaceSearchResult>,
     selectedOriginId: String?,
     selectedDestinationId: String?,
+    savedPlaceIds: Set<String>,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
+    onToggleSaved: (PlaceSearchResult) -> Unit,
 ) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
@@ -543,8 +591,10 @@ private fun PlaceCarousel(
                 place = place,
                 isOrigin = selectedOriginId == place.id,
                 isDestination = selectedDestinationId == place.id,
+                isSaved = savedPlaceIds.contains(place.id),
                 onSelectOrigin = { onSelectOrigin(place) },
                 onSelectDestination = { onSelectDestination(place) },
+                onToggleSaved = { onToggleSaved(place) },
             )
         }
     }
@@ -555,8 +605,10 @@ private fun FeaturedPlaceCard(
     place: PlaceSearchResult,
     isOrigin: Boolean,
     isDestination: Boolean,
+    isSaved: Boolean,
     onSelectOrigin: () -> Unit,
     onSelectDestination: () -> Unit,
+    onToggleSaved: () -> Unit,
 ) {
     val icon = placeIcon(place.type)
     GlassCard(
@@ -591,19 +643,22 @@ private fun FeaturedPlaceCard(
                     Text(if (isDestination) "Destination set" else "Directions")
                 }
                 Surface(
-                    onClick = onSelectOrigin,
+                    onClick = onToggleSaved,
                     shape = CircleShape,
-                    color = if (isOrigin) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                    color = if (isSaved) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x2EFFFFFF)),
                 ) {
                     Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
                         Icon(
                             Icons.Rounded.BookmarkBorder,
                             contentDescription = null,
-                            tint = if (isOrigin) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isSaved) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
+            }
+            TextButton(onClick = onSelectOrigin) {
+                Text(if (isOrigin) "Start point locked" else "Use as start")
             }
             OriginDestinationState(place = place, isOrigin = isOrigin, isDestination = isDestination)
         }
@@ -652,8 +707,10 @@ private fun OriginDestinationState(
 @Composable
 private fun RoutePreviewSheet(
     preview: RoutePreview,
+    travelProfile: com.rohanc.navgate.model.TravelProfile,
     confidence: String,
     onStartNavigation: () -> Unit,
+    onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
     onOpenAr: () -> Unit,
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE61A2236)) {
@@ -673,6 +730,7 @@ private fun RoutePreviewSheet(
                 MetricPill("Distance", preview.distanceLabel)
                 MetricPill("ETA", preview.etaLabel)
             }
+            TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
             Text(preview.firstInstruction, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(confidence, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -704,6 +762,8 @@ private fun LiveGuidanceSheet(
     instruction: String,
     distanceLabel: String,
     etaLabel: String,
+    travelProfile: com.rohanc.navgate.model.TravelProfile,
+    onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
     onOpenAr: () -> Unit,
 ) {
     GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE6192134)) {
@@ -717,6 +777,7 @@ private fun LiveGuidanceSheet(
                 MetricPill("Next", distanceLabel)
                 MetricPill("ETA", etaLabel)
             }
+            TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
             FilledTonalButton(onClick = onOpenAr, shape = RoundedCornerShape(999.dp), contentPadding = PaddingValues(vertical = 14.dp)) {
                 Icon(Icons.Rounded.CameraAlt, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -741,19 +802,111 @@ private fun LoadingRouteCard() {
 }
 
 @Composable
-private fun HomeBottomBar() {
+private fun GoPlanningSheet(
+    travelProfile: com.rohanc.navgate.model.TravelProfile,
+    selectedOrigin: String?,
+    selectedDestination: String?,
+    onTravelProfileChanged: (com.rohanc.navgate.model.TravelProfile) -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), containerColor = Color(0xD6192134)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Go", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Choose a destination from Explore, Saved, or Recents. Live GPS will act as the origin when available.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            TravelModeSelector(selected = travelProfile, onSelected = onTravelProfileChanged)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MetricPill("Origin", selectedOrigin ?: "Live GPS")
+                MetricPill("Destination", selectedDestination ?: "Not set")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlacesShelfPanel(
+    title: String,
+    caption: String,
+    places: List<PlaceSearchResult>,
+    savedPlaceIds: Set<String>,
+    selectedOriginId: String?,
+    selectedDestinationId: String?,
+    onSelectOrigin: (PlaceSearchResult) -> Unit,
+    onSelectDestination: (PlaceSearchResult) -> Unit,
+    onToggleSaved: (PlaceSearchResult) -> Unit,
+) {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), containerColor = Color(0xD6192134)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(caption, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (places.isEmpty()) {
+                Text("Nothing here yet. Search a place or save a destination to build this list.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                PlaceCarousel(
+                    places = places,
+                    selectedOriginId = selectedOriginId,
+                    selectedDestinationId = selectedDestinationId,
+                    savedPlaceIds = savedPlaceIds,
+                    onSelectOrigin = onSelectOrigin,
+                    onSelectDestination = onSelectDestination,
+                    onToggleSaved = onToggleSaved,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TravelModeSelector(
+    selected: com.rohanc.navgate.model.TravelProfile,
+    onSelected: (com.rohanc.navgate.model.TravelProfile) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        TravelModeChip(
+            label = "Walking",
+            selected = selected == com.rohanc.navgate.model.TravelProfile.Walking,
+            onClick = { onSelected(com.rohanc.navgate.model.TravelProfile.Walking) },
+        )
+        TravelModeChip(
+            label = "Driving",
+            selected = selected == com.rohanc.navgate.model.TravelProfile.Driving,
+            onClick = { onSelected(com.rohanc.navgate.model.TravelProfile.Driving) },
+        )
+    }
+}
+
+@Composable
+private fun TravelModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) else Color(0x7A25304A),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+@Composable
+private fun HomeBottomBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit) {
     NavigationBar(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
         containerColor = Color(0xE6111828),
         tonalElevation = 0.dp,
         windowInsets = WindowInsets.navigationBars,
     ) {
-        HomeTab.entries.forEach { tab ->
+        AppTab.entries.forEach { tab ->
             NavigationBarItem(
-                selected = tab == HomeTab.Explore,
-                onClick = {},
-                icon = { Icon(tab.icon, contentDescription = tab.label) },
-                label = { Text(tab.label) },
+                selected = tab == selectedTab,
+                onClick = { onTabSelected(tab) },
+                icon = { Icon(tab.icon(), contentDescription = tab.label()) },
+                label = { Text(tab.label()) },
                 colors =
                     NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -968,4 +1121,24 @@ private fun placeIcon(type: PlaceType): ImageVector =
         PlaceType.Residential -> Icons.Rounded.BookmarkBorder
         PlaceType.Food -> Icons.Rounded.Restaurant
         PlaceType.Transit -> Icons.Rounded.LocalGasStation
+        PlaceType.Commercial -> Icons.Rounded.LocalGasStation
+        PlaceType.Hospitality -> Icons.Rounded.BookmarkBorder
+        PlaceType.Medical -> Icons.Rounded.Route
+        PlaceType.Landmark -> Icons.Rounded.Explore
+    }
+
+private fun AppTab.label(): String =
+    when (this) {
+        AppTab.Explore -> "Explore"
+        AppTab.Go -> "Go"
+        AppTab.Saved -> "Saved"
+        AppTab.Recents -> "Recents"
+    }
+
+private fun AppTab.icon(): ImageVector =
+    when (this) {
+        AppTab.Explore -> Icons.Rounded.Explore
+        AppTab.Go -> Icons.Rounded.Navigation
+        AppTab.Saved -> Icons.Rounded.BookmarkBorder
+        AppTab.Recents -> Icons.Rounded.History
     }

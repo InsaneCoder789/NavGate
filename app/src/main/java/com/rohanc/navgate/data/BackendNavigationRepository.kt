@@ -28,11 +28,10 @@ class BackendNavigationRepository(
         runCatching {
             withContext(Dispatchers.IO) {
                 val encoded = URLEncoder.encode(query, Charsets.UTF_8.name())
-                val request = Request.Builder().url("$baseUrl/places?query=$encoded").build()
+                val request = Request.Builder().url("$baseUrl/places?query=$encoded&city=Bhubaneswar").build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) error("search failed with ${response.code}")
-                    val body = response.body?.string().orEmpty()
-                    parsePlaces(JSONArray(body))
+                    parsePlaces(JSONArray(response.body?.string().orEmpty()))
                 }
             }
         }.getOrElse {
@@ -46,7 +45,9 @@ class BackendNavigationRepository(
                     JSONObject()
                         .put("origin", JSONObject().put("latitude", request.origin.latitude).put("longitude", request.origin.longitude))
                         .put("destination", JSONObject().put("latitude", request.destination.latitude).put("longitude", request.destination.longitude))
-                        .put("profile", request.profile.name)
+                        .put("destinationPlaceId", request.destinationPlaceId)
+                        .put("cityHint", request.cityHint ?: "Bhubaneswar")
+                        .put("profile", request.profile.name.lowercase())
                 val httpRequest =
                     Request.Builder()
                         .url("$baseUrl/route")
@@ -54,8 +55,7 @@ class BackendNavigationRepository(
                         .build()
                 client.newCall(httpRequest).execute().use { response ->
                     if (!response.isSuccessful) error("route failed with ${response.code}")
-                    val body = response.body?.string().orEmpty()
-                    parseRoute(JSONObject(body))
+                    parseRoute(JSONObject(response.body?.string().orEmpty()))
                 }
             }
         }.getOrElse {
@@ -73,17 +73,19 @@ class BackendNavigationRepository(
                         subtitle = item.getString("subtitle"),
                         latitude = item.getDouble("latitude"),
                         longitude = item.getDouble("longitude"),
-                        type = item.getString("type").toPlaceType(),
+                        type = item.optString("type").toPlaceType(),
+                        city = item.optString("city").takeIf { it.isNotBlank() },
+                        campusLabel = item.optString("campusLabel").takeIf { it.isNotBlank() },
+                        category = item.optString("category").takeIf { it.isNotBlank() },
                     ),
                 )
             }
         }
 
     private fun parseRoute(json: JSONObject): RouteResponse {
-        val coordinatesJson = json.getJSONArray("pathCoordinates")
-        val stepsJson = json.getJSONArray("steps")
         val coordinates =
             buildList {
+                val coordinatesJson = json.getJSONArray("pathCoordinates")
                 for (index in 0 until coordinatesJson.length()) {
                     val coordinate = coordinatesJson.getJSONObject(index)
                     add(Coordinate(coordinate.getDouble("latitude"), coordinate.getDouble("longitude")))
@@ -91,6 +93,7 @@ class BackendNavigationRepository(
             }
         val steps =
             buildList {
+                val stepsJson = json.getJSONArray("steps")
                 for (index in 0 until stepsJson.length()) {
                     val step = stepsJson.getJSONObject(index)
                     add(
@@ -99,7 +102,11 @@ class BackendNavigationRepository(
                             distanceMeters = step.getDouble("distanceMeters"),
                             targetLatitude = step.getDouble("targetLatitude"),
                             targetLongitude = step.getDouble("targetLongitude"),
-                            maneuverType = step.getString("maneuverType").toManeuverType(),
+                            maneuverType = step.optString("maneuverType").toManeuverType(),
+                            durationSeconds = step.optDouble("durationSeconds"),
+                            bearingStart = step.optDouble("bearingStart"),
+                            bearingEnd = step.optDouble("bearingEnd"),
+                            streetName = step.optString("streetName"),
                         ),
                     )
                 }
@@ -109,6 +116,11 @@ class BackendNavigationRepository(
             durationSeconds = json.getDouble("durationSeconds"),
             pathCoordinates = coordinates,
             steps = steps,
+            travelMode = json.optString("travelMode", requestModeFromRoute(json)),
+            routeSource = json.optString("routeSource", "backend"),
+            routeConfidence = json.optString("routeConfidence", "medium"),
+            supportsAr = json.optBoolean("supportsAr", true),
+            warnings = json.optJSONArray("warnings")?.toStringList().orEmpty(),
         )
     }
 
@@ -116,18 +128,27 @@ class BackendNavigationRepository(
         private fun defaultHttpClient(): OkHttpClient =
             OkHttpClient.Builder()
                 .connectTimeout(1500, TimeUnit.MILLISECONDS)
-                .readTimeout(1500, TimeUnit.MILLISECONDS)
+                .readTimeout(2500, TimeUnit.MILLISECONDS)
                 .build()
+
+        private fun requestModeFromRoute(json: JSONObject): String =
+            if (json.optDouble("distanceMeters") > 0) "walking" else "walking"
     }
 }
+
+private fun JSONArray.toStringList(): List<String> = List(length()) { getString(it) }
 
 private fun String.toPlaceType(): PlaceType =
     when (this) {
         "Gate" -> PlaceType.Gate
-        "Academic" -> PlaceType.Academic
+        "Academic", "KISS" -> PlaceType.Academic
         "Sports" -> PlaceType.Sports
         "Residential" -> PlaceType.Residential
         "Food" -> PlaceType.Food
+        "Commercial" -> PlaceType.Commercial
+        "Hospitality" -> PlaceType.Hospitality
+        "Medical" -> PlaceType.Medical
+        "Landmark" -> PlaceType.Landmark
         else -> PlaceType.Transit
     }
 
