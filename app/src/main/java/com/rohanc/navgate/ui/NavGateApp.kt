@@ -5,41 +5,66 @@ import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowOutward
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.Coffee
 import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.LocalGasStation
 import androidx.compose.material.icons.rounded.Map
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Route
+import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,10 +73,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +89,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rohanc.navgate.ar.ArAvailabilityState
 import com.rohanc.navgate.ar.ArCoreSupport
 import com.rohanc.navgate.model.PlaceSearchResult
+import com.rohanc.navgate.model.PlaceType
+import com.rohanc.navgate.navigation.GuidanceConfidence
 import com.rohanc.navgate.navigation.PresentationMode
 import com.rohanc.navgate.ui.ar.AlignmentLevel
 import com.rohanc.navgate.ui.ar.CameraPreview
@@ -70,9 +100,16 @@ import com.rohanc.navgate.ui.components.ConfidenceBadge
 import com.rohanc.navgate.ui.location.BindLocationTracking
 import com.rohanc.navgate.ui.location.hasLocationPermission
 import com.rohanc.navgate.ui.map.MapRouteGeoJson
+import com.rohanc.navgate.ui.state.NavGateUiState
 import com.rohanc.navgate.ui.state.NavGateViewModel
 import com.rohanc.navgate.ui.state.RoutePreview
+import com.rohanc.navgate.ui.theme.NavBackground
 import com.rohanc.navgate.ui.theme.NavGateTheme
+import com.rohanc.navgate.ui.theme.NavGlassStroke
+import com.rohanc.navgate.ui.theme.NavHighConfidence
+import com.rohanc.navgate.ui.theme.NavLowConfidence
+import com.rohanc.navgate.ui.theme.NavMapGlow
+import com.rohanc.navgate.ui.theme.NavMediumConfidence
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
@@ -87,6 +124,27 @@ import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Position
 
+private val QuickCategories =
+    listOf(
+        QuickCategory("Restaurants", Icons.Rounded.Restaurant, "food"),
+        QuickCategory("Gas", Icons.Rounded.LocalGasStation, "transit"),
+        QuickCategory("Coffee", Icons.Rounded.Coffee, "food"),
+        QuickCategory("Campus", Icons.Rounded.School, ""),
+    )
+
+private enum class HomeTab(val label: String, val icon: ImageVector) {
+    Explore("Explore", Icons.Rounded.Explore),
+    Go("Go", Icons.Rounded.Navigation),
+    Saved("Saved", Icons.Rounded.BookmarkBorder),
+    Recents("Recents", Icons.Rounded.History),
+}
+
+private data class QuickCategory(
+    val label: String,
+    val icon: ImageVector,
+    val query: String,
+)
+
 @Composable
 fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -95,10 +153,7 @@ fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     var arState by remember { mutableStateOf<ArAvailabilityState>(ArAvailabilityState.Checking) }
-    var hasLocationPermissionState by remember {
-        mutableStateOf(hasLocationPermission(context))
-    }
-
+    var hasLocationPermissionState by remember { mutableStateOf(hasLocationPermission(context)) }
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
@@ -130,37 +185,39 @@ fun NavGateApp(viewModel: NavGateViewModel = viewModel()) {
         viewModel.onLocationSample(coordinate, heading, fixAgeMillis)
     }
 
-    Surface(modifier = Modifier.fillMaxSize()) {
-        NavGateHome(
-            uiState = uiState,
-            arState = arState,
-            hasCameraPermission = hasCameraPermission,
-            hasLocationPermission = hasLocationPermissionState,
-            onSearchChanged = viewModel::updateSearch,
-            onSelectOrigin = {
-                viewModel.selectOrigin(it)
-                viewModel.setCurrentLocationAsOrigin(it.coordinate)
-            },
-            onSelectDestination = viewModel::selectDestination,
-            onStartNavigation = viewModel::startNavigation,
-            onSwitchToAr = {
-                if (!hasCameraPermission) {
-                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                } else {
-                    viewModel.switchMode(PresentationMode.AR_ASSIST)
-                }
-            },
-            onSwitchToMap = { viewModel.switchMode(PresentationMode.MAP) },
-            onRequestLocationPermission = {
-                locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-            },
-        )
+    NavGateTheme {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            NavGateHome(
+                uiState = uiState,
+                arState = arState,
+                hasCameraPermission = hasCameraPermission,
+                hasLocationPermission = hasLocationPermissionState,
+                onSearchChanged = viewModel::updateSearch,
+                onSelectOrigin = {
+                    viewModel.selectOrigin(it)
+                    viewModel.setCurrentLocationAsOrigin(it.coordinate)
+                },
+                onSelectDestination = viewModel::selectDestination,
+                onStartNavigation = viewModel::startNavigation,
+                onSwitchToAr = {
+                    if (!hasCameraPermission) {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    } else {
+                        viewModel.switchMode(PresentationMode.AR_ASSIST)
+                    }
+                },
+                onSwitchToMap = { viewModel.switchMode(PresentationMode.MAP) },
+                onRequestLocationPermission = {
+                    locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                },
+            )
+        }
     }
 }
 
 @Composable
 private fun NavGateHome(
-    uiState: com.rohanc.navgate.ui.state.NavGateUiState,
+    uiState: NavGateUiState,
     arState: ArAvailabilityState,
     hasCameraPermission: Boolean,
     hasLocationPermission: Boolean,
@@ -177,30 +234,17 @@ private fun NavGateHome(
         return
     }
 
-    Box(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFF06101C), Color(0xFF0E2740), Color(0xFF12907C)),
-                    ),
-                )
-                .padding(16.dp),
-    ) {
-        val target = uiState.snapshot.userLocation ?: uiState.selectedOrigin?.coordinate ?: uiState.selectedDestination?.coordinate
-        val cameraState =
-            rememberCameraState(
-                firstPosition =
-                    CameraPosition(
-                        target =
-                            Position(
-                                latitude = target?.latitude ?: 20.349884,
-                                longitude = target?.longitude ?: 85.807529,
-                            ),
-                        zoom = if (uiState.snapshot.route == null) 15.5 else 16.6,
-                    ),
-            )
+    val target = uiState.snapshot.userLocation ?: uiState.selectedOrigin?.coordinate ?: uiState.selectedDestination?.coordinate
+    val cameraState =
+        rememberCameraState(
+            firstPosition =
+                CameraPosition(
+                    target = Position(latitude = target?.latitude ?: 20.349884, longitude = target?.longitude ?: 85.807529),
+                    zoom = if (uiState.snapshot.route == null) 15.5 else 16.6,
+                ),
+        )
+
+    Box(modifier = Modifier.fillMaxSize().background(NavBackground)) {
         MaplibreMap(
             modifier = Modifier.fillMaxSize(),
             cameraState = cameraState,
@@ -208,15 +252,10 @@ private fun NavGateHome(
             options =
                 MapOptions(
                     renderOptions = RenderOptions(renderMode = RenderOptions.RenderMode.TextureView),
-                    ornamentOptions = OrnamentOptions(padding = PaddingValues(top = 90.dp, bottom = 140.dp)),
+                    ornamentOptions = OrnamentOptions(padding = PaddingValues(top = 120.dp, bottom = 220.dp)),
                 ),
         ) {
-            val routeSource =
-                rememberGeoJsonSource(
-                    GeoJsonData.JsonString(
-                        MapRouteGeoJson.lineString(uiState.snapshot.route),
-                    ),
-                )
+            val routeSource = rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.lineString(uiState.snapshot.route)))
             val endpointSource =
                 rememberGeoJsonSource(
                     GeoJsonData.JsonString(
@@ -226,202 +265,433 @@ private fun NavGateHome(
             LineLayer(
                 id = "active-route",
                 source = routeSource,
-                color = const(Color(0xFF58E8C1)),
+                color = const(MaterialTheme.colorScheme.tertiary),
                 width = const(6.dp),
             )
             CircleLayer(
                 id = "route-endpoints",
                 source = endpointSource,
-                radius = const(7.dp),
-                color = const(Color(0xFFFFD166)),
-                strokeColor = const(Color(0xFF0D121F)),
+                radius = const(8.dp),
+                color = const(MaterialTheme.colorScheme.primary),
+                strokeColor = const(MaterialTheme.colorScheme.surface),
                 strokeWidth = const(2.dp),
             )
         }
 
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                HeaderCard(
-                    hasLocationPermission = hasLocationPermission,
-                    onRequestLocationPermission = onRequestLocationPermission,
+        MapAtmosphere()
+
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 18.dp)) {
+            Column(
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                AppTitleRow()
+                TopSearchShell(
                     query = uiState.searchQuery,
                     onSearchChanged = onSearchChanged,
-                    onSwitchToMap = onSwitchToMap,
-                    isArMode = uiState.snapshot.presentationMode == PresentationMode.AR_ASSIST,
                 )
-                ConfidenceBadge(uiState.snapshot.guidanceConfidence)
-                if (uiState.snapshot.presentationMode == PresentationMode.AR_ASSIST) {
-                    ArAssistBanner(
-                        arState = arState,
-                        hasCameraPermission = hasCameraPermission,
-                        hasLocationPermission = hasLocationPermission,
-                        onSwitchToMap = onSwitchToMap,
-                        onRequestLocationPermission = onRequestLocationPermission,
-                    )
+                QuickCategoryRow(onCategorySelected = onSearchChanged)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ConfidenceBadge(confidence = uiState.snapshot.guidanceConfidence)
+                    if (!hasLocationPermission) {
+                        MiniPermissionPill(onRequestLocationPermission = onRequestLocationPermission)
+                    }
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                PlacesPanel(
-                    places = uiState.places,
-                    selectedOriginId = uiState.selectedOrigin?.id,
-                    selectedDestinationId = uiState.selectedDestination?.id,
-                    onSelectOrigin = onSelectOrigin,
-                    onSelectDestination = onSelectDestination,
-                )
+            FloatingActionRail(
+                modifier = Modifier.align(Alignment.BottomEnd).offset(y = (-128).dp),
+                onCenterOnUser = onRequestLocationPermission,
+            )
+
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 if (uiState.isLoadingRoute) {
-                    LoadingCard()
-                }
-                if (uiState.preview != null && uiState.isPreviewVisible) {
-                    RoutePreviewCard(
+                    LoadingRouteCard()
+                } else if (uiState.preview != null && uiState.isPreviewVisible) {
+                    RoutePreviewSheet(
                         preview = uiState.preview,
                         confidence = uiState.snapshot.guidanceConfidence.reason,
                         onStartNavigation = onStartNavigation,
                         onOpenAr = onSwitchToAr,
                     )
                 } else if (uiState.snapshot.isNavigating) {
-                    LiveHudCard(
+                    LiveGuidanceSheet(
                         instruction = uiState.snapshot.currentInstruction,
                         distanceLabel = formatDistance(uiState.snapshot.distanceToNextStep),
                         etaLabel = formatEta(uiState.snapshot.etaSeconds),
                         onOpenAr = onSwitchToAr,
                     )
                 }
+
+                PlaceCarousel(
+                    places = uiState.places,
+                    selectedOriginId = uiState.selectedOrigin?.id,
+                    selectedDestinationId = uiState.selectedDestination?.id,
+                    onSelectOrigin = onSelectOrigin,
+                    onSelectDestination = onSelectDestination,
+                )
+
+                HomeBottomBar()
             }
         }
     }
 }
 
 @Composable
-private fun HeaderCard(
-    hasLocationPermission: Boolean,
+private fun AppTitleRow() {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Route,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = "Explore · Navigation App",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun TopSearchShell(
     query: String,
     onSearchChanged: (String) -> Unit,
-    onSwitchToMap: () -> Unit,
-    onRequestLocationPermission: () -> Unit,
-    isArMode: Boolean,
 ) {
-    Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("NavGate", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                    Text("Campus walking with map truth and AR assist", color = Color(0xFF496273))
-                }
-                if (isArMode) {
-                    FilledTonalButton(onClick = onSwitchToMap) {
-                        Icon(Icons.Rounded.Map, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
-                        Text("Return to map")
-                    }
-                }
-            }
-            if (!hasLocationPermission) {
-                FilledTonalButton(onClick = onRequestLocationPermission) {
-                    Icon(Icons.Rounded.MyLocation, contentDescription = null)
-                    Spacer(Modifier.size(8.dp))
-                    Text("Enable live GPS")
-                }
-            }
-            OutlinedTextField(
-                value = query,
-                onValueChange = onSearchChanged,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Search campus places") },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Rounded.Route, contentDescription = null) },
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(32.dp),
+        containerColor = Color(0xCC171F33),
+        borderColor = Color(0xB9C7DBFF),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            GlassIconButton(icon = Icons.Rounded.Menu, contentDescription = "Menu")
+            SearchPill(
+                modifier = Modifier.weight(1f),
+                query = query,
+                onSearchChanged = onSearchChanged,
+            )
+            ProfileOrb()
+        }
+    }
+}
+
+@Composable
+private fun SearchPill(
+    modifier: Modifier = Modifier,
+    query: String,
+    onSearchChanged: (String) -> Unit,
+) {
+    TextField(
+        value = query,
+        onValueChange = onSearchChanged,
+        modifier = modifier,
+        singleLine = true,
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+        placeholder = {
+            Text(
+                text = "Search here",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        leadingIcon = {
+            Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+        trailingIcon = {
+            Icon(Icons.Rounded.Mic, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+        shape = RoundedCornerShape(26.dp),
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = Color(0x66252E42),
+                unfocusedContainerColor = Color(0x66252E42),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                cursorColor = MaterialTheme.colorScheme.primary,
+            ),
+    )
+}
+
+@Composable
+private fun ProfileOrb() {
+    Surface(
+        modifier = Modifier.size(44.dp),
+        shape = CircleShape,
+        color = Color(0xFF1E2A43),
+        border = androidx.compose.foundation.BorderStroke(1.dp, NavGlassStroke),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .background(
+                        brush = Brush.radialGradient(listOf(Color(0xFF35507E), Color(0xFF172237))),
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "RG",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
             )
         }
     }
 }
 
 @Composable
-private fun PlacesPanel(
+private fun QuickCategoryRow(onCategorySelected: (String) -> Unit) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
+        items(QuickCategories) { category ->
+            Surface(
+                onClick = { onCategorySelected(category.query) },
+                shape = RoundedCornerShape(999.dp),
+                color = Color(0xB3171F33),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x24FFFFFF)),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(category.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Text(category.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniPermissionPill(onRequestLocationPermission: () -> Unit) {
+    Surface(
+        onClick = onRequestLocationPermission,
+        shape = RoundedCornerShape(999.dp),
+        color = Color(0xAA1A2843),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x28FFFFFF)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Rounded.MyLocation, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Text("Enable live GPS", style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+@Composable
+private fun FloatingActionRail(
+    modifier: Modifier = Modifier,
+    onCenterOnUser: () -> Unit,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.End) {
+        Surface(
+            shape = CircleShape,
+            color = Color(0xCC222A3D),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x28FFFFFF)),
+        ) {
+            IconButton(onClick = {}) {
+                Icon(Icons.Rounded.Layers, contentDescription = "Layers", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            shadowElevation = 14.dp,
+        ) {
+            IconButton(onClick = onCenterOnUser) {
+                Icon(Icons.Rounded.MyLocation, contentDescription = "My location", tint = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaceCarousel(
     places: List<PlaceSearchResult>,
     selectedOriginId: String?,
     selectedDestinationId: String?,
     onSelectOrigin: (PlaceSearchResult) -> Unit,
     onSelectDestination: (PlaceSearchResult) -> Unit,
 ) {
-    Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Choose origin and destination", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            LazyColumn(modifier = Modifier.height(180.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(places, key = { it.id }) { place ->
-                    PlaceRow(
-                        place = place,
-                        isOrigin = selectedOriginId == place.id,
-                        isDestination = selectedDestinationId == place.id,
-                        onSelectOrigin = { onSelectOrigin(place) },
-                        onSelectDestination = { onSelectDestination(place) },
-                    )
-                }
-            }
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        items(places, key = { it.id }) { place ->
+            FeaturedPlaceCard(
+                place = place,
+                isOrigin = selectedOriginId == place.id,
+                isDestination = selectedDestinationId == place.id,
+                onSelectOrigin = { onSelectOrigin(place) },
+                onSelectDestination = { onSelectDestination(place) },
+            )
         }
     }
 }
 
 @Composable
-private fun PlaceRow(
+private fun FeaturedPlaceCard(
     place: PlaceSearchResult,
     isOrigin: Boolean,
     isDestination: Boolean,
     onSelectOrigin: () -> Unit,
     onSelectDestination: () -> Unit,
 ) {
-    Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(place.title, fontWeight = FontWeight.SemiBold)
-                    Text(place.subtitle, color = Color(0xFF61788A), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val icon = placeIcon(place.type)
+    GlassCard(
+        modifier = Modifier.width(314.dp),
+        shape = RoundedCornerShape(30.dp),
+        containerColor = Color(0xD9222A3D),
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(place.title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        text = "${place.subtitle} • ${place.type.name.lowercase().replaceFirstChar { it.uppercase() }}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Text(place.type.name, color = Color(0xFF1B8A74), style = MaterialTheme.typography.labelMedium)
+                PlaceThumbnail(icon = icon, label = place.title)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = onSelectOrigin) {
-                    Icon(Icons.Rounded.MyLocation, contentDescription = null)
-                    Spacer(Modifier.size(6.dp))
-                    Text(if (isOrigin) "Origin set" else "Use as start")
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = onSelectDestination,
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Rounded.Navigation, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isDestination) "Destination set" else "Directions")
                 }
-                OutlinedButton(onClick = onSelectDestination) {
-                    Icon(Icons.Rounded.ArrowOutward, contentDescription = null)
-                    Spacer(Modifier.size(6.dp))
-                    Text(if (isDestination) "Destination set" else "Use as end")
+                Surface(
+                    onClick = onSelectOrigin,
+                    shape = CircleShape,
+                    color = if (isOrigin) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x2EFFFFFF)),
+                ) {
+                    Box(modifier = Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.BookmarkBorder,
+                            contentDescription = null,
+                            tint = if (isOrigin) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
+            OriginDestinationState(place = place, isOrigin = isOrigin, isDestination = isDestination)
         }
     }
 }
 
 @Composable
-private fun RoutePreviewCard(
+private fun PlaceThumbnail(icon: ImageVector, label: String) {
+    Surface(shape = RoundedCornerShape(18.dp), color = Color(0xFF1B2437), modifier = Modifier.size(58.dp)) {
+        Box(
+            modifier =
+                Modifier
+                    .background(
+                        brush = Brush.linearGradient(
+                            listOf(Color(0xFF1D2C45), Color(0xFF2B3E63), Color(0xFF77511E)),
+                        ),
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+        }
+    }
+}
+
+@Composable
+private fun OriginDestinationState(
+    place: PlaceSearchResult,
+    isOrigin: Boolean,
+    isDestination: Boolean,
+) {
+    val message = when {
+        isOrigin && isDestination -> "This point anchors both start and end"
+        isOrigin -> "Start point locked here"
+        isDestination -> "Destination locked here"
+        else -> "Tap Directions or bookmark this point as your start"
+    }
+    Text(
+        text = message,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun RoutePreviewSheet(
     preview: RoutePreview,
     confidence: String,
     onStartNavigation: () -> Unit,
     onOpenAr: () -> Unit,
 ) {
-    Card(shape = RoundedCornerShape(32.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Route preview", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            Text("${preview.originTitle} to ${preview.destinationTitle}", style = MaterialTheme.typography.titleMedium)
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE61A2236)) {
+        Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Route preview", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        "${preview.originTitle} to ${preview.destinationTitle}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MetricPill("Distance", preview.distanceLabel)
                 MetricPill("ETA", preview.etaLabel)
             }
-            HorizontalDivider()
-            Text(preview.firstInstruction, style = MaterialTheme.typography.bodyLarge)
-            Text(confidence, color = Color(0xFF60798C))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onStartNavigation, modifier = Modifier.weight(1f)) {
+            Text(preview.firstInstruction, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(confidence, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.tertiary)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onStartNavigation,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(999.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
                     Text("Start navigation")
                 }
-                FilledTonalButton(onClick = onOpenAr, modifier = Modifier.weight(1f)) {
+                FilledTonalButton(
+                    onClick = onOpenAr,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(999.dp),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
                     Icon(Icons.Rounded.CameraAlt, contentDescription = null)
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text("AR assist")
                 }
             }
@@ -430,23 +700,26 @@ private fun RoutePreviewCard(
 }
 
 @Composable
-private fun LiveHudCard(
+private fun LiveGuidanceSheet(
     instruction: String,
     distanceLabel: String,
     etaLabel: String,
     onOpenAr: () -> Unit,
 ) {
-    Card(shape = RoundedCornerShape(32.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Live guidance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-            Text(instruction, style = MaterialTheme.typography.bodyLarge)
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(32.dp), containerColor = Color(0xE6192134)) {
+        Column(modifier = Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Rounded.Navigation, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Text("Live guidance", style = MaterialTheme.typography.titleLarge)
+            }
+            Text(instruction, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MetricPill("Next", distanceLabel)
                 MetricPill("ETA", etaLabel)
             }
-            FilledTonalButton(onClick = onOpenAr) {
+            FilledTonalButton(onClick = onOpenAr, shape = RoundedCornerShape(999.dp), contentPadding = PaddingValues(vertical = 14.dp)) {
                 Icon(Icons.Rounded.CameraAlt, contentDescription = null)
-                Spacer(Modifier.size(8.dp))
+                Spacer(Modifier.width(8.dp))
                 Text("Switch to AR assist")
             }
         }
@@ -454,54 +727,116 @@ private fun LiveHudCard(
 }
 
 @Composable
-private fun ArAssistBanner(
-    arState: ArAvailabilityState,
-    hasCameraPermission: Boolean,
-    hasLocationPermission: Boolean,
-    onSwitchToMap: () -> Unit,
-    onRequestLocationPermission: () -> Unit,
-) {
-    Card(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("AR assist preview", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(
-                when {
-                    !hasLocationPermission -> "Enable location first so live route progress stays accurate."
-                    !hasLocationPermission -> "Enable location first so live route progress stays accurate."
-                    !hasCameraPermission -> "Grant camera access to enter the camera overlay."
-                    arState == ArAvailabilityState.Supported -> "AR mode uses the shared route and will prioritize map truth if heading confidence drops."
-                    else -> "AR is not fully available on this device, so map mode remains the authority."
-                },
-            )
-            if (!hasLocationPermission) {
-                FilledTonalButton(onClick = onRequestLocationPermission) { Text("Enable location") }
-            }
-            OutlinedButton(onClick = onSwitchToMap) { Text("Keep navigating on map") }
+private fun LoadingRouteCard() {
+    GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), containerColor = Color(0xD6192134)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
+            Text("Building the premium walking route preview...", style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
 
 @Composable
-private fun LoadingCard() {
-    Card(shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            Text("Building the walking route preview...")
+private fun HomeBottomBar() {
+    NavigationBar(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
+        containerColor = Color(0xE6111828),
+        tonalElevation = 0.dp,
+        windowInsets = WindowInsets.navigationBars,
+    ) {
+        HomeTab.entries.forEach { tab ->
+            NavigationBarItem(
+                selected = tab == HomeTab.Explore,
+                onClick = {},
+                icon = { Icon(tab.icon, contentDescription = tab.label) },
+                label = { Text(tab.label) },
+                colors =
+                    NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        selectedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        indicatorColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun GlassCard(
+    modifier: Modifier = Modifier,
+    shape: RoundedCornerShape = RoundedCornerShape(28.dp),
+    containerColor: Color = Color(0xCC171F33),
+    borderColor: Color = NavGlassStroke,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = modifier.border(1.dp, borderColor, shape),
+        shape = shape,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .background(containerColor)
+                    .padding(0.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun GlassIconButton(icon: ImageVector, contentDescription: String) {
+    Surface(shape = CircleShape, color = Color(0x66242D42)) {
+        IconButton(onClick = {}) {
+            Icon(icon, contentDescription = contentDescription, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
 
 @Composable
 private fun MetricPill(label: String, value: String) {
-    Surface(
-        color = Color(0xFFE9F8F4),
-        shape = RoundedCornerShape(999.dp),
-    ) {
-        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(label, color = Color(0xFF46606D), style = MaterialTheme.typography.labelMedium)
-            Text(value, color = Color(0xFF0D715B), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+    Surface(shape = RoundedCornerShape(999.dp), color = Color(0x7A25304A)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+            Text(value, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
     }
+}
+
+@Composable
+private fun BoxScope.MapAtmosphere() {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xA60B1326), Color(0x350B1326), Color(0xCC0B1326)),
+                    ),
+                ),
+    )
+    Box(
+        modifier =
+            Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxSize()
+                .blur(90.dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(NavMapGlow.copy(alpha = 0.44f), Color.Transparent),
+                        radius = 720f,
+                    ),
+                ),
+    )
 }
 
 private fun formatDistance(distanceMeters: Double): String =
@@ -516,40 +851,44 @@ private fun formatEta(seconds: Double): String {
     return if (minutes < 60) "$minutes min" else "${minutes / 60} hr ${minutes % 60} min"
 }
 
-
 @Composable
 private fun ArAssistScreen(
-    uiState: com.rohanc.navgate.ui.state.NavGateUiState,
+    uiState: NavGateUiState,
     hasLocationPermission: Boolean,
     onSwitchToMap: () -> Unit,
 ) {
     val headingState = rememberHeadingState()
     val alignment = alignmentStatus(uiState.snapshot, headingState.value)
+
     Box(modifier = Modifier.fillMaxSize()) {
         CameraPreview(modifier = Modifier.fillMaxSize())
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0x4406111A)),
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xCC09111F), Color(0x5509111F), Color(0xD909111F)),
+                        ),
+                    ),
         )
         Column(
             modifier = Modifier.fillMaxSize().padding(20.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
+            GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(30.dp), containerColor = Color(0xCC161D31)) {
                 Row(
-                    modifier = Modifier.padding(18.dp),
+                    modifier = Modifier.fillMaxWidth().padding(18.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("AR assist", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text(uiState.snapshot.currentInstruction, style = MaterialTheme.typography.bodyLarge)
+                        Text(uiState.snapshot.currentInstruction, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    FilledTonalButton(onClick = onSwitchToMap) {
+                    FilledTonalButton(onClick = onSwitchToMap, shape = RoundedCornerShape(999.dp)) {
                         Icon(Icons.Rounded.Map, contentDescription = null)
-                        Spacer(Modifier.size(8.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text("Map")
                     }
                 }
@@ -558,21 +897,16 @@ private fun ArAssistScreen(
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 AlignmentRing(alignment = alignment)
                 Spacer(Modifier.height(18.dp))
-                Text(
-                    text = alignment.label,
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Text(alignment.label, color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     text = "Next turn in ${formatDistance(uiState.snapshot.distanceToNextStep)}",
-                    color = Color(0xFFD8EEF8),
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
 
-            Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            GlassCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(30.dp), containerColor = Color(0xCC161D31)) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     ConfidenceBadge(uiState.snapshot.guidanceConfidence)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         MetricPill("ETA", formatEta(uiState.snapshot.etaSeconds))
@@ -580,7 +914,8 @@ private fun ArAssistScreen(
                     }
                     Text(
                         "Map truth stays active underneath this camera view. If alignment confidence drops, return to the map and continue safely.",
-                        color = Color(0xFF5E7586),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
@@ -591,14 +926,14 @@ private fun ArAssistScreen(
 @Composable
 private fun AlignmentRing(alignment: com.rohanc.navgate.ui.ar.AlignmentStatus) {
     val color = when (alignment.level) {
-        AlignmentLevel.Aligned -> Color(0xFF75F0C6)
-        AlignmentLevel.Adjust -> Color(0xFFFFD166)
-        AlignmentLevel.Recover -> Color(0xFFFF8B9A)
+        AlignmentLevel.Aligned -> NavHighConfidence
+        AlignmentLevel.Adjust -> NavMediumConfidence
+        AlignmentLevel.Recover -> NavLowConfidence
     }
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(220.dp)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(240.dp)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawArc(
-                color = Color.White.copy(alpha = 0.18f),
+                color = Color.White.copy(alpha = 0.16f),
                 startAngle = 140f,
                 sweepAngle = 260f,
                 useCenter = false,
@@ -614,13 +949,23 @@ private fun AlignmentRing(alignment: com.rohanc.navgate.ui.ar.AlignmentStatus) {
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Rounded.Explore, contentDescription = null, tint = color, modifier = Modifier.size(56.dp))
+            Icon(Icons.Rounded.Explore, contentDescription = null, tint = color, modifier = Modifier.size(58.dp))
             Text(
                 text = "${alignment.deltaDegrees.toInt()}°",
                 color = Color.White,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
             )
         }
     }
 }
+
+private fun placeIcon(type: PlaceType): ImageVector =
+    when (type) {
+        PlaceType.Gate -> Icons.Rounded.Route
+        PlaceType.Academic -> Icons.Rounded.School
+        PlaceType.Sports -> Icons.Rounded.Explore
+        PlaceType.Residential -> Icons.Rounded.BookmarkBorder
+        PlaceType.Food -> Icons.Rounded.Restaurant
+        PlaceType.Transit -> Icons.Rounded.LocalGasStation
+    }
