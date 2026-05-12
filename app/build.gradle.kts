@@ -70,6 +70,10 @@ dependencies {
 
     implementation("com.google.ar:core:1.33.0")
     implementation("org.maplibre.compose:maplibre-compose:0.12.1")
+    implementation("androidx.camera:camera-core:1.5.0")
+    implementation("androidx.camera:camera-camera2:1.5.0")
+    implementation("androidx.camera:camera-lifecycle:1.5.0")
+    implementation("androidx.camera:camera-view:1.5.0")
 
     testImplementation("androidx.arch.core:core-testing:2.2.0")
 

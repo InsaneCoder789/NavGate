@@ -6,10 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.MyLocation
 import androidx.compose.material.icons.rounded.Route
@@ -32,7 +35,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,6 +62,10 @@ import com.rohanc.navgate.ar.ArAvailabilityState
 import com.rohanc.navgate.ar.ArCoreSupport
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.navigation.PresentationMode
+import com.rohanc.navgate.ui.ar.AlignmentLevel
+import com.rohanc.navgate.ui.ar.CameraPreview
+import com.rohanc.navgate.ui.ar.alignmentStatus
+import com.rohanc.navgate.ui.ar.rememberHeadingState
 import com.rohanc.navgate.ui.components.ConfidenceBadge
 import com.rohanc.navgate.ui.map.MapRouteGeoJson
 import com.rohanc.navgate.ui.state.NavGateViewModel
@@ -144,6 +152,11 @@ private fun NavGateHome(
     onSwitchToAr: () -> Unit,
     onSwitchToMap: () -> Unit,
 ) {
+    if (uiState.snapshot.presentationMode == PresentationMode.AR_ASSIST && hasCameraPermission && arState == ArAvailabilityState.Supported) {
+        ArAssistScreen(uiState = uiState, onSwitchToMap = onSwitchToMap)
+        return
+    }
+
     Box(
         modifier =
             Modifier
@@ -449,4 +462,112 @@ private fun formatDistance(distanceMeters: Double): String =
 private fun formatEta(seconds: Double): String {
     val minutes = kotlin.math.ceil(seconds / 60.0).toInt().coerceAtLeast(1)
     return if (minutes < 60) "$minutes min" else "${minutes / 60} hr ${minutes % 60} min"
+}
+
+
+@Composable
+private fun ArAssistScreen(
+    uiState: com.rohanc.navgate.ui.state.NavGateUiState,
+    onSwitchToMap: () -> Unit,
+) {
+    val headingState = rememberHeadingState()
+    val alignment = alignmentStatus(uiState.snapshot, headingState.value)
+    Box(modifier = Modifier.fillMaxSize()) {
+        CameraPreview(modifier = Modifier.fillMaxSize())
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .background(Color(0x4406111A)),
+        )
+        Column(
+            modifier = Modifier.fillMaxSize().padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(18.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("AR assist", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text(uiState.snapshot.currentInstruction, style = MaterialTheme.typography.bodyLarge)
+                    }
+                    FilledTonalButton(onClick = onSwitchToMap) {
+                        Icon(Icons.Rounded.Map, contentDescription = null)
+                        Spacer(Modifier.size(8.dp))
+                        Text("Map")
+                    }
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                AlignmentRing(alignment = alignment)
+                Spacer(Modifier.height(18.dp))
+                Text(
+                    text = alignment.label,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Next turn in ${formatDistance(uiState.snapshot.distanceToNextStep)}",
+                    color = Color(0xFFD8EEF8),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+
+            Card(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ConfidenceBadge(uiState.snapshot.guidanceConfidence)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MetricPill("ETA", formatEta(uiState.snapshot.etaSeconds))
+                        MetricPill("Mode", "AR Assist")
+                    }
+                    Text(
+                        "Map truth stays active underneath this camera view. If alignment confidence drops, return to the map and continue safely.",
+                        color = Color(0xFF5E7586),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlignmentRing(alignment: com.rohanc.navgate.ui.ar.AlignmentStatus) {
+    val color = when (alignment.level) {
+        AlignmentLevel.Aligned -> Color(0xFF75F0C6)
+        AlignmentLevel.Adjust -> Color(0xFFFFD166)
+        AlignmentLevel.Recover -> Color(0xFFFF8B9A)
+    }
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(220.dp)) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawArc(
+                color = Color.White.copy(alpha = 0.18f),
+                startAngle = 140f,
+                sweepAngle = 260f,
+                useCenter = false,
+                style = Stroke(width = 22f, cap = StrokeCap.Round),
+            )
+            val clamped = alignment.deltaDegrees.coerceIn(-90.0, 90.0).toFloat()
+            drawArc(
+                color = color,
+                startAngle = 270f + clamped,
+                sweepAngle = 52f,
+                useCenter = false,
+                style = Stroke(width = 22f, cap = StrokeCap.Round),
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Rounded.Explore, contentDescription = null, tint = color, modifier = Modifier.size(56.dp))
+            Text(
+                text = "${alignment.deltaDegrees.toInt()}°",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
 }
