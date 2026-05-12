@@ -73,7 +73,6 @@ dependencies {
 
     implementation("com.google.ar:core:1.54.0")
     implementation("org.maplibre.compose:maplibre-compose:0.12.1")
-    implementation("org.maplibre.gl:android-sdk:13.1.0")
     implementation("androidx.camera:camera-core:1.6.1")
     implementation("androidx.camera:camera-camera2:1.6.1")
     implementation("androidx.camera:camera-lifecycle:1.6.1")

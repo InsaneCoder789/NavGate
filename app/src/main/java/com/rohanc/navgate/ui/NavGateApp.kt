@@ -81,6 +81,7 @@ import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.map.MapOptions
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.OrnamentOptions
+import org.maplibre.compose.map.RenderOptions
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
@@ -200,20 +201,28 @@ private fun NavGateHome(
                         zoom = if (uiState.snapshot.route == null) 15.5 else 16.6,
                     ),
             )
-        val routeSource = rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.lineString(uiState.snapshot.route)))
-        val endpointSource =
-            rememberGeoJsonSource(
-                GeoJsonData.JsonString(
-                    MapRouteGeoJson.endpoints(uiState.snapshot.origin, uiState.snapshot.destination),
-                ),
-            )
-
         MaplibreMap(
             modifier = Modifier.fillMaxSize(),
             cameraState = cameraState,
             baseStyle = BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty"),
-            options = MapOptions(ornamentOptions = OrnamentOptions(padding = PaddingValues(top = 90.dp, bottom = 140.dp))),
+            options =
+                MapOptions(
+                    renderOptions = RenderOptions(renderMode = RenderOptions.RenderMode.TextureView),
+                    ornamentOptions = OrnamentOptions(padding = PaddingValues(top = 90.dp, bottom = 140.dp)),
+                ),
         ) {
+            val routeSource =
+                rememberGeoJsonSource(
+                    GeoJsonData.JsonString(
+                        MapRouteGeoJson.lineString(uiState.snapshot.route),
+                    ),
+                )
+            val endpointSource =
+                rememberGeoJsonSource(
+                    GeoJsonData.JsonString(
+                        MapRouteGeoJson.endpoints(uiState.snapshot.origin, uiState.snapshot.destination),
+                    ),
+                )
             LineLayer(
                 id = "active-route",
                 source = routeSource,
