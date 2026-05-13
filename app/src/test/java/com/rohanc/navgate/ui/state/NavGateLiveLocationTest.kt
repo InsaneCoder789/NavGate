@@ -42,6 +42,8 @@ class NavGateLiveLocationTest {
         val repository = TrackingRepository()
         val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
+        viewModel.setCityMode(CityMode.KiitBeta)
+        advanceUntilIdle()
 
         viewModel.selectOrigin(repository.origin)
         viewModel.selectDestination(repository.destination)
@@ -59,6 +61,8 @@ class NavGateLiveLocationTest {
         val repository = TrackingRepository()
         val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
         advanceUntilIdle()
+        viewModel.setCityMode(CityMode.KiitBeta)
+        advanceUntilIdle()
 
         viewModel.selectOrigin(repository.origin)
         viewModel.selectDestination(repository.destination)
@@ -75,6 +79,8 @@ class NavGateLiveLocationTest {
     fun `arriving through live location marks route complete`() = runTest {
         val repository = TrackingRepository()
         val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
+        advanceUntilIdle()
+        viewModel.setCityMode(CityMode.KiitBeta)
         advanceUntilIdle()
 
         viewModel.selectOrigin(repository.origin)

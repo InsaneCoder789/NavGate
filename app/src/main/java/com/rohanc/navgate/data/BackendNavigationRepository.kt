@@ -39,45 +39,53 @@ class BackendNavigationRepository(
                 val request = Request.Builder().url("$baseUrl/places?query=$encoded$cityQuery").build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) error("search failed with ${response.code}")
-                    parsePlaces(JSONArray(response.body?.string().orEmpty()))
+                    val backendPlaces = parsePlaces(JSONArray(response.body?.string().orEmpty()))
+                    if (backendPlaces.isNotEmpty()) {
+                        backendPlaces
+                    } else {
+                        fallbackPlaces(query, cityHint)
+                    }
                 }
             }
         }.getOrElse {
-            runCatching {
-                val bundled = application?.let { searchBundledPlaces(it, query, cityHint) }.orEmpty()
-                val openMap = searchOpenMap(query, cityHint)
-                (bundled + openMap)
-                    .distinctBy { "${it.title}-${it.latitude}-${it.longitude}" }
-                    .take(12)
-                    .ifEmpty { fallback.searchPlaces(query, cityHint) }
-            }.getOrElse {
-                fallback.searchPlaces(query, cityHint)
-            }
+            fallbackPlaces(query, cityHint)
+        }
+
+    private suspend fun fallbackPlaces(query: String, cityHint: String?): List<PlaceSearchResult> =
+        runCatching {
+            val bundled = application?.let { searchBundledPlaces(it, query, cityHint) }.orEmpty()
+            val openMap = searchOpenMap(query, cityHint)
+            (bundled + openMap)
+                .distinctBy { "${it.title}-${it.latitude}-${it.longitude}" }
+                .take(12)
+                .ifEmpty { fallback.searchPlaces(query, cityHint) }
+        }.getOrElse {
+            fallback.searchPlaces(query, cityHint)
         }
 
     override suspend fun fetchRoute(request: RouteRequest): RouteResponse =
         runCatching {
-            withContext(Dispatchers.IO) {
-                val payload =
-                    JSONObject()
-                        .put("origin", JSONObject().put("latitude", request.origin.latitude).put("longitude", request.origin.longitude))
-                        .put("destination", JSONObject().put("latitude", request.destination.latitude).put("longitude", request.destination.longitude))
-                        .put("destinationPlaceId", request.destinationPlaceId)
-                        .put("cityHint", request.cityHint ?: "Bhubaneswar")
-                        .put("profile", request.profile.name.lowercase())
-                val httpRequest =
-                    Request.Builder()
-                        .url("$baseUrl/route")
-                        .post(payload.toString().toRequestBody("application/json".toMediaType()))
-                        .build()
-                client.newCall(httpRequest).execute().use { response ->
-                    if (!response.isSuccessful) error("route failed with ${response.code}")
-                    parseRoute(JSONObject(response.body?.string().orEmpty()))
-                }
-            }
+            fetchOpenMapRoute(request)
         }.getOrElse {
             runCatching {
-                fetchOpenMapRoute(request)
+                withContext(Dispatchers.IO) {
+                    val payload =
+                        JSONObject()
+                            .put("origin", JSONObject().put("latitude", request.origin.latitude).put("longitude", request.origin.longitude))
+                            .put("destination", JSONObject().put("latitude", request.destination.latitude).put("longitude", request.destination.longitude))
+                            .put("destinationPlaceId", request.destinationPlaceId)
+                            .put("cityHint", request.cityHint ?: "Bhubaneswar")
+                            .put("profile", request.profile.name.lowercase())
+                    val httpRequest =
+                        Request.Builder()
+                            .url("$baseUrl/route")
+                            .post(payload.toString().toRequestBody("application/json".toMediaType()))
+                            .build()
+                    client.newCall(httpRequest).execute().use { response ->
+                        if (!response.isSuccessful) error("route failed with ${response.code}")
+                        parseRoute(JSONObject(response.body?.string().orEmpty()))
+                    }
+                }
             }.getOrElse {
                 fallback.fetchRoute(request)
             }

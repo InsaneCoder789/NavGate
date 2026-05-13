@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.navigation.GuidanceConfidence
 import com.rohanc.navgate.navigation.SignalConfidence
-import com.rohanc.navgate.ui.theme.NavGlassStroke
 import com.rohanc.navgate.ui.theme.NavHighConfidence
 import com.rohanc.navgate.ui.theme.NavLowConfidence
 import com.rohanc.navgate.ui.theme.NavMediumConfidence
@@ -32,27 +31,32 @@ fun ConfidenceBadge(confidence: SignalConfidence, modifier: Modifier = Modifier)
     Row(
         modifier =
             modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0xCC11182B))
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .clip(CircleShape)
+                .background(Color(0x991D1F24))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(10.dp)
-                    .clip(RoundedCornerShape(999.dp))
+                    .size(8.dp)
+                    .clip(CircleShape)
                     .background(accent),
         )
         Text(
-            text = confidence.label.name.uppercase(),
-            color = accent,
+            text = confidence.label.name,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Text(
+            text = "•",
+            color = Color.White.copy(alpha = 0.5f),
             style = MaterialTheme.typography.labelLarge,
         )
         Text(
             text = confidence.reason,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = Color.White.copy(alpha = 0.7f),
             style = MaterialTheme.typography.labelLarge,
         )
     }

@@ -1,0 +1,43 @@
+services:
+  navgate-backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - osrm-foot
+      - osrm-car
+      - valhalla
+    restart: unless-stopped
+
+  osrm-foot:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    command: osrm-routed --algorithm mld /data/india-foot.osrm
+    volumes:
+      - ./osrm-data:/data
+    restart: unless-stopped
+
+  osrm-car:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    command: osrm-routed --algorithm mld /data/india-car.osrm
+    volumes:
+      - ./osrm-data:/data
+    restart: unless-stopped
+
+  # Valhalla primary router
+  # This image expects tiles in /custom_files/valhalla_tiles
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    environment:
+      - tile_urls=
+      - use_tiles_ignore_pbf=True
+      - server_threads=2
+      - serve_tiles=True
+    volumes:
+      - ./valhalla-data:/custom_files
+    ports:
+      - "8002:8002"
+    restart: unless-stopped

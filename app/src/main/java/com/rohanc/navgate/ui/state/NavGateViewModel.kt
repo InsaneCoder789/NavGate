@@ -102,16 +102,22 @@ class NavGateViewModel(
     }
 
     fun selectDestination(place: PlaceSearchResult) {
-        val inferredOrigin = _uiState.value.selectedOrigin ?: _uiState.value.snapshot.userLocation?.let(::liveLocationPlace)
+        val inferredOrigin =
+            _uiState.value.selectedOrigin
+                ?.takeIf { !it.isSyntheticLiveLocation() || isCoordinateUsableForCity(it.coordinate, _uiState.value.cityMode) }
+                ?: _uiState.value.snapshot.userLocation
+                    ?.takeIf { isCoordinateUsableForCity(it, _uiState.value.cityMode) }
+                    ?.let(::liveLocationPlace)
+                ?: defaultOriginFor(_uiState.value.cityMode)
         _uiState.update {
             it.copy(
-                selectedOrigin = inferredOrigin ?: it.selectedOrigin,
+                selectedOrigin = inferredOrigin,
                 selectedDestination = place,
                 focusedPlace = null,
                 preview = null,
                 snapshot =
                     it.snapshot.copy(
-                        origin = (inferredOrigin ?: it.selectedOrigin)?.coordinate,
+                        origin = inferredOrigin.coordinate,
                         destination = place.coordinate,
                     ),
                 activeTab = AppTab.Go,
@@ -123,6 +129,37 @@ class NavGateViewModel(
     }
 
     fun startNavigation() {
+        val state = _uiState.value
+        val liveLocation = state.snapshot.userLocation
+        val destination = state.selectedDestination
+        val shouldResyncToLive =
+            liveLocation != null &&
+                destination != null &&
+                isCoordinateUsableForCity(liveLocation, state.cityMode) &&
+                state.selectedOrigin?.id in setOf("mumbai-origin", "kiit-origin")
+
+        if (shouldResyncToLive) {
+            viewModelScope.launch {
+                val liveOrigin = liveLocationPlace(liveLocation!!)
+                val route = repository.fetchRoute(routeRequest(liveOrigin.coordinate, destination!!.coordinate, destination))
+                engine.selectRoute(liveOrigin.coordinate, destination.coordinate, route)
+                val snapshot = engine.startNavigation()
+                _uiState.update {
+                    it.copy(
+                        selectedOrigin = liveOrigin,
+                        preview = RoutePreview.from(liveOrigin, destination, route),
+                        snapshot = snapshot,
+                        focusedPlace = null,
+                        isPreviewVisible = false,
+                        activeTab = AppTab.Go,
+                    )
+                }
+                recordRecent(destination)
+                recordRouteHistory(destination, snapshot.etaSeconds)
+            }
+            return
+        }
+
         val snapshot = engine.startNavigation()
         _uiState.update {
             it.copy(
@@ -177,12 +214,27 @@ class NavGateViewModel(
 
     fun onLocationSample(location: Coordinate, heading: Double?, lastFixAgeMillis: Long) {
         val state = _uiState.value
+        if (!isCoordinateUsableForCity(location, state.cityMode)) {
+            return
+        }
         val liveSnapshot = engine.updateUserProgress(location, heading, lastFixAgeMillis)
         _uiState.update { current ->
             current.copy(
                 snapshot = liveSnapshot,
-                selectedOrigin = if (current.selectedOrigin == null || current.selectedOrigin.id == LIVE_LOCATION_ID) liveLocationPlace(location) else current.selectedOrigin,
+                selectedOrigin =
+                    if ((current.selectedOrigin == null || current.selectedOrigin.id == LIVE_LOCATION_ID) &&
+                        isCoordinateUsableForCity(location, current.cityMode)
+                    ) {
+                        liveLocationPlace(location)
+                    } else if (!current.snapshot.isNavigating && current.selectedOrigin?.isDefaultPreviewOrigin() == true) {
+                        liveLocationPlace(location)
+                    } else {
+                        current.selectedOrigin
+                    },
             )
+        }
+        if (!state.snapshot.isNavigating && state.selectedDestination != null && state.selectedOrigin?.isDefaultPreviewOrigin() == true) {
+            recomputePreviewIfReady()
         }
         if (!state.snapshot.isArrived && liveSnapshot.isArrived) {
             recordRouteHistory(state.selectedDestination, 0.0)
@@ -211,6 +263,9 @@ class NavGateViewModel(
     }
 
     fun setCurrentLocationAsOrigin(location: Coordinate) {
+        if (!isCoordinateUsableForCity(location, _uiState.value.cityMode)) {
+            return
+        }
         _uiState.update {
             val existingOrigin = it.selectedOrigin
             val liveOrigin = if (existingOrigin == null || existingOrigin.id == LIVE_LOCATION_ID) liveLocationPlace(location) else existingOrigin
@@ -222,7 +277,13 @@ class NavGateViewModel(
     }
 
     fun selectTab(tab: AppTab) {
-        _uiState.update { it.copy(activeTab = tab) }
+        _uiState.update {
+            it.copy(
+                activeTab = tab,
+                searchQuery = if (tab == AppTab.Explore) it.searchQuery else "",
+                focusedPlace = if (tab == AppTab.Explore && !it.isPreviewVisible) it.focusedPlace else null,
+            )
+        }
     }
 
     fun setTravelProfile(profile: TravelProfile) {
@@ -257,9 +318,10 @@ class NavGateViewModel(
     }
 
     private fun refreshPlaces(query: String = _uiState.value.searchQuery) {
+        _uiState.update { it.copy(isLoadingPlaces = true) }
         viewModelScope.launch {
             val places = repository.searchPlaces(query, _uiState.value.cityMode.backendCity)
-            _uiState.update { it.copy(places = places) }
+            _uiState.update { it.copy(places = places, isLoadingPlaces = false) }
         }
     }
 
@@ -347,12 +409,62 @@ class NavGateViewModel(
                 city = "Current city",
                 category = "Live",
             )
+
+        private fun PlaceSearchResult.isSyntheticLiveLocation(): Boolean = id == LIVE_LOCATION_ID
+
+        private fun PlaceSearchResult.isDefaultPreviewOrigin(): Boolean = id == "mumbai-origin" || id == "kiit-origin"
+
+        private fun isCoordinateUsableForCity(location: Coordinate, cityMode: CityMode): Boolean {
+            val cityAnchor = defaultOriginFor(cityMode).coordinate
+            return haversineKilometers(location, cityAnchor) <= 120.0
+        }
+
+        private fun haversineKilometers(first: Coordinate, second: Coordinate): Double {
+            val earthRadiusKm = 6371.0
+            val dLat = Math.toRadians(second.latitude - first.latitude)
+            val dLon = Math.toRadians(second.longitude - first.longitude)
+            val lat1 = Math.toRadians(first.latitude)
+            val lat2 = Math.toRadians(second.latitude)
+            val a =
+                kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+                    kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2) *
+                    kotlin.math.cos(lat1) * kotlin.math.cos(lat2)
+            val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
+            return earthRadiusKm * c
+        }
+
+        private fun defaultOriginFor(cityMode: CityMode): PlaceSearchResult =
+            when (cityMode) {
+                CityMode.Mumbai ->
+                    PlaceSearchResult(
+                        id = "mumbai-origin",
+                        title = "Mumbai center",
+                        subtitle = "Default start for route previews",
+                        latitude = 19.0760,
+                        longitude = 72.8777,
+                        type = PlaceType.Transit,
+                        city = "Mumbai",
+                        category = "Origin",
+                    )
+                CityMode.KiitBeta ->
+                    PlaceSearchResult(
+                        id = "kiit-origin",
+                        title = "Patia campus",
+                        subtitle = "Default start for route previews",
+                        latitude = 20.3534,
+                        longitude = 85.8195,
+                        type = PlaceType.Transit,
+                        city = "Bhubaneswar",
+                        category = "Origin",
+                    )
+            }
     }
 }
 
 data class NavGateUiState(
     val searchQuery: String = "",
     val places: List<PlaceSearchResult> = emptyList(),
+    val isLoadingPlaces: Boolean = false,
     val focusedPlace: PlaceSearchResult? = null,
     val selectedOrigin: PlaceSearchResult? = null,
     val selectedDestination: PlaceSearchResult? = null,

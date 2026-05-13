@@ -2,25 +2,32 @@ package com.rohanc.navgate.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val NavBackground = Color(0xFF0B1326)
-val NavSurface = Color(0xFF171F33)
-val NavSurfaceHigh = Color(0xFF222A3D)
-val NavSurfaceHighest = Color(0xFF2D3449)
-val NavSurfaceBright = Color(0xFF31394D)
-val NavOutline = Color(0xFF8C90A0)
-val NavOutlineVariant = Color(0xFF424754)
-val NavPrimary = Color(0xFFAFC6FF)
-val NavPrimaryContainer = Color(0xFF548DFF)
-val NavOnPrimary = Color(0xFF002D6D)
-val NavSecondary = Color(0xFFD0BCFF)
-val NavSecondaryContainer = Color(0xFF571BC1)
-val NavTertiary = Color(0xFF4CD7F6)
-val NavTertiaryContainer = Color(0xFF009EB9)
-val NavOnSurface = Color(0xFFDAE2FD)
-val NavOnSurfaceVariant = Color(0xFFC2C6D7)
-val NavError = Color(0xFFFFB4AB)
-val NavHighConfidence = Color(0xFF75F0C6)
-val NavMediumConfidence = Color(0xFFFFD166)
-val NavLowConfidence = Color(0xFFFF8B9A)
-val NavGlassStroke = Color(0x33FFFFFF)
-val NavMapGlow = Color(0xFF7A4B17)
+// Core Palette
+val NavBackground = Color(0xFF080D18)
+val NavSurface = Color(0xFF12192B)
+val NavSurfaceHigh = Color(0xFF1C253D)
+val NavPrimary = Color(0xFF8AB4F8) // Google Blue
+val NavPrimaryContainer = Color(0xFF304463)
+val NavOnPrimary = Color(0xFFE8F0FE)
+
+val NavSecondary = Color(0xFF81C995) // Google Green
+val NavSecondaryContainer = Color(0xFF0D652D)
+
+val NavTertiary = Color(0xFFFFD466) // Google Yellow
+val NavOnSurface = Color(0xFFE8EAED)
+val NavOnSurfaceVariant = Color(0xFFBDC1C6)
+
+// Glassmorphism Specials
+val GlassWhite = Color(0x1AFFFFFF)
+val GlassBlack = Color(0x4D000000)
+val GlassStroke = Color(0x33FFFFFF)
+val GlassBlur = 16.0 // Reference for blur radius
+
+// Navigation Specifics
+val NavGoogleGreen = Color(0xFF1E8E3E)
+val NavGoogleGreenDark = Color(0xFF0D652D)
+val NavHighConfidence = Color(0xFF34A853)
+val NavMediumConfidence = Color(0xFFFBBC04)
+val NavLowConfidence = Color(0xFFEA4335)
+
+val NavMapGlow = Color(0xFF1A73E8)

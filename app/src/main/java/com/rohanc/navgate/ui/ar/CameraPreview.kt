@@ -31,9 +31,8 @@ fun CameraPreview(modifier: Modifier = Modifier) {
             cameraProviderFuture.addListener(
                 {
                     val cameraProvider = cameraProviderFuture.get()
-                    val preview = Preview.Builder().build().also {
-                        it.surfaceProvider = previewView.surfaceProvider
-                    }
+                    val preview = Preview.Builder().build()
+                    preview.setSurfaceProvider(previewView.surfaceProvider)
                     cameraProvider.unbindAll()
                     cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview)
                 },

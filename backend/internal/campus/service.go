@@ -12,10 +12,6 @@ import (
 //go:embed seed/*.json
 var seedFS embed.FS
 
-type Router interface {
-	Route(req RouteRequest) (RouteResponse, error)
-}
-
 type Service struct {
 	pois       []CustomPoi
 	poisByID   map[string]CustomPoi
@@ -24,7 +20,7 @@ type Service struct {
 }
 
 func NewService() *Service {
-	return NewServiceWithRouter(NewOSRMRouter())
+	return NewServiceWithRouter(NewConfiguredRouterFromEnv())
 }
 
 func NewServiceWithRouter(router Router) *Service {

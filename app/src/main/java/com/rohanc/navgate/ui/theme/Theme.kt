@@ -3,34 +3,29 @@ package com.rohanc.navgate.ui.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val NavGateColors =
     darkColorScheme(
         primary = NavPrimary,
         onPrimary = NavOnPrimary,
         primaryContainer = NavPrimaryContainer,
-        onPrimaryContainer = NavBackground,
+        onPrimaryContainer = Color.White,
         secondary = NavSecondary,
-        onSecondary = NavBackground,
+        onSecondary = Color.Black,
         secondaryContainer = NavSecondaryContainer,
-        onSecondaryContainer = NavOnSurface,
+        onSecondaryContainer = Color.White,
         tertiary = NavTertiary,
-        onTertiary = NavBackground,
-        tertiaryContainer = NavTertiaryContainer,
-        onTertiaryContainer = NavBackground,
+        onTertiary = Color.Black,
         background = NavBackground,
         onBackground = NavOnSurface,
         surface = NavSurface,
         onSurface = NavOnSurface,
-        surfaceVariant = NavSurfaceHighest,
+        surfaceVariant = NavSurfaceHigh,
         onSurfaceVariant = NavOnSurfaceVariant,
-        surfaceContainer = NavSurface,
-        surfaceContainerHigh = NavSurfaceHigh,
-        surfaceContainerHighest = NavSurfaceHighest,
-        outline = NavOutline,
-        outlineVariant = NavOutlineVariant,
-        error = NavError,
-        onError = NavBackground,
+        outline = GlassStroke,
+        error = NavLowConfidence,
+        onError = Color.White,
     )
 
 @Composable
