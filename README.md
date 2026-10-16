@@ -1,6 +1,6 @@
 # NavGate
 
-NavGate is a native Android maps and navigation app with a premium Compose UI, shared 2D + AR navigation flow, and a self-hosted zero-API-billing backend strategy.
+NavGate is a native Android maps and navigation prototype with a Compose UI, shared 2D + AR navigation flow, and self-hosted routing providers. Self-hosting avoids per-request provider billing, not infrastructure or routing-data costs.
 
 ## What we have built
 
@@ -52,16 +52,16 @@ This repo now supports a zero external API billing stack by self-hosting routing
 
 Deployment files added:
 
-- [`backend/Dockerfile`](/Users/rohanc/NavGate/backend/Dockerfile)
-- [`backend/deploy/docker-compose.selfhost.yml`](/Users/rohanc/NavGate/backend/deploy/docker-compose.selfhost.yml)
-- [`backend/deploy/.env.example`](/Users/rohanc/NavGate/backend/deploy/.env.example)
-- [`backend/deploy/setup_osrm.sh`](/Users/rohanc/NavGate/backend/deploy/setup_osrm.sh)
-- [`backend/deploy/setup_valhalla.sh`](/Users/rohanc/NavGate/backend/deploy/setup_valhalla.sh)
-- [`backend/SELF_HOSTING.md`](/Users/rohanc/NavGate/backend/SELF_HOSTING.md)
+- [`backend/Dockerfile`](backend/Dockerfile)
+- [`backend/deploy/docker-compose.selfhost.yml`](backend/deploy/docker-compose.selfhost.yml)
+- [`backend/deploy/.env.example`](backend/deploy/.env.example)
+- [`backend/deploy/setup_osrm.sh`](backend/deploy/setup_osrm.sh)
+- [`backend/deploy/setup_valhalla.sh`](backend/deploy/setup_valhalla.sh)
+- [`backend/SELF_HOSTING.md`](backend/SELF_HOSTING.md)
 
 ## Run Android app
 
-1. Open `/Users/rohanc/NavGate` in Android Studio.
+1. Clone the repository and open its root directory in Android Studio.
 2. Sync Gradle.
 3. Run on emulator or device.
 4. For local backend from emulator, backend URL should be `http://10.0.2.2:8080`.
@@ -70,9 +70,11 @@ Deployment files added:
 
 ### Docker
 
+Run these commands from the repository root. Docker must be installed and running.
+
 1. Build:
 ```bash
-docker build -t navgate-backend:local /Users/rohanc/NavGate/backend
+docker build -t navgate-backend:local ./backend
 ```
 2. Run:
 ```bash
@@ -86,7 +88,24 @@ curl http://localhost:8080/health
 ### Full self-host routing stack
 
 Follow:
-- [`backend/SELF_HOSTING.md`](/Users/rohanc/NavGate/backend/SELF_HOSTING.md)
+- [`backend/SELF_HOSTING.md`](backend/SELF_HOSTING.md)
+
+## Routing Evidence And Fallbacks
+
+Inspect `routeSource` and `warnings` in each backend route response:
+
+- `valhalla` or `osrm` identifies the routing provider that produced the route; this is not a measured navigation-accuracy guarantee.
+- `fallback` identifies a simplified in-code route when providers are unavailable. It is not equivalent to a road-network-validated route and must not be presented as provider-quality guidance.
+- AR guidance depends separately on device pose, GPS and confidence. A route response alone does not prove safe world anchoring; unavailable or low-confidence AR guidance is not successful AR navigation.
+
+Backend regression tests can be run from a clean checkout with Go 1.23+:
+
+```sh
+cd backend
+go test ./...
+```
+
+These tests do not start self-hosted routing engines or establish installed-device AR acceptance. The full Docker stack requires the routing datasets described in the self-hosting guide; clean-machine/device verification remains a separate gate.
 
 ## Current known limits
 
