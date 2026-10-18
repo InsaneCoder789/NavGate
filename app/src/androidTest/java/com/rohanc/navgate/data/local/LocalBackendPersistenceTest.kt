@@ -11,7 +11,8 @@ import com.rohanc.navgate.data.SharedPrefsUserPlacesStore
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.PlaceType
 import com.rohanc.navgate.ui.state.CityMode
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.*
@@ -138,6 +139,31 @@ class LocalBackendPersistenceTest {
         users.clearHistory()
         assertTrue(users.routeHistory().isEmpty());assertTrue(database.user().trips(10).isEmpty())
         assertNull(store.loadCheckpoint())
+    }
+
+    @Test fun productionCatalogueSearchAndPlanningNeverInventWalkingPaths()=runBlocking {
+        val users=RoomUserPlacesStore(context,database)
+        val repository=LocalNavigationRepository(context,regions,users)
+        val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
+        val backend=NavigationBackend(scope,repository,regions,AndroidBackendClock,RoomSessionStore(database,regions))
+        try {
+            withTimeout(15_000){backend.state.first{!it.initializing}}
+            backend.search("","kiit")
+            val searched=withTimeout(15_000){backend.state.first{!it.searching && it.places.size==40}}
+            val installed=requireNotNull(regions.active("kiit"))
+            assertEquals(175,installed.places.size)
+            assertEquals(84,installed.places.count{it.point==null})
+            assertEquals(40,searched.destinationAvailability.size)
+            assertTrue(searched.destinationAvailability.values.all{it.readiness==DestinationReadiness.MissingGraph})
+            assertEquals(RegionReadiness.CatalogueOnly,backend.regionStatus("kiit").readiness)
+            val destination=searched.places.first{it.point!=null}
+            backend.plan(PlanRequest(10,"kiit",requireNotNull(destination.point),destination.id))
+            val failed=withTimeout(15_000){backend.state.first{it.routeFailure!=null}}
+            assertEquals(RouteFailure.MissingGraph,failed.routeFailure?.reason)
+            assertNull(failed.session.route)
+            assertNull(RoomSessionStore(database,regions).loadCheckpoint())
+            assertTrue(database.user().trips(10).isEmpty())
+        } finally {backend.close();scope.cancel()}
     }
 
     /** Isolate legacy prefs and DataStore files; tests never touch the app's real user stores. */

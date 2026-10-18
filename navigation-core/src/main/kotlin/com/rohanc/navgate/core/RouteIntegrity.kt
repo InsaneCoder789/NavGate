@@ -27,7 +27,8 @@ object RouteIntegrity {
         val entrance=pack.entrances.find { it.id==route.entranceId && it.placeId==route.destinationPlaceId && it.reviewed }
         val target=entrance?.let { entry -> pack.nodes.find { it.id==entry.nodeId }?.point }
         if (target==null || route.geometry.lastOrNull()?.distanceTo(target)?.let { it>0.1 }!=false) add("Route does not finish at its reviewed entrance")
-        val edges=route.edgeIds.mapNotNull { id -> pack.edges.find { it.id==id && it.reviewed && it.access==Access.Allowed } }
+        val legalEdges=pack.edges.filter { it.reviewed && it.access==Access.Allowed }.associateBy { it.id }
+        val edges=route.edgeIds.mapNotNull { legalEdges[it] }
         if (edges.size!=route.edgeIds.size || edges.zipWithNext().any { (a,b) -> a.to!=b.from }) add("Checkpoint contains disconnected or forbidden edges")
         if (edges.isEmpty()) {
             if (route.distanceMeters!=0.0 || route.geometry.any { it!=target }) add("Nonzero route without graph edges")
