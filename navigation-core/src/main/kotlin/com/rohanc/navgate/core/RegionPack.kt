@@ -5,6 +5,8 @@ import kotlinx.serialization.json.Json
 import java.security.PublicKey
 import java.security.MessageDigest
 import java.security.Signature
+import java.security.interfaces.RSAPublicKey
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.ensureActive
@@ -133,14 +135,16 @@ class RegionPackInstaller(private val store: RegionStore, private val publicKey:
     private val json = Json { ignoreUnknownKeys = false }
 
     /** Only APK-owned assets may use this entry; never pass downloaded bytes here. */
-    suspend fun installBundled(bytes: ByteArray): InstallResult = install(bytes, null, true)
+    val trustedUpdatesEnabled: Boolean get() = (publicKey as? RSAPublicKey)?.modulus?.bitLength()?.let { it>=2048 } == true
 
-    suspend fun installSigned(bytes: ByteArray, signature: ByteArray): InstallResult = install(bytes, signature, false)
+    suspend fun installBundled(bytes: ByteArray, expectedRegionId: String? = null): InstallResult = install(bytes, null, true,expectedRegionId)
 
-    private suspend fun install(bytes: ByteArray, signature: ByteArray?, bundled: Boolean): InstallResult = lock.withLock {
+    suspend fun installSigned(bytes: ByteArray, signature: ByteArray, expectedRegionId: String? = null): InstallResult = install(bytes, signature, false,expectedRegionId)
+
+    private suspend fun install(bytes: ByteArray, signature: ByteArray?, bundled: Boolean, expectedRegionId: String?): InstallResult = lock.withLock {
         if (bytes.size !in 1..MAX_BYTES) return@withLock InstallResult.Rejected(listOf("Pack exceeds byte limit or is empty"))
         if (!bundled) {
-            val key = publicKey ?: return@withLock InstallResult.Rejected(listOf("No trusted update signing key configured"))
+            val key = publicKey?.takeIf { trustedUpdatesEnabled } ?: return@withLock InstallResult.Rejected(listOf("No trusted RSA update signing key configured"))
             val authentic = runCatching {
                 Signature.getInstance("SHA256withRSA").run { initVerify(key); update(bytes); verify(requireNotNull(signature)) }
             }.getOrDefault(false)
@@ -151,9 +155,12 @@ class RegionPackInstaller(private val store: RegionStore, private val publicKey:
         catch (error: IllegalArgumentException) { return@withLock InstallResult.Rejected(listOf("Invalid pack JSON: ${error.message?.take(160)}")) }
         val validation = PackValidator.validate(pack)
         if (!validation.valid) return@withLock InstallResult.Rejected(validation.errors)
+        if (expectedRegionId!=null && pack.regionId!=expectedRegionId) return@withLock InstallResult.Rejected(listOf("Pack does not match the selected region"))
         val digest = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
         coroutineContext.ensureActive()
-        store.activate(pack, digest)
+        try { store.activate(pack, digest) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { return@withLock InstallResult.Rejected(listOf("Pack could not be activated; the previous graph was retained")) }
         InstallResult.Installed(pack.regionId, pack.version, digest)
     }
 
