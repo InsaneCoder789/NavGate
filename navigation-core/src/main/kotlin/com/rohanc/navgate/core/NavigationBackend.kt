@@ -40,6 +40,7 @@ data class BackendSnapshot(
     val places: List<CampusPlace> = emptyList(),
     val session: SessionSnapshot = SessionSnapshot(),
     val routeFailure: RouteResult.Unavailable? = null,
+    val destinationAvailability: Map<String,DestinationAvailability> = emptyMap(),
     val storageError: String? = null,
     val durableRevision: Long = 0,
 )
@@ -138,14 +139,18 @@ class NavigationBackend(
                 mutable.value = mutable.value.copy(searching = true, query = event.query, regionId = event.regionId)
                 searchJob = scope.launch {
                     try {
-                        val results = withContext(io) { data.search(event.query,event.regionId) }
-                        events.send(Event.SearchResult(generation,results,null))
+                        val (results,availability) = withContext(io) {
+                            val places=data.search(event.query,event.regionId)
+                            val all=destinationAvailability(regions.active(event.regionId))
+                            places to places.mapNotNull{place -> all[place.id]?.let{place.id to it}}.toMap()
+                        }
+                        events.send(Event.SearchResult(generation,results,null,availability))
                     } catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { events.send(Event.SearchResult(generation, emptyList(),"Local place search is unavailable")) }
                 }
             }
             is Event.SearchResult -> if (event.generation == searchGeneration) {
-                mutable.value = mutable.value.copy(searching = false, places = event.places, storageError = event.error)
+                mutable.value = mutable.value.copy(searching = false, places = event.places, destinationAvailability = event.availability, storageError = event.error)
             }
             is Event.Plan -> {
                 if (session.state.value.status in NavigationSession.ACTIVE) {
@@ -223,7 +228,7 @@ class NavigationBackend(
         data class Barrier(val done: CompletableDeferred<Unit>) : Event
         data object Initialize : Event
         data class Search(val query: String, val regionId: String) : Event
-        data class SearchResult(val generation: Long, val places: List<CampusPlace>, val error: String?) : Event
+        data class SearchResult(val generation: Long, val places: List<CampusPlace>, val error: String?, val availability:Map<String,DestinationAvailability> = emptyMap()) : Event
         data class Plan(val request: PlanRequest) : Event
         data class PlanResult(val generation: Long, val result: RouteResult) : Event
         data object Start : Event
