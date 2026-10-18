@@ -22,7 +22,7 @@ class RoomSessionStore(private val database: NavGateDatabase, private val region
             val previous=database.user().trip(sessionId)?.let { Json.decodeFromString<RouteHistoryEntry>(it.payload) }
             val summary = RouteHistoryEntry(route.destinationPlaceId,title,TravelProfile.Walking,previous?.recordedAtEpochMillis ?: updatedAtEpochMillis,
                 snapshot.remainingSeconds,sessionId,snapshot.status.name,route.regionId,route.graphVersion,route.distanceMeters,
-                if(terminal) updatedAtEpochMillis else null)
+                if(terminal) previous?.finishedAtEpochMillis ?: updatedAtEpochMillis else null)
             database.user().putTrip(TripRecord(sessionId,route.regionId,route.graphVersion,Json.encodeToString(summary),updatedAtEpochMillis))
             database.user().put(UserRecord("history",sessionId,Json.encodeToString(summary),updatedAtEpochMillis))
             database.user().trim("history",100)

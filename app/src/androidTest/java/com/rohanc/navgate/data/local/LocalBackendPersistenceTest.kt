@@ -106,6 +106,40 @@ class LocalBackendPersistenceTest {
         assertNull(store.loadCheckpoint());assertEquals(1,database.user().trips(10).size)
     }
 
+    @Test fun bookmarkLimitAndRecentRetentionNeverSilentlyDropSavedPlaces()=runBlocking {
+        val users=RoomUserPlacesStore(context,database)
+        fun place(id:Int)=PlaceSearchResult("place-$id","Place $id","Test",null,null,PlaceType.Academic)
+        repeat(40){users.toggleSaved(place(it))}
+        try { users.toggleSaved(place(40));fail("Expected explicit saved-place limit") }
+        catch(_:IllegalStateException) { }
+        assertEquals(40,database.user().count("saved"))
+        assertTrue(users.savedPlaces().any{it.id=="place-0"})
+        repeat(45){users.recordRecent(place(it))}
+        assertEquals(30,database.user().count("recent"))
+        users.clearRecents();assertTrue(users.recentPlaces().isEmpty())
+        assertEquals(40,users.savedPlaces().size)
+    }
+
+    @Test fun terminalPersistenceKeepsTripStartAndFinishAndClearHistoryRemovesBothSummaries()=runBlocking {
+        val pack=pack();install(pack)
+        val route=(CampusRoutingProvider(pack).route(PlanRequest(1,"test",pack.nodes.first().point,"target")) as RouteResult.Ready).route
+        val store=RoomSessionStore(database,regions)
+        val active=SessionSnapshot(sessionId="stable-trip",route=route,status=SessionStatus.Navigating,
+            remainingMeters=route.distanceMeters,remainingSeconds=route.estimatedSeconds)
+        store.persist(active,1000)
+        store.persist(active,2000)
+        val stopped=active.copy(status=SessionStatus.Stopped)
+        store.persist(stopped,3000);store.persist(stopped,4000)
+        val summary=Json.decodeFromString<com.rohanc.navgate.model.RouteHistoryEntry>(database.user().trips(10).single().payload)
+        assertEquals(1000L,summary.recordedAtEpochMillis)
+        assertEquals(3000L,summary.finishedAtEpochMillis)
+        val users=RoomUserPlacesStore(context,database)
+        assertEquals(1,users.routeHistory().size)
+        users.clearHistory()
+        assertTrue(users.routeHistory().isEmpty());assertTrue(database.user().trips(10).isEmpty())
+        assertNull(store.loadCheckpoint())
+    }
+
     /** Isolate legacy prefs and DataStore files; tests never touch the app's real user stores. */
     private class ScopedContext(base:Context,private val prefix:String):ContextWrapper(base){
         private val preferences=mutableSetOf<String>()
