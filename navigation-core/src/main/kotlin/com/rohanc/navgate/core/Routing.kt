@@ -201,10 +201,24 @@ private fun buildManeuvers(path: List<GeoPoint>): List<Maneuver> {
 }
 
 class RoutePlanner(private val regions: RegionStore) {
+    // RegionStore versions are immutable. Retain at most two spatial indexes: current and pinned trip.
+    private val cacheLock = kotlinx.coroutines.sync.Mutex()
+    private val providers = LinkedHashMap<Pair<String,String>,CampusRoutingProvider>(2,0.75f,true)
+    private suspend fun provider(pack: RegionPack): CampusRoutingProvider {
+        cacheLock.lock()
+        try {
+            val key=pack.regionId to pack.version
+            return providers[key] ?: CampusRoutingProvider(pack).also {
+                providers[key]=it
+                while(providers.size>2) providers.remove(providers.keys.first())
+            }
+        } finally { cacheLock.unlock() }
+    }
+
     suspend fun plan(request: PlanRequest, pinnedVersion: String? = null): RouteResult {
         coroutineContext.ensureActive()
         val pack = if (pinnedVersion == null) regions.active(request.regionId) else regions.version(request.regionId, pinnedVersion)
         return if (pack == null) RouteResult.Unavailable(RouteFailure.MissingRegion, "Install a reviewed region pack before routing")
-        else CampusRoutingProvider(pack).route(request)
+        else provider(pack).route(request)
     }
 }
