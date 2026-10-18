@@ -52,7 +52,14 @@ data class GuidancePolicy(
     val arrivalSamples: Int = 2,
     val rerouteCooldownMillis: Long = 12_000,
     val maxWalkingMetersPerSecond: Double = 4.0,
-)
+) {
+    init {
+        require(maxFixAgeMillis>0 && maxAccuracyMeters.isFinite() && maxAccuracyMeters>0)
+        require(offRouteMeters.isFinite() && offRouteMeters>0 && arrivalMeters.isFinite() && arrivalMeters>0)
+        require(deviationSamples>=2 && arrivalSamples>=2 && rerouteCooldownMillis>=0)
+        require(maxWalkingMetersPerSecond.isFinite() && maxWalkingMetersPerSecond>0)
+    }
+}
 
 /** All state transitions are serialized here. Views consume snapshots and never advance a trip. */
 class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
@@ -68,6 +75,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
     private var pendingReroute: RerouteRequest? = null
 
     suspend fun preview(route: CampusRoute): SessionUpdate = mutex.withLock {
+        require(RouteIntegrity.shapeErrors(route).isEmpty()) { "Cannot preview an invalid route" }
         resetTracking()
         publish(SessionSnapshot(route = route, status = SessionStatus.Preview, location = latestFix?.point,
             remainingMeters = route.distanceMeters, remainingSeconds = route.estimatedSeconds,
@@ -111,7 +119,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         resetTracking()
         latestFix = null // persisted positions never count as a live fix, including after device reboot
         val saved = checkpoint.snapshot
-        if (saved.route == null || !graphAvailable || saved.status !in ACTIVE) return@withLock publish(SessionSnapshot(signalReason = "Saved trip cannot be resumed"))
+        if (saved.route == null || !graphAvailable || saved.status !in ACTIVE || RouteIntegrity.shapeErrors(saved.route).isNotEmpty()) return@withLock publish(SessionSnapshot(signalReason = "Saved trip cannot be resumed; plan a new trip"))
         publish(saved.copy(status = SessionStatus.ResumeAvailable, presentation = Presentation.Map, location = null,
             signalReason = "Acquire a fresh location and confirm resume", offRoute = false))
     }
@@ -183,15 +191,19 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         publish(next, if (arrived || step != current.maneuverIndex) next.instruction else null, reroute)
     }
 
-    suspend fun replace(request: RerouteRequest, result: RouteResult): SessionUpdate = mutex.withLock {
+    suspend fun replace(request: RerouteRequest, result: RouteResult, nowElapsedMillis: Long? = null): SessionUpdate = mutex.withLock {
         val current = mutable.value
         if (pendingReroute != request || current.sessionId != request.sessionId || current.status !in ACTIVE) return@withLock SessionUpdate(current)
         pendingReroute = null
         if (result is RouteResult.Unavailable) return@withLock publish(current.copy(status = SessionStatus.GuidanceUnavailable, signalReason = result.detail))
         val route = (result as RouteResult.Ready).route
-        if (route.graphVersion != request.pinnedVersion || route.regionId != request.request.regionId || route.destinationPlaceId != request.request.destinationPlaceId || route.requestId != request.requestId) {
+        if (route.graphVersion != request.pinnedVersion || route.regionId != request.request.regionId || route.destinationPlaceId != request.request.destinationPlaceId || route.entranceId!=request.request.entranceId || route.requestId != request.requestId || RouteIntegrity.shapeErrors(route).isNotEmpty()) {
             return@withLock publish(current.copy(status = SessionStatus.GuidanceUnavailable, signalReason = "Replacement route does not match the current trip"))
         }
+        val fix=latestFix
+        val signal=qualityReason(fix,nowElapsedMillis ?: fix?.elapsedMillis ?: 0)
+        if (signal!=null) return@withLock publish(current.copy(status=SessionStatus.SignalLimited,signalReason=signal))
+        if (fix!!.point.distanceTo(route.geometry.first())>20.0) return@withLock publish(current.copy(status=SessionStatus.GuidanceUnavailable,signalReason="Position moved during rerouting; replan from a confirmed position"))
         deviationCount = 0; arrivalCount = 0
         publish(current.copy(route = route, status = SessionStatus.Navigating, alongMeters = 0.0, maneuverIndex = 0,
             remainingMeters = route.distanceMeters, remainingSeconds = route.estimatedSeconds, offRoute = false, signalReason = null,
