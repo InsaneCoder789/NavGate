@@ -1,0 +1,3459 @@
+{
+  "schemaVersion": 1,
+  "regionId": "kiit",
+  "version": "catalog-2026-10-18",
+  "city": "Bhubaneswar",
+  "coverage": {
+    "boundary": [
+      {
+        "latitude": 20.33,
+        "longitude": 85.79
+      },
+      {
+        "latitude": 20.33,
+        "longitude": 85.84
+      },
+      {
+        "latitude": 20.38,
+        "longitude": 85.84
+      },
+      {
+        "latitude": 20.38,
+        "longitude": 85.79
+      }
+    ]
+  },
+  "source": "Existing NavGate KIIT workbook import; coordinates and access not field verified",
+  "attribution": "NavGate campus source workbook; original Maps links retained per place for review",
+  "license": "Source workbook redistribution and coordinate provenance require review before public data release",
+  "generatedAt": "2026-10-18",
+  "reviewedAt": null,
+  "nodes": [],
+  "edges": [],
+  "entrances": [],
+  "places": [
+    {
+      "id": "campus-1-adidas-store",
+      "title": "Adidas store",
+      "subtitle": "Campus 1 • Commercial",
+      "category": "Commercial",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": null,
+      "aliases": [
+        "commercial",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 244,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-1-admission-office-https-maps-google-com-q-20-346226-85-823535",
+      "title": "Admission Office https://maps.google.com/?q=20.346226,85.823535",
+      "subtitle": "Campus 1 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 248,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-1-allahabad-bank",
+      "title": "Allahabad Bank.",
+      "subtitle": "Campus 1 • Commercial",
+      "category": "Commercial",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": null,
+      "aliases": [
+        "commercial",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 245,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-1-kiit-campus-1",
+      "title": "KIIT Campus - 1",
+      "subtitle": "Campus 1 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.346318,
+        "longitude": 85.823554
+      },
+      "aliases": [
+        "kiit",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 143,
+      "sourceUrl": "https://maps.google.com/?q=20.346318,85.823554"
+    },
+    {
+      "id": "campus-1-kiit-founder-s-office-white-house",
+      "title": "Kiit founder's office(white house).",
+      "subtitle": "Campus 1 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 246,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-1-kiss-campus-01-handball-ground",
+      "title": "KISS Campus 01 Handball Ground",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.36208,
+        "longitude": 85.809977
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 201,
+      "sourceUrl": "https://maps.google.com/?q=20.36208,85.809977"
+    },
+    {
+      "id": "campus-1-kiss-campus-1",
+      "title": "KISS Campus 1",
+      "subtitle": "Campus 1 • KISS",
+      "category": "KISS",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.357765,
+        "longitude": 85.809472
+      },
+      "aliases": [
+        "kiss",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 158,
+      "sourceUrl": "https://maps.google.com/?q=20.357765,85.809472"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-basketball",
+      "title": "Kiss Campus 1 Basketball",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.358687,
+        "longitude": 85.808926
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 183,
+      "sourceUrl": "https://maps.google.com/?q=20.358687,85.808926"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-football-ground",
+      "title": "KISS Campus 1 Football Ground",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.36208,
+        "longitude": 85.809977
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 199,
+      "sourceUrl": "https://maps.google.com/?q=20.36208,85.809977"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-judo-hall",
+      "title": "KISS Campus 1 Judo Hall",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.363748,
+        "longitude": 85.809991
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 202,
+      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-kabaddi-ground",
+      "title": "KISS Campus 1 Kabaddi Ground",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.363748,
+        "longitude": 85.809991
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 206,
+      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-kho-kho-ground",
+      "title": "KISS Campus 1 Kho-Kho Ground",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.36208,
+        "longitude": 85.809977
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 208,
+      "sourceUrl": "https://maps.google.com/?q=20.36208,85.809977"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-rugby-ground",
+      "title": "KISS Campus 1 Rugby Ground",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.363748,
+        "longitude": 85.809991
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 212,
+      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-sepak-takraw",
+      "title": "KISS Campus 1 Sepak Takraw",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.363748,
+        "longitude": 85.809991
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 213,
+      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-soft-tennis-court",
+      "title": "KISS Campus 1 Soft Tennis Court",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.363922,
+        "longitude": 85.81197
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 215,
+      "sourceUrl": "https://maps.google.com/?q=20.363922,85.81197"
+    },
+    {
+      "id": "campus-1-kiss-campus-1-volleyball-court",
+      "title": "KISS Campus 1 Volleyball Court",
+      "subtitle": "Campus 1 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": {
+        "latitude": 20.363865,
+        "longitude": 85.812609
+      },
+      "aliases": [
+        "sports",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 241,
+      "sourceUrl": "https://maps.google.com/?q=20.363865,85.812609"
+    },
+    {
+      "id": "campus-1-school-of-computer-application-https-maps-google-com-q-20-346389-85-823532",
+      "title": "School of Computer Application https://maps.google.com/?q=20.346389,85.823532",
+      "subtitle": "Campus 1 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 247,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-1-think-tank-office-https-maps-google-com-q-20-346226-85-823535",
+      "title": "Think Tank Office https://maps.google.com/?q=20.346226,85.823535",
+      "subtitle": "Campus 1 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 1",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 1",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 249,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-10-all-chess-events-are-held-here",
+      "title": "(All Chess events are held here )",
+      "subtitle": "Campus 10 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 285,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-10-campus-10-billiards-snooker",
+      "title": "Campus 10 Billiards & Snooker",
+      "subtitle": "Campus 10 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": {
+        "latitude": 20.349551,
+        "longitude": 85.817067
+      },
+      "aliases": [
+        "sports",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 185,
+      "sourceUrl": "https://maps.google.com/?q=20.349551,85.817067"
+    },
+    {
+      "id": "campus-10-campus-10-football-ground",
+      "title": "Campus 10 Football Ground",
+      "subtitle": "Campus 10 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": {
+        "latitude": 20.350405,
+        "longitude": 85.815177
+      },
+      "aliases": [
+        "sports",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 197,
+      "sourceUrl": "https://maps.google.com/?q=20.350405,85.815177"
+    },
+    {
+      "id": "campus-10-campus-10-squash",
+      "title": "Campus 10 Squash",
+      "subtitle": "Campus 10 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": {
+        "latitude": 20.349248,
+        "longitude": 85.816774
+      },
+      "aliases": [
+        "sports",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 216,
+      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+    },
+    {
+      "id": "campus-10-campus-10-swimming-pool",
+      "title": "Campus 10 Swimming Pool",
+      "subtitle": "Campus 10 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": {
+        "latitude": 20.349758,
+        "longitude": 85.817435
+      },
+      "aliases": [
+        "sports",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 223,
+      "sourceUrl": "https://maps.google.com/?q=20.349758,85.817435"
+    },
+    {
+      "id": "campus-10-campus-10-table-tennis",
+      "title": "Campus 10 Table Tennis",
+      "subtitle": "Campus 10 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": {
+        "latitude": 20.349248,
+        "longitude": 85.816774
+      },
+      "aliases": [
+        "sports",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 230,
+      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+    },
+    {
+      "id": "campus-10-campus-10-volleyball-court",
+      "title": "Campus 10 Volleyball Court",
+      "subtitle": "Campus 10 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": {
+        "latitude": 20.349796,
+        "longitude": 85.817256
+      },
+      "aliases": [
+        "sports",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 236,
+      "sourceUrl": "https://maps.google.com/?q=20.349796,85.817256"
+    },
+    {
+      "id": "campus-10-kp-7-block",
+      "title": "Kp 7 block",
+      "subtitle": "Campus 10 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 283,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-10-kp-7-sports-ground-futsal-and-tennis-cricket",
+      "title": "KP-7 Sports Ground ( Futsal and Tennis Cricket )",
+      "subtitle": "Campus 10 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 287,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-10-sports-and-yoga-theory-practical-classes",
+      "title": "Sports and Yoga-(Theory & Practical Classes)",
+      "subtitle": "Campus 10 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 286,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-10-vishwakarma-international-chess-hall",
+      "title": "Vishwakarma International Chess Hall",
+      "subtitle": "Campus 10 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 10",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 10",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 284,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-11-campus-11-basketball",
+      "title": "Campus 11 Basketball",
+      "subtitle": "Campus 11 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": {
+        "latitude": 20.359741,
+        "longitude": 85.822549
+      },
+      "aliases": [
+        "sports",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 180,
+      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+    },
+    {
+      "id": "campus-11-campus-11-billiards-snooker",
+      "title": "Campus 11 Billiards & Snooker",
+      "subtitle": "Campus 11 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": {
+        "latitude": 20.359741,
+        "longitude": 85.822549
+      },
+      "aliases": [
+        "sports",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 186,
+      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+    },
+    {
+      "id": "campus-11-campus-11-lawn-tennis-court",
+      "title": "Campus 11 Lawn Tennis Court",
+      "subtitle": "Campus 11 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": {
+        "latitude": 20.359741,
+        "longitude": 85.822549
+      },
+      "aliases": [
+        "sports",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 210,
+      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+    },
+    {
+      "id": "campus-11-campus-11-squash",
+      "title": "Campus 11 Squash",
+      "subtitle": "Campus 11 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": {
+        "latitude": 20.359741,
+        "longitude": 85.822549
+      },
+      "aliases": [
+        "sports",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 217,
+      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+    },
+    {
+      "id": "campus-11-campus-11-swimming-pool",
+      "title": "Campus 11 Swimming Pool",
+      "subtitle": "Campus 11 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": {
+        "latitude": 20.360051,
+        "longitude": 85.822513
+      },
+      "aliases": [
+        "sports",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 224,
+      "sourceUrl": "https://maps.google.com/?q=20.360051,85.822513"
+    },
+    {
+      "id": "campus-11-campus-11-table-tennis",
+      "title": "Campus 11 Table Tennis",
+      "subtitle": "Campus 11 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": {
+        "latitude": 20.359741,
+        "longitude": 85.822549
+      },
+      "aliases": [
+        "sports",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 231,
+      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+    },
+    {
+      "id": "campus-11-crazy-burger",
+      "title": "Crazy burger",
+      "subtitle": "Campus 11 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 288,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-11-kiit-campus-11",
+      "title": "KIIT Campus - 11",
+      "subtitle": "Campus 11 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 11",
+      "point": {
+        "latitude": 20.359552,
+        "longitude": 85.82241
+      },
+      "aliases": [
+        "kiit",
+        "campus 11",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 114,
+      "sourceUrl": "https://maps.google.com/?q=20.359552,85.82241"
+    },
+    {
+      "id": "campus-12-campus-12-basketball",
+      "title": "Campus 12 Basketball",
+      "subtitle": "Campus 12 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": {
+        "latitude": 20.355093,
+        "longitude": 85.821649
+      },
+      "aliases": [
+        "sports",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 181,
+      "sourceUrl": "https://maps.google.com/?q=20.355093,85.821649"
+    },
+    {
+      "id": "campus-12-campus-12-billiards-snooker",
+      "title": "Campus 12 Billiards & Snooker",
+      "subtitle": "Campus 12 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": {
+        "latitude": 20.355093,
+        "longitude": 85.821649
+      },
+      "aliases": [
+        "sports",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 187,
+      "sourceUrl": "https://maps.google.com/?q=20.355093,85.821649"
+    },
+    {
+      "id": "campus-12-campus-12-lawn-tennis-court",
+      "title": "Campus 12 Lawn Tennis Court",
+      "subtitle": "Campus 12 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": {
+        "latitude": 20.355093,
+        "longitude": 85.821649
+      },
+      "aliases": [
+        "sports",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 211,
+      "sourceUrl": "https://maps.google.com/?q=20.355093,85.821649"
+    },
+    {
+      "id": "campus-12-campus-12-swimming-pool",
+      "title": "Campus 12 Swimming Pool",
+      "subtitle": "Campus 12 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": {
+        "latitude": 20.355351,
+        "longitude": 85.821989
+      },
+      "aliases": [
+        "sports",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 225,
+      "sourceUrl": "https://maps.google.com/?q=20.355351,85.821989"
+    },
+    {
+      "id": "campus-12-campus-12-table-tennis",
+      "title": "Campus 12 Table Tennis",
+      "subtitle": "Campus 12 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": {
+        "latitude": 20.355413,
+        "longitude": 85.821966
+      },
+      "aliases": [
+        "sports",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 232,
+      "sourceUrl": "https://maps.google.com/?q=20.355413,85.821966"
+    },
+    {
+      "id": "campus-12-khao-gali",
+      "title": "Khao gali",
+      "subtitle": "Campus 12 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 290,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-12-kiit-campus-12",
+      "title": "KIIT Campus- 12",
+      "subtitle": "Campus 12 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": {
+        "latitude": 20.355506,
+        "longitude": 85.820735
+      },
+      "aliases": [
+        "kiit",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 118,
+      "sourceUrl": "https://maps.google.com/?q=20.355506,85.820735"
+    },
+    {
+      "id": "campus-12-kiit-hotel-and-resorts",
+      "title": "Kiit Hotel and Resorts",
+      "subtitle": "Campus 12 • Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": null,
+      "aliases": [
+        "guest house",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 292,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-12-kp-14",
+      "title": "Kp -14",
+      "subtitle": "Campus 12 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 289,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-12-kp-2-3",
+      "title": "Kp -2,3",
+      "subtitle": "Campus 12 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 291,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-12-sports-hostel-for-out-college-players",
+      "title": "Sports Hostel ( For Out-college players)",
+      "subtitle": "Campus 12 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 12",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 293,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-13-campus-13-badminton",
+      "title": "Campus 13 Badminton",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": {
+        "latitude": 20.357208,
+        "longitude": 85.818942
+      },
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 176,
+      "sourceUrl": "https://maps.google.com/?q=20.357208,85.818942"
+    },
+    {
+      "id": "campus-13-campus-13-beach-volleyball-court",
+      "title": "Campus 13 Beach Volleyball Court",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": {
+        "latitude": 20.357603,
+        "longitude": 85.816304
+      },
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 242,
+      "sourceUrl": "https://maps.google.com/?q=20.357603,85.816304"
+    },
+    {
+      "id": "campus-13-campus-13-judo-hall",
+      "title": "Campus 13 Judo Hall",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": {
+        "latitude": 20.357181,
+        "longitude": 85.818941
+      },
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 203,
+      "sourceUrl": "https://maps.google.com/?q=20.357181,85.818941"
+    },
+    {
+      "id": "campus-13-campus-13-kabaddi-ground",
+      "title": "Campus 13 Kabaddi Ground",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": {
+        "latitude": 20.357181,
+        "longitude": 85.818941
+      },
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 204,
+      "sourceUrl": "https://maps.google.com/?q=20.357181,85.818941"
+    },
+    {
+      "id": "campus-13-campus-13-kho-kho-ground",
+      "title": "Campus 13 Kho-Kho Ground",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": {
+        "latitude": 20.357195,
+        "longitude": 85.81895
+      },
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 207,
+      "sourceUrl": "https://maps.google.com/?q=20.357195,85.81895"
+    },
+    {
+      "id": "campus-13-campus-13-volleyball-court",
+      "title": "Campus 13 Volleyball Court",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": {
+        "latitude": 20.357173,
+        "longitude": 85.818932
+      },
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 237,
+      "sourceUrl": "https://maps.google.com/?q=20.357173,85.818932"
+    },
+    {
+      "id": "campus-13-indoor-badminton-basketball-court",
+      "title": "Indoor Badminton & Basketball Court",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 294,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-13-kiit-campus-13",
+      "title": "KIIT Campus - 13",
+      "subtitle": "Campus 13 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": {
+        "latitude": 20.356762,
+        "longitude": 85.818521
+      },
+      "aliases": [
+        "kiit",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 120,
+      "sourceUrl": "https://maps.google.com/?q=20.356762,85.818521"
+    },
+    {
+      "id": "campus-13-kiit-cricket-stadium",
+      "title": "KIIT Cricket Stadium",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 296,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-13-kiitfest-mainlocation-kiit-cricket-stadium",
+      "title": "KIITFEST MainLocation ( KiiT Cricket Stadium )",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 298,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-13-ksac-main-hq",
+      "title": "KSAC Main HQ",
+      "subtitle": "Campus 13 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 295,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-13-rugby-football-court",
+      "title": "Rugby & Football Court",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 297,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-13-sports-and-yoga-both-theory-and-practical-classes",
+      "title": "Sports and Yoga ( Both Theory and Practical Classes )",
+      "subtitle": "Campus 13 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 13",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 13",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 299,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-14-central-library",
+      "title": "Central library",
+      "subtitle": "Campus 14 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 14",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 14",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 301,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-14-iti",
+      "title": "ITI",
+      "subtitle": "Campus 14 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 14",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 14",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 300,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-14-kiit-campus-14",
+      "title": "KIIT Campus - 14",
+      "subtitle": "Campus 14 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 14",
+      "point": {
+        "latitude": 20.356275,
+        "longitude": 85.815313
+      },
+      "aliases": [
+        "kiit",
+        "campus 14",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 97,
+      "sourceUrl": "https://maps.google.com/?q=20.356275,85.815313"
+    },
+    {
+      "id": "campus-14-school-of-cse",
+      "title": "School of CSE",
+      "subtitle": "Campus 14 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 14",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 14",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 302,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-15-campus-15-badminton",
+      "title": "Campus 15 Badminton",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349248,
+        "longitude": 85.816774
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 177,
+      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+    },
+    {
+      "id": "campus-15-campus-15-basketball",
+      "title": "Campus 15 Basketball",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349248,
+        "longitude": 85.816774
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 182,
+      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+    },
+    {
+      "id": "campus-15-campus-15-beach-kabaddi-ground",
+      "title": "Campus 15 Beach Kabaddi Ground",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349248,
+        "longitude": 85.816774
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 205,
+      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+    },
+    {
+      "id": "campus-15-campus-15-boxing",
+      "title": "Campus 15 Boxing",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349248,
+        "longitude": 85.816774
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 189,
+      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+    },
+    {
+      "id": "campus-15-campus-15-carom",
+      "title": "Campus 15 Carom",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349248,
+        "longitude": 85.816774
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 191,
+      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+    },
+    {
+      "id": "campus-15-campus-15-swimming-pool",
+      "title": "Campus 15 Swimming Pool",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349566,
+        "longitude": 85.816847
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 226,
+      "sourceUrl": "https://maps.google.com/?q=20.349566,85.816847"
+    },
+    {
+      "id": "campus-15-campus-15-table-tennis",
+      "title": "Campus 15 Table Tennis",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349563,
+        "longitude": 85.817067
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 233,
+      "sourceUrl": "https://maps.google.com/?q=20.349563,85.817067"
+    },
+    {
+      "id": "campus-15-campus-15-volleyball-court",
+      "title": "Campus 15 Volleyball Court",
+      "subtitle": "Campus 15 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.349281,
+        "longitude": 85.816539
+      },
+      "aliases": [
+        "sports",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 240,
+      "sourceUrl": "https://maps.google.com/?q=20.349281,85.816539"
+    },
+    {
+      "id": "campus-15-kiit-campus-15",
+      "title": "KIIT Campus - 15",
+      "subtitle": "Campus 15 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": {
+        "latitude": 20.348529,
+        "longitude": 85.81618
+      },
+      "aliases": [
+        "kiit",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 147,
+      "sourceUrl": "https://maps.google.com/?q=20.348529,85.81618"
+    },
+    {
+      "id": "campus-15-kp-9d",
+      "title": "Kp-9D",
+      "subtitle": "Campus 15 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 304,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-15-kp6",
+      "title": "Kp6",
+      "subtitle": "Campus 15 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 305,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-15-qc-16",
+      "title": "Qc-16",
+      "subtitle": "Campus 15 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 15",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 15",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 303,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-16-campus-16-cricket-ground",
+      "title": "Campus 16 Cricket Ground",
+      "subtitle": "Campus 16 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 16",
+      "point": {
+        "latitude": 20.361165,
+        "longitude": 85.823516
+      },
+      "aliases": [
+        "sports",
+        "campus 16",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 195,
+      "sourceUrl": "https://maps.google.com/?q=20.361165,85.823516"
+    },
+    {
+      "id": "campus-16-campus-16-football-ground",
+      "title": "Campus 16 Football Ground",
+      "subtitle": "Campus 16 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 16",
+      "point": {
+        "latitude": 20.362056,
+        "longitude": 85.823513
+      },
+      "aliases": [
+        "sports",
+        "campus 16",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 198,
+      "sourceUrl": "https://maps.google.com/?q=20.362056,85.823513"
+    },
+    {
+      "id": "campus-16-kiit-campus-16",
+      "title": "KIIT Campus - 16",
+      "subtitle": "Campus 16 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 16",
+      "point": {
+        "latitude": 20.362233,
+        "longitude": 85.822864
+      },
+      "aliases": [
+        "kiit",
+        "campus 16",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 130,
+      "sourceUrl": "https://maps.google.com/?q=20.362233,85.822864"
+    },
+    {
+      "id": "campus-16-kp-11",
+      "title": "Kp -11",
+      "subtitle": "Campus 16 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 16",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 16",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 306,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-17-architecture-building",
+      "title": "Architecture building",
+      "subtitle": "Campus 17 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 17",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 17",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 307,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-17-campus-17-billiards-snooker",
+      "title": "Campus 17 Billiards & Snooker",
+      "subtitle": "Campus 17 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 17",
+      "point": {
+        "latitude": 20.348268,
+        "longitude": 85.819568
+      },
+      "aliases": [
+        "sports",
+        "campus 17",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 188,
+      "sourceUrl": "https://maps.google.com/?q=20.348268,85.819568"
+    },
+    {
+      "id": "campus-17-campus-17-table-tennis",
+      "title": "Campus 17 Table Tennis",
+      "subtitle": "Campus 17 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 17",
+      "point": {
+        "latitude": 20.348255,
+        "longitude": 85.81956
+      },
+      "aliases": [
+        "sports",
+        "campus 17",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 234,
+      "sourceUrl": "https://maps.google.com/?q=20.348255,85.81956"
+    },
+    {
+      "id": "campus-17-kiit-campus-17",
+      "title": "KIIT Campus - 17",
+      "subtitle": "Campus 17 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 17",
+      "point": {
+        "latitude": 20.349309,
+        "longitude": 85.819459
+      },
+      "aliases": [
+        "kiit",
+        "campus 17",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 148,
+      "sourceUrl": "https://maps.google.com/?q=20.349309,85.819459"
+    },
+    {
+      "id": "campus-17-mba-garden",
+      "title": "MBA garden",
+      "subtitle": "Campus 17 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 17",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 17",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 308,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-18-kiit-campus-18",
+      "title": "KIIT Campus -18",
+      "subtitle": "Campus 18 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 18",
+      "point": {
+        "latitude": 20.356391,
+        "longitude": 85.823814
+      },
+      "aliases": [
+        "kiit",
+        "campus 18",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 132,
+      "sourceUrl": "https://maps.google.com/?q=20.356391,85.823814"
+    },
+    {
+      "id": "campus-18-kiit-tower-guest-house",
+      "title": "Kiit tower guest house",
+      "subtitle": "Campus 18 • Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": "Campus 18",
+      "point": null,
+      "aliases": [
+        "guest house",
+        "campus 18",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 311,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-18-kp-18",
+      "title": "Kp-18",
+      "subtitle": "Campus 18 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 18",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 18",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 309,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-18-rose-garden-access-to-from-both-c12-and-c18",
+      "title": "Rose garden ( Access to from both C12 and C18)",
+      "subtitle": "Campus 18 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 18",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 18",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 310,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-19-kiit-campus-19",
+      "title": "KIIT Campus - 19",
+      "subtitle": "Campus 19 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 19",
+      "point": {
+        "latitude": 20.354276,
+        "longitude": 85.818336
+      },
+      "aliases": [
+        "kiit",
+        "campus 19",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 100,
+      "sourceUrl": "https://maps.google.com/?q=20.354276,85.818336"
+    },
+    {
+      "id": "campus-2-kiit-auto-stand",
+      "title": "Kiit auto stand",
+      "subtitle": "Campus 2 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 2",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 2",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 251,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-2-kiit-campus-2",
+      "title": "KIIT Campus - 2",
+      "subtitle": "Campus 2 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 2",
+      "point": {
+        "latitude": 20.354093,
+        "longitude": 85.820605
+      },
+      "aliases": [
+        "kiit",
+        "campus 2",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 137,
+      "sourceUrl": "https://maps.google.com/?q=20.354093,85.820605"
+    },
+    {
+      "id": "campus-2-kiit-polytechnic-https-maps-google-com-q-20-354154-85-820584",
+      "title": "KIIT Polytechnic https://maps.google.com/?q=20.354154,85.820584",
+      "subtitle": "Campus 2 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 2",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 2",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 252,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-2-kiit-training-and-placement-department",
+      "title": "Kiit training and placement department",
+      "subtitle": "Campus 2 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 2",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 2",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 250,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-2-kiss-campus-2",
+      "title": "KISS Campus 2",
+      "subtitle": "Campus 2 • KISS",
+      "category": "KISS",
+      "city": "Bhubaneswar",
+      "campus": "Campus 2",
+      "point": {
+        "latitude": 20.366313,
+        "longitude": 85.813692
+      },
+      "aliases": [
+        "kiss",
+        "campus 2",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 159,
+      "sourceUrl": "https://maps.google.com/?q=20.366313,85.813692"
+    },
+    {
+      "id": "campus-2-kiss-campus-2-swimming-pool",
+      "title": "KISS Campus 2 Swimming Pool",
+      "subtitle": "Campus 2 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 2",
+      "point": {
+        "latitude": 20.366111,
+        "longitude": 85.814551
+      },
+      "aliases": [
+        "sports",
+        "campus 2",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 227,
+      "sourceUrl": "https://maps.google.com/?q=20.366111,85.814551"
+    },
+    {
+      "id": "campus-20-driveev",
+      "title": "DriveEV",
+      "subtitle": "Campus 20 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 20",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 20",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 313,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-20-kiit-campus-20",
+      "title": "KIIT Campus - 20",
+      "subtitle": "Campus 20 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 20",
+      "point": {
+        "latitude": 20.35413,
+        "longitude": 85.816185
+      },
+      "aliases": [
+        "kiit",
+        "campus 20",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 103,
+      "sourceUrl": "https://maps.google.com/?q=20.35413,85.816185"
+    },
+    {
+      "id": "campus-20-koraput-coffee",
+      "title": "Koraput coffee",
+      "subtitle": "Campus 20 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 20",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 20",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 312,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-21-kiit-campus-21",
+      "title": "KIIT Campus - 21",
+      "subtitle": "Campus 21 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 21",
+      "point": {
+        "latitude": 20.355337,
+        "longitude": 85.808722
+      },
+      "aliases": [
+        "kiit",
+        "campus 21",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 108,
+      "sourceUrl": "https://maps.google.com/?q=20.355337,85.808722"
+    },
+    {
+      "id": "campus-22-kiit-campus-22",
+      "title": "KIIT Campus - 22",
+      "subtitle": "Campus 22 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 22",
+      "point": {
+        "latitude": 20.354528,
+        "longitude": 85.81468
+      },
+      "aliases": [
+        "kiit",
+        "campus 22",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 110,
+      "sourceUrl": "https://maps.google.com/?q=20.354528,85.81468"
+    },
+    {
+      "id": "campus-22-research-tower-for-cse-under-construction",
+      "title": "Research Tower for CSE ( Under Construction )",
+      "subtitle": "Campus 22 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 22",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 22",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 314,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-23-general-store",
+      "title": "General Store",
+      "subtitle": "Campus 23 • Commercial",
+      "category": "Commercial",
+      "city": "Bhubaneswar",
+      "campus": "Campus 23",
+      "point": null,
+      "aliases": [
+        "commercial",
+        "campus 23",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 317,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-23-kp-23",
+      "title": "KP - 23",
+      "subtitle": "Campus 23 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 23",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 23",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 316,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-23-masters-students-hostel",
+      "title": "(Masters Students Hostel)",
+      "subtitle": "Campus 23 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 23",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 23",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 315,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-all-food-stall-venders-selling-different-types-of-cuisine",
+      "title": "All Food stall Venders ( Selling different types of Cuisine )",
+      "subtitle": "Campus 25 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 324,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-cake-shops-tribeni-bakery-etc",
+      "title": "Cake Shops , Tribeni bakery etc.",
+      "subtitle": "Campus 25 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 325,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-gaao-mein-hai-kahi-toh-prashanti-vihar",
+      "title": "Gaao mein hai kahi toh(Prashanti Vihar)",
+      "subtitle": "Campus 25 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 318,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-general-stores-stationeries-eateries-gym-restaurants-etc",
+      "title": "General Stores , Stationeries , Eateries , Gym , Restaurants etc",
+      "subtitle": "Campus 25 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 327,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-kiit-campus-25",
+      "title": "KIIT Campus - 25",
+      "subtitle": "Campus 25 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": {
+        "latitude": 20.364657,
+        "longitude": 85.816969
+      },
+      "aliases": [
+        "kiit",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 112,
+      "sourceUrl": "https://maps.google.com/?q=20.364657,85.816969"
+    },
+    {
+      "id": "campus-25-kiit-main-road",
+      "title": "KIIT Main Road",
+      "subtitle": "Campus 25 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 322,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-kp-25-a-b-c-d-e-student-housing-for-seniors-2nd-yrs-above",
+      "title": "KP-25 ( A,B,C,D,E) - Student Housing for Seniors ( 2nd yrs & above )",
+      "subtitle": "Campus 25 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 320,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-momos-milte-hai-29-ke-i-am-confused-ki-kya-stuffing-dete-honge",
+      "title": "Momos milte hai 29/- ke ( I am confused ki kya stuffing dete honge)",
+      "subtitle": "Campus 25 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 319,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-on-the-left-side-of-the-kiit-main-gate-towards-c3",
+      "title": "On the left side of the KIIT Main Gate ( Towards C3 )",
+      "subtitle": "Campus 25 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 323,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-on-the-right-side-of-the-kiit-main-gate-towards-the-falcon-residency",
+      "title": "On the Right side of the KIIT Main Gate ( Towards the Falcon Residency",
+      "subtitle": "Campus 25 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 326,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-25-qc-25-student-housing-for-senior-girls-2nd-yrs-above",
+      "title": "QC - 25 - Student Housing for Senior Girls ( 2nd yrs & above )",
+      "subtitle": "Campus 25 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 25",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 25",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 321,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-bee-lab",
+      "title": "Bee lab",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 255,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-betc-lab",
+      "title": "Betc lab",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 256,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-burger-singh",
+      "title": "Burger singh",
+      "subtitle": "Campus 3 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 258,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-campus-3-badminton",
+      "title": "Campus 3 Badminton",
+      "subtitle": "Campus 3 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": {
+        "latitude": 20.352709,
+        "longitude": 85.818639
+      },
+      "aliases": [
+        "sports",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 175,
+      "sourceUrl": "https://maps.google.com/?q=20.352709,85.818639"
+    },
+    {
+      "id": "campus-3-campus-3-carom",
+      "title": "Campus 3 Carom",
+      "subtitle": "Campus 3 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": {
+        "latitude": 20.35272,
+        "longitude": 85.818612
+      },
+      "aliases": [
+        "sports",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 190,
+      "sourceUrl": "https://maps.google.com/?q=20.35272,85.818612"
+    },
+    {
+      "id": "campus-3-campus-3-swimming-pool",
+      "title": "Campus 3 Swimming Pool",
+      "subtitle": "Campus 3 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": {
+        "latitude": 20.352701,
+        "longitude": 85.818627
+      },
+      "aliases": [
+        "sports",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 218,
+      "sourceUrl": "https://maps.google.com/?q=20.352701,85.818627"
+    },
+    {
+      "id": "campus-3-campus-3-table-tennis",
+      "title": "Campus 3 Table Tennis",
+      "subtitle": "Campus 3 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": {
+        "latitude": 20.352701,
+        "longitude": 85.818627
+      },
+      "aliases": [
+        "sports",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 228,
+      "sourceUrl": "https://maps.google.com/?q=20.352701,85.818627"
+    },
+    {
+      "id": "campus-3-central-research-facility-https-maps-google-com-q-20-352256-85-816382",
+      "title": "Central Research Facility https://maps.google.com/?q=20.352256,85.816382",
+      "subtitle": "Campus 3 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 267,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-chemistry-lab",
+      "title": "Chemistry lab",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 253,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-ed-graphics-lab",
+      "title": "Ed graphics lab",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 257,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-kfc",
+      "title": "KFC",
+      "subtitle": "Campus 3 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 260,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-kiit-campus-3",
+      "title": "KIIT campus 3",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": {
+        "latitude": 20.353712,
+        "longitude": 85.816527
+      },
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 87,
+      "sourceUrl": "https://maps.google.com/?q=20.353712,85.816527"
+    },
+    {
+      "id": "campus-3-kiss-campus-3",
+      "title": "KISS Campus 3",
+      "subtitle": "Campus 3 • KISS",
+      "category": "KISS",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": {
+        "latitude": 20.357746,
+        "longitude": 85.80915
+      },
+      "aliases": [
+        "kiss",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 161,
+      "sourceUrl": "https://maps.google.com/?q=20.357746,85.80915"
+    },
+    {
+      "id": "campus-3-kiss-campus-3-football-ground",
+      "title": "KISS Campus 3 Football Ground",
+      "subtitle": "Campus 3 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": {
+        "latitude": 20.358804,
+        "longitude": 85.812484
+      },
+      "aliases": [
+        "sports",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 200,
+      "sourceUrl": "https://maps.google.com/?q=20.358804,85.812484"
+    },
+    {
+      "id": "campus-3-outside-food-stalls",
+      "title": "Outside Food Stalls",
+      "subtitle": "Campus 3 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 261,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-physics-lab",
+      "title": "Physics lab",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 254,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-pizza-hut",
+      "title": "Pizza hut",
+      "subtitle": "Campus 3 • Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "cafeteria",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 259,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-school-of-applied-sciences-https-maps-google-com-q-20-352907-85-817979",
+      "title": "School of Applied Sciences https://maps.google.com/?q=20.352907,85.817979",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 262,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-school-of-civil-engineering-https-maps-google-com-q-20-352812-85-816911",
+      "title": "School of Civil Engineering https://maps.google.com/?q=20.352812,85.816911",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 263,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-school-of-economics-commerce-https-maps-google-com-q-20-352683-85-817662",
+      "title": "School of Economics & Commerce https://maps.google.com/?q=20.352683,85.817662",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 266,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-school-of-electrical-engineering-https-maps-google-com-q-20-355382-85-82069",
+      "title": "School of Electrical Engineering https://maps.google.com/?q=20.355382,85.82069",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 264,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-3-school-of-liberal-studies-https-maps-google-com-q-20-355382-85-82069",
+      "title": "School of Liberal Studies https://maps.google.com/?q=20.355382,85.82069",
+      "subtitle": "Campus 3 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 3",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 3",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 265,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-4-chintan-building-administrative-block-https-maps-google-com-q-20-354079-85-819689",
+      "title": "Chintan Building (Administrative Block) https://maps.google.com/?q=20.354079,85.819689",
+      "subtitle": "Campus 4 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 4",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 4",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 268,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-4-kiit-campus-4",
+      "title": "KIIT Campus - 4",
+      "subtitle": "Campus 4 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 4",
+      "point": {
+        "latitude": 20.354018,
+        "longitude": 85.819918
+      },
+      "aliases": [
+        "kiit",
+        "campus 4",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 139,
+      "sourceUrl": "https://maps.google.com/?q=20.354018,85.819918"
+    },
+    {
+      "id": "campus-4-kiit-hr-department-https-maps-google-com-q-20-353781-85-819934",
+      "title": "KIIT HR Department https://maps.google.com/?q=20.353781,85.819934",
+      "subtitle": "Campus 4 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 4",
+      "point": null,
+      "aliases": [
+        "kiit",
+        "campus 4",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 269,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-5-campus-5-basketball",
+      "title": "Campus 5 Basketball",
+      "subtitle": "Campus 5 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 5",
+      "point": {
+        "latitude": 20.351041,
+        "longitude": 85.814751
+      },
+      "aliases": [
+        "sports",
+        "campus 5",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 178,
+      "sourceUrl": "https://maps.google.com/?q=20.351041,85.814751"
+    },
+    {
+      "id": "campus-5-campus-5-cricket-ground",
+      "title": "Campus 5 Cricket Ground",
+      "subtitle": "Campus 5 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 5",
+      "point": {
+        "latitude": 20.350387,
+        "longitude": 85.815231
+      },
+      "aliases": [
+        "sports",
+        "campus 5",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 194,
+      "sourceUrl": "https://maps.google.com/?q=20.350387,85.815231"
+    },
+    {
+      "id": "campus-5-campus-5-swimming-pool",
+      "title": "Campus 5 Swimming Pool",
+      "subtitle": "Campus 5 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 5",
+      "point": {
+        "latitude": 20.350835,
+        "longitude": 85.814785
+      },
+      "aliases": [
+        "sports",
+        "campus 5",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 219,
+      "sourceUrl": "https://maps.google.com/?q=20.350835,85.814785"
+    },
+    {
+      "id": "campus-5-campus-5-volleyball-court",
+      "title": "Campus 5 Volleyball Court",
+      "subtitle": "Campus 5 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 5",
+      "point": {
+        "latitude": 20.350424,
+        "longitude": 85.814746
+      },
+      "aliases": [
+        "sports",
+        "campus 5",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 238,
+      "sourceUrl": "https://maps.google.com/?q=20.350424,85.814746"
+    },
+    {
+      "id": "campus-5-kiims-ground",
+      "title": "Kiims ground",
+      "subtitle": "Campus 5 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 5",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 5",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 271,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-5-kiims-infertility-treatment-unit",
+      "title": "Kiims infertility treatment unit",
+      "subtitle": "Campus 5 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 5",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 5",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 270,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-5-kiit-campus-5",
+      "title": "KIIT Campus - 5",
+      "subtitle": "Campus 5 • KIMS",
+      "category": "KIMS",
+      "city": "Bhubaneswar",
+      "campus": "Campus 5",
+      "point": {
+        "latitude": 20.352824,
+        "longitude": 85.813966
+      },
+      "aliases": [
+        "kims",
+        "campus 5",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 153,
+      "sourceUrl": "https://maps.google.com/?q=20.352824,85.813966"
+    },
+    {
+      "id": "campus-6-campus-6-billiards-snooker",
+      "title": "Campus 6 Billiards & Snooker",
+      "subtitle": "Campus 6 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 6",
+      "point": {
+        "latitude": 20.35272,
+        "longitude": 85.818612
+      },
+      "aliases": [
+        "sports",
+        "campus 6",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 184,
+      "sourceUrl": "https://maps.google.com/?q=20.35272,85.818612"
+    },
+    {
+      "id": "campus-6-campus-6-guest-house",
+      "title": "Campus-6 Guest house",
+      "subtitle": "Campus 6 • Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": "Campus 6",
+      "point": {
+        "latitude": 20.353483,
+        "longitude": 85.819581
+      },
+      "aliases": [
+        "guest house",
+        "campus 6",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 28,
+      "sourceUrl": "https://maps.google.com/?q=20.353483,85.819581"
+    },
+    {
+      "id": "campus-6-campus-6-swimming-pool",
+      "title": "Campus 6 Swimming Pool",
+      "subtitle": "Campus 6 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 6",
+      "point": {
+        "latitude": 20.351814,
+        "longitude": 85.820087
+      },
+      "aliases": [
+        "sports",
+        "campus 6",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 220,
+      "sourceUrl": "https://maps.google.com/?q=20.351814,85.820087"
+    },
+    {
+      "id": "campus-6-ict-cell",
+      "title": "ICT cell",
+      "subtitle": "Campus 6 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 6",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 6",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 273,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-6-kiit-campus-6",
+      "title": "KIIT Campus - 6",
+      "subtitle": "Campus 6 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 6",
+      "point": {
+        "latitude": 20.353683,
+        "longitude": 85.819628
+      },
+      "aliases": [
+        "kiit",
+        "campus 6",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 123,
+      "sourceUrl": "https://maps.google.com/?q=20.353683,85.819628"
+    },
+    {
+      "id": "campus-6-kiit-guest-house",
+      "title": "KIIT Guest House",
+      "subtitle": "Campus 6 • Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": "Campus 6",
+      "point": null,
+      "aliases": [
+        "guest house",
+        "campus 6",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 274,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-6-qc-1",
+      "title": "Qc-1",
+      "subtitle": "Campus 6 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 6",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 6",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 272,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-7-campus-7-swimming-pool",
+      "title": "Campus 7 Swimming Pool",
+      "subtitle": "Campus 7 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 7",
+      "point": {
+        "latitude": 20.34845,
+        "longitude": 85.819822
+      },
+      "aliases": [
+        "sports",
+        "campus 7",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 221,
+      "sourceUrl": "https://maps.google.com/?q=20.34845,85.819822"
+    },
+    {
+      "id": "campus-7-kiit-campus-7",
+      "title": "KIIT Campus - 7",
+      "subtitle": "Campus 7 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 7",
+      "point": {
+        "latitude": 20.35094,
+        "longitude": 85.8196
+      },
+      "aliases": [
+        "kiit",
+        "campus 7",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 125,
+      "sourceUrl": "https://maps.google.com/?q=20.35094,85.8196"
+    },
+    {
+      "id": "campus-7-qc-5a",
+      "title": "QC-5A",
+      "subtitle": "Campus 7 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 7",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 7",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 276,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-7-sculpture-park",
+      "title": "Sculpture park",
+      "subtitle": "Campus 7 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 7",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 7",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 275,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-8-campus-8-volleyball-court",
+      "title": "Campus 8 Volleyball Court",
+      "subtitle": "Campus 8 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 8",
+      "point": {
+        "latitude": 20.351543,
+        "longitude": 85.819588
+      },
+      "aliases": [
+        "sports",
+        "campus 8",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 235,
+      "sourceUrl": "https://maps.google.com/?q=20.351543,85.819588"
+    },
+    {
+      "id": "campus-8-kiit-campus-8",
+      "title": "KIIT Campus - 8",
+      "subtitle": "Campus 8 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 8",
+      "point": {
+        "latitude": 20.351454,
+        "longitude": 85.819446
+      },
+      "aliases": [
+        "kiit",
+        "campus 8",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 128,
+      "sourceUrl": "https://maps.google.com/?q=20.351454,85.819446"
+    },
+    {
+      "id": "campus-8-nift",
+      "title": "Nift",
+      "subtitle": "Campus 8 • Other",
+      "category": "Other",
+      "city": "Bhubaneswar",
+      "campus": "Campus 8",
+      "point": null,
+      "aliases": [
+        "other",
+        "campus 8",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 277,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-8-tennis-court",
+      "title": "Tennis court",
+      "subtitle": "Campus 8 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 8",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 8",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 278,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-8-volleyball-court",
+      "title": "volleyball court",
+      "subtitle": "Campus 8 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 8",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 8",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 279,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-9-campus-9-basketball",
+      "title": "Campus 9 Basketball",
+      "subtitle": "Campus 9 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": {
+        "latitude": 20.353953,
+        "longitude": 85.810429
+      },
+      "aliases": [
+        "sports",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 179,
+      "sourceUrl": "https://maps.google.com/?q=20.353953,85.810429"
+    },
+    {
+      "id": "campus-9-campus-9-girls-hostel",
+      "title": "Campus 9 girls hostel",
+      "subtitle": "Campus 9 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": null,
+      "aliases": [
+        "boys hostel",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 281,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-9-campus-9-lawn-tennis-court",
+      "title": "Campus 9 Lawn Tennis Court",
+      "subtitle": "Campus 9 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": {
+        "latitude": 20.353977,
+        "longitude": 85.8098
+      },
+      "aliases": [
+        "sports",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 209,
+      "sourceUrl": "https://maps.google.com/?q=20.353977,85.8098"
+    },
+    {
+      "id": "campus-9-campus-9-practice-cricket-pitch",
+      "title": "Campus 9 Practice Cricket Pitch",
+      "subtitle": "Campus 9 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": {
+        "latitude": 20.353838,
+        "longitude": 85.811223
+      },
+      "aliases": [
+        "sports",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 196,
+      "sourceUrl": "https://maps.google.com/?q=20.353838,85.811223"
+    },
+    {
+      "id": "campus-9-campus-9-swimming-pool",
+      "title": "Campus 9 Swimming Pool",
+      "subtitle": "Campus 9 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": {
+        "latitude": 20.353108,
+        "longitude": 85.810594
+      },
+      "aliases": [
+        "sports",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 222,
+      "sourceUrl": "https://maps.google.com/?q=20.353108,85.810594"
+    },
+    {
+      "id": "campus-9-campus-9-table-tennis",
+      "title": "Campus 9 Table Tennis",
+      "subtitle": "Campus 9 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": {
+        "latitude": 20.353293,
+        "longitude": 85.810494
+      },
+      "aliases": [
+        "sports",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 229,
+      "sourceUrl": "https://maps.google.com/?q=20.353293,85.810494"
+    },
+    {
+      "id": "campus-9-campus-9-volleyball-court",
+      "title": "Campus 9 Volleyball Court",
+      "subtitle": "Campus 9 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": {
+        "latitude": 20.353832,
+        "longitude": 85.811005
+      },
+      "aliases": [
+        "sports",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 239,
+      "sourceUrl": "https://maps.google.com/?q=20.353832,85.811005"
+    },
+    {
+      "id": "campus-9-international-school-garden",
+      "title": "International school garden",
+      "subtitle": "Campus 9 • Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": null,
+      "aliases": [
+        "sports",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 280,
+      "sourceUrl": null
+    },
+    {
+      "id": "campus-9-kiit-campus-9",
+      "title": "KIIT Campus - 9",
+      "subtitle": "Campus 9 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": {
+        "latitude": 20.353848,
+        "longitude": 85.811736
+      },
+      "aliases": [
+        "kiit",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 95,
+      "sourceUrl": "https://maps.google.com/?q=20.353848,85.811736"
+    },
+    {
+      "id": "campus-9-kiit-institute-of-nursing-sciences",
+      "title": "Kiit institute of nursing sciences",
+      "subtitle": "Campus 9 • KIMS",
+      "category": "KIMS",
+      "city": "Bhubaneswar",
+      "campus": "Campus 9",
+      "point": null,
+      "aliases": [
+        "kims",
+        "campus 9",
+        "kiit",
+        "bhubaneswar"
+      ],
+      "reviewed": false,
+      "sourceRow": 282,
+      "sourceUrl": null
+    }
+  ]
+}
