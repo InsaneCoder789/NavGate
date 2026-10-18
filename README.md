@@ -1,120 +1,67 @@
 # NavGate
 
-NavGate is a native Android maps and navigation prototype with a Compose UI, shared 2D + AR navigation flow, and self-hosted routing providers. Self-hosting avoids per-request provider billing, not infrastructure or routing-data costs.
+NavGate is a native Kotlin/Compose navigation prototype. Its application backend runs on the phone: local place search, versioned Room data, A* walking routing, a shared navigation session, location quality/progress/rerouting, and recoverable trips. It requires no paid routing API, cloud account, or hosted server.
 
-## What we have built
+**Current data limitation:** the bundled KIIT catalogue contains 175 destinations, 84 without coordinates, and no reviewed walking graph or entrances. Search works locally. Route planning returns an explicit `MissingGraph` result until a reviewed pack is installed. Real OSM geometry has been acquired as development candidates; those candidates are not silently enabled for navigation.
 
-- Native Android app (`Kotlin + Jetpack Compose`)
-- Premium dark navigation UI with map-first experience
-- Full state flow for:
-  - `Explore`
-  - `Place details`
-  - `Route preview`
-  - `Active navigation`
-  - `AR assist mode`
-- Search and place selection with city mode handling
-- Route preview and start navigation flow
-- Turn banner + trip summary in active navigation
-- GPS/sample hardening for city-context route stability
-- Backend fallback logic in app search (backend -> bundled/open-map fallback)
+## Start here
 
-## Architecture
+- [Implemented backend and Stitch integration contract](docs/BACKEND_INTEGRATION.md): APIs, ownership, engineering diagrams, persistence, complexity, update flow and limitations.
+- [Technical proposal](docs/TECHNICAL_PROPOSAL.md): architecture rationale and longer-term phases.
+- [Implementation status and evidence](docs/IMPLEMENTATION_STATUS.md): commit ledger, executed checks and acceptance gaps.
+- [Initial repository understanding](docs/PROJECT_UNDERSTANDING.md): historical audit at the pre-migration baseline.
+- [OSM source and import policy](data/osm/README.md): bounded source snapshot, attribution and candidate regeneration.
 
-### Android app
+The user will create the frontend in Stitch. Existing Compose screens are an integration shell; this backend work does not finalize the visual design.
 
-- `Kotlin`, `Jetpack Compose`, `Material 3`
-- `MapLibre` map rendering
-- Shared navigation state engine for map and AR modes
-- Route/search repositories with fallback handling
+## Run Android
 
-### Backend (`Go`)
+Open the repository root in Android Studio, sync Gradle, and run `app`. Install Android SDK 35 and a compatible JDK. The verified host uses Java 22 with Java 17 bytecode targets. Keep `local.properties` machine-local; do not commit SDK paths.
 
-- Endpoints:
-  - `GET /health`
-  - `GET /places`
-  - `GET /places/{id}`
-  - `GET /categories`
-  - `POST /route`
-  - `POST /reroute`
-- KIIT seed dataset support for custom POIs
-- Routing provider chain:
-  1. `Valhalla` (primary, self-hosted)
-  2. `OSRM` (fallback, self-hosted)
-  3. In-code simplified fallback route
+Production services are wired through `NavGateServices` and `NavGateViewModel`. MapLibre renders the map, framework LocationManager supplies foreground location, Room stores structured data, DataStore stores settings, and optional Android offline TTS speaks instructions. Map and camera presentation share one trip. Camera assistance is a compass overlay; world-anchored AR and an ML localization model are not implemented.
 
-## Zero API billing plan
+Routing data and basemap resources are separate. Offline basemap download is not implemented. Online map rendering still needs connectivity and provider availability. The new local repository does not fall back to public OSRM or fabricated geometry.
 
-This repo now supports a zero external API billing stack by self-hosting routing providers.
+## Verify
 
-- Primary: `Valhalla`
-- Fallback: `OSRM` (foot + car profiles)
-- Final fallback: backend in-code route fallback
+With an API 34 device/emulator connected:
 
-Deployment files added:
-
-- [`backend/Dockerfile`](backend/Dockerfile)
-- [`backend/deploy/docker-compose.selfhost.yml`](backend/deploy/docker-compose.selfhost.yml)
-- [`backend/deploy/.env.example`](backend/deploy/.env.example)
-- [`backend/deploy/setup_osrm.sh`](backend/deploy/setup_osrm.sh)
-- [`backend/deploy/setup_valhalla.sh`](backend/deploy/setup_valhalla.sh)
-- [`backend/SELF_HOSTING.md`](backend/SELF_HOSTING.md)
-
-## Run Android app
-
-1. Clone the repository and open its root directory in Android Studio.
-2. Sync Gradle.
-3. Run on emulator or device.
-4. For local backend from emulator, backend URL should be `http://10.0.2.2:8080`.
-
-## Run backend locally (quick)
-
-### Docker
-
-Run these commands from the repository root. Docker must be installed and running.
-
-1. Build:
-```bash
-docker build -t navgate-backend:local ./backend
-```
-2. Run:
-```bash
-docker run -d --name navgate-backend-local -p 8080:8080 navgate-backend:local
-```
-3. Verify:
-```bash
-curl http://localhost:8080/health
+```sh
+./gradlew :navigation-core:test :app:testDebugUnitTest :app:assembleDebug :app:connectedDebugAndroidTest :app:lintDebug --console=plain
+python3 -m unittest discover -s scripts/tests -v
 ```
 
-### Full self-host routing stack
+JVM tests compare A* costs against an independent Dijkstra oracle and exercise route/session/update failures. Instrumentation uses isolated databases/preferences and tests durable activation, migration, retention, recovery, document access and the real bundled catalogue. These checks do not establish outdoor walking, GNSS, physical compass, audio, or production acceptance.
 
-Follow:
-- [`backend/SELF_HOSTING.md`](backend/SELF_HOSTING.md)
+## Campus data and updates
 
-## Routing Evidence And Fallbacks
+Regenerate the information-only catalogue with `python3 scripts/build_region_catalog.py`. Extract source-backed graph candidates with `python3 scripts/build_osm_candidates.py`. Neither command invents walking entrances or approves access from coordinate proximity.
 
-Inspect `routeSource` and `warnings` in each backend route response:
+Pack updates validate bounded input, schema, topology, signature and selected region, then atomically switch active versions. Active trips remain pinned to their old graph. Manual document imports are exposed for future Stitch screens, but signed updates are disabled until the publisher bundles its trusted public key. See the integration contract for the exact trust-root path and release signing command. Private signing keys must remain outside Git.
 
-- `valhalla` or `osrm` identifies the routing provider that produced the route; this is not a measured navigation-accuracy guarantee.
-- `fallback` identifies a simplified in-code route when providers are unavailable. It is not equivalent to a road-network-validated route and must not be presented as provider-quality guidance.
-- AR guidance depends separately on device pose, GPS and confidence. A route response alone does not prove safe world anchoring; unavailable or low-confidence AR guidance is not successful AR navigation.
+The OSM snapshot is © OpenStreetMap contributors under ODbL; workbook redistribution/provenance remains a separate review item.
 
-Backend regression tests can be run from a clean checkout with Go 1.23+:
+## Optional historical Go service
+
+The existing `backend/` source is preserved as a development/reference service. It exposes `/health`, `/places`, `/places/{id}`, `/categories`, `/route`, and `/reroute`, with a Valhalla → OSRM → simplified geometry chain. Its final simplified fallback is not a validated walking route. None of this chain is a production fallback for the local Kotlin engine.
+
+With Go 1.23+ installed:
 
 ```sh
 cd backend
 go test ./...
 ```
 
-These tests do not start self-hosted routing engines or establish installed-device AR acceptance. The full Docker stack requires the routing datasets described in the self-hosting guide; clean-machine/device verification remains a separate gate.
+To run it with Docker from the repository root:
 
-## Current known limits
+```sh
+docker build -t navgate-backend:local ./backend
+docker run -d --name navgate-backend-local -p 8080:8080 navgate-backend:local
+curl http://localhost:8080/health
+```
 
-- Some city routes can still be imperfect depending on local OSM routing graph coverage.
-- AR mode is assistive and still being hardened for production-grade world-anchored precision.
-- 16 KB native library compatibility warnings can still appear on some emulator/device setups.
+The full provider deployment is documented in [SELF_HOSTING.md](backend/SELF_HOSTING.md). Self-hosting consumes machine/storage/network resources even without per-request API billing. It is optional; Android campus engine testing does not require this stack. Supabase starter work is historical and is not required for local search, bookmarks or navigation.
 
-## Next priority work
+## Remaining release work
 
-1. Finish Supabase auth + user-linked saved/recents sync.
-2. Improve route quality with tuned self-hosted Valhalla/OSRM data pipelines.
-3. Continue AR path anchoring quality and confidence fallback refinement.
+Review source-supported walking connectivity and building entrances, resolve workbook data rights, perform real campus/device walks and failure recovery checks, and decide whether to add permitted offline basemap resources. Broader city routing, indoor connectivity and world-anchored AR require separate implementation and acceptance. No production navigation readiness is claimed.

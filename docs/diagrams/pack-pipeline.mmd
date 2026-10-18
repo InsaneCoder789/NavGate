@@ -1,0 +1,13 @@
+flowchart LR
+    POI[Workbook destinations] --> CATALOG[Information-only bundled catalogue]
+    OSM[Bounded OSM source snapshot] --> CANDIDATE[Restriction-aware candidate extraction]
+    CANDIDATE --> REVIEW[Required topology, access and entrance review]
+    REVIEW --> RELEASE[Versioned region JSON and detached signature]
+    RELEASE --> PICKER[Future Stitch screen: two SAF documents]
+    PICKER --> KEY[Bundled publisher RSA trust root required]
+    KEY --> VERIFY[Bounded stream, signature, region and schema validation]
+    CATALOG --> VALIDATE[APK asset validation]
+    VERIFY --> TX[Room transaction: immutable version and active pointer]
+    VALIDATE --> TX
+    TX --> KEEP[Retain pinned older versions]
+    CANDIDATE -. not bundled or enabled .-> LIMIT[No invented building connectors]

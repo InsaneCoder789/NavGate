@@ -1,0 +1,20 @@
+flowchart LR
+    Stitch[Stitch-generated Compose screens] --> VM[NavGateViewModel]
+    VM --> Backend[NavigationBackend command actor]
+    Backend --> Search[LocalNavigationRepository]
+    Search --> Room[(Room)]
+    Backend --> Planner[RoutePlanner / bounded index cache]
+    Planner --> AStar[CampusRoutingProvider A*]
+    Room --> Planner
+    Backend --> Session[NavigationSession]
+    GPS[Foreground LocationManager] --> Backend
+    Session --> Backend
+    Backend --> Checkpoint[RoomSessionStore]
+    Checkpoint --> Room
+    Backend --> VM
+    VM --> Stitch
+    Heading[Lifecycle rotation sensor / true north filter] --> Camera[Optional compass camera aid]
+    Backend --> Voice[Optional installed offline TTS]
+    Documents[SAF pack and signature documents] --> Import[RegionDocumentImporter / SignedPackImport]
+    Import --> Verify[Trusted RSA / size / schema / graph validation]
+    Verify --> Room

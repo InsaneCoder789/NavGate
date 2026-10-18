@@ -1,0 +1,26 @@
+erDiagram
+    regions ||--o{ graph_versions : owns
+    graph_versions ||--o{ graph_nodes : contains
+    graph_versions ||--o{ graph_edges : contains
+    graph_versions ||--o{ places : contains
+    places ||--o{ entrances : has
+    graph_nodes ||--o{ graph_edges : endpoints
+    graph_nodes ||--o{ entrances : anchors
+    user_records {
+        string kind_id PK
+        string payload
+        long updatedAt
+    }
+    trip_records {
+        string id PK
+        string regionId
+        string graphVersion
+        string payload
+    }
+    session_checkpoint {
+        int id PK
+        string payload
+    }
+    migration_markers {
+        string id PK
+    }

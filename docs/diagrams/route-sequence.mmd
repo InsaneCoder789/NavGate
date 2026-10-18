@@ -1,0 +1,36 @@
+sequenceDiagram
+    actor User
+    participant UI as Stitch / ViewModel
+    participant Backend as NavigationBackend actor
+    participant Data as LocalNavigationRepository / Room
+    participant Plan as RoutePlanner / A*
+    participant Trip as NavigationSession
+    participant Store as RoomSessionStore
+    User->>UI: Search and choose destination
+    UI->>Backend: search(query, region)
+    Backend->>Data: Local search and destination capabilities
+    Data-->>Backend: Places / entrance readiness
+    Backend-->>UI: Generation-checked search state
+    UI->>Backend: plan(request)
+    Backend->>Plan: Resolve active graph and endpoints
+    Plan-->>Backend: Ready route or typed unavailable
+    Backend->>Trip: Preview if valid
+    Backend-->>UI: State update
+    User->>UI: Start
+    UI->>Backend: start()
+    Backend->>Trip: Require fresh accurate fix near start
+    Trip-->>Backend: Accepted session or recovery reason
+    Backend->>Store: Atomic trip and checkpoint write
+    loop Foreground location and ticks
+        UI->>Backend: location(fix) / tick()
+        Backend->>Trip: Process quality and progress
+        Trip-->>Backend: Snapshot / speech / optional reroute request
+        Backend-->>UI: Immutable state
+    end
+    alt Repeated deviation
+        Backend->>Plan: Plan replacement against pinned version
+        Plan-->>Backend: Replacement result
+        Backend->>Trip: Validate matching session / request and current fix
+    else Arrival or stop
+        Backend->>Store: Final summary and checkpoint removal
+    end
