@@ -11,3 +11,6 @@ navigation-core/build/
 __pycache__/
 *.pyc
 .kotlin/
+
+# Reproducible development graph candidates; raw source and report are versioned.
+/data/osm/kiit-candidates.json
