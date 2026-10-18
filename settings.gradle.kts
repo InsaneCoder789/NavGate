@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "NavGate"
 include(":app")
+include(":navigation-core")
