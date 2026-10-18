@@ -2,6 +2,7 @@ package com.rohanc.navgate.ui.ar
 
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.navigation.NavigationSnapshot
+import com.rohanc.navgate.navigation.GuidanceConfidence
 import kotlin.math.abs
 
 enum class AlignmentLevel {
@@ -18,11 +19,15 @@ data class AlignmentStatus(
 
 fun alignmentStatus(snapshot: NavigationSnapshot, heading: Double?): AlignmentStatus {
     val target = snapshot.route?.steps?.getOrNull(snapshot.currentStepIndex)?.target
-    val current = snapshot.userLocation ?: snapshot.origin
-    if (heading == null || target == null || current == null) {
+    val current = snapshot.userLocation
+    if (snapshot.locationConfidence.label == GuidanceConfidence.Low || snapshot.isOffRoute || snapshot.isRerouting) {
+        return AlignmentStatus(AlignmentLevel.Recover, "Use map guidance until location recovers", 0.0)
+    }
+    if (heading == null || !heading.isFinite() || target == null || current == null) {
         return AlignmentStatus(AlignmentLevel.Recover, "Need heading lock", 0.0)
     }
 
+    if (current.distanceTo(target) < 2.0) return AlignmentStatus(AlignmentLevel.Recover, "Near maneuver; follow text instructions", 0.0)
     val targetBearing = current.bearingTo(target)
     val delta = normalizeDelta(targetBearing - heading)
     val level = when {

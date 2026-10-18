@@ -1,54 +1,28 @@
 package com.rohanc.navgate.ui.ar
 
-import com.rohanc.navgate.model.Coordinate
-import com.rohanc.navgate.model.ManeuverType
-import com.rohanc.navgate.model.RouteResponse
-import com.rohanc.navgate.model.RouteStep
-import com.rohanc.navgate.navigation.NavigationSnapshot
-import org.junit.Assert.assertEquals
+import com.rohanc.navgate.model.*
+import com.rohanc.navgate.navigation.*
+import org.junit.Assert.*
 import org.junit.Test
 
 class AlignmentGuideTest {
-    @Test
-    fun `aligned heading reports aligned state`() {
-        val snapshot = sampleSnapshot()
-        val heading = snapshot.origin!!.bearingTo(snapshot.route!!.steps.first().target)
-
-        val status = alignmentStatus(snapshot, heading)
-
-        assertEquals(AlignmentLevel.Aligned, status.level)
+    private val origin=Coordinate(20.0,85.0)
+    private val target=Coordinate(20.001,85.0)
+    private val route=RouteResponse(111.0,80.0,listOf(origin,target),listOf(RouteStep("North",111.0,target.latitude,target.longitude,ManeuverType.Straight)))
+    private val snapshot=NavigationSnapshot(origin=origin,userLocation=origin,route=route,
+        locationConfidence=SignalConfidence(GuidanceConfidence.Medium,"accepted"))
+    @Test fun `aligned heading reports aligned state`() {
+        assertEquals(AlignmentLevel.Aligned,alignmentStatus(snapshot,origin.bearingTo(target)).level)
     }
-
-    @Test
-    fun `large heading gap reports recover state`() {
-        val snapshot = sampleSnapshot()
-
-        val status = alignmentStatus(snapshot, 270.0)
-
-        assertEquals(AlignmentLevel.Recover, status.level)
+    @Test fun `large heading gap reports recover state`() {
+        assertEquals(AlignmentLevel.Recover,alignmentStatus(snapshot,270.0).level)
     }
-
-    private fun sampleSnapshot(): NavigationSnapshot {
-        val origin = Coordinate(20.349884, 85.807529)
-        val target = Coordinate(20.350080, 85.808021)
-        return NavigationSnapshot(
-            origin = origin,
-            userLocation = origin,
-            route =
-                RouteResponse(
-                    distanceMeters = 42.0,
-                    durationSeconds = 30.0,
-                    pathCoordinates = listOf(origin, target),
-                    steps = listOf(
-                        RouteStep(
-                            instruction = "Head north-east",
-                            distanceMeters = 42.0,
-                            targetLatitude = target.latitude,
-                            targetLongitude = target.longitude,
-                            maneuverType = ManeuverType.Straight,
-                        ),
-                    ),
-                ),
-        )
+    @Test fun `orientation cannot substitute for a usable location`() {
+        assertEquals(AlignmentLevel.Aligned,alignmentStatus(snapshot,0.0).level)
+        assertEquals(AlignmentLevel.Recover,alignmentStatus(snapshot.copy(userLocation=null),0.0).level)
+        assertEquals(AlignmentLevel.Recover,alignmentStatus(snapshot.copy(locationConfidence=SignalConfidence(GuidanceConfidence.Low,"stale")),0.0).level)
+        assertEquals(AlignmentLevel.Recover,alignmentStatus(snapshot.copy(isRerouting=true),0.0).level)
+        assertEquals(AlignmentLevel.Recover,alignmentStatus(snapshot,Double.NaN).level)
+        assertEquals(AlignmentLevel.Recover,alignmentStatus(snapshot.copy(userLocation=target),0.0).level)
     }
 }

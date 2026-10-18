@@ -1,97 +1,69 @@
 package com.rohanc.navgate.ui.ar
 
 import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import android.hardware.*
+import android.os.SystemClock
+import android.view.Surface
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
-import kotlin.math.abs
+import androidx.compose.ui.platform.LocalView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.rohanc.navgate.core.GeoPoint
+import com.rohanc.navgate.core.HeadingFilter
+import kotlinx.coroutines.delay
 
+/** Optional compass aid; missing/unreliable/stale sensors produce no alignment claim. */
 @Composable
-fun rememberHeadingState(): MutableState<Double?> {
-    val context = LocalContext.current
-    val headingState = remember { mutableStateOf<Double?>(null) }
-
-    DisposableEffect(context) {
-        val manager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val rotationSensor = manager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        val accelerometer = manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        val magnetometer = manager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-        val gyroscope = manager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-
-        val rotationMatrix = FloatArray(9)
-        val orientation = FloatArray(3)
-        val accelerometerValues = FloatArray(3)
-        val magnetometerValues = FloatArray(3)
-        var hasAccelerometer = false
-        var hasMagnetometer = false
-        var smoothedHeading: Double? = null
-        var latestTurnRate = 0.0
-
-        fun publishHeading(rawHeading: Double) {
-            val previous = smoothedHeading
-            val delta = if (previous == null) 0.0 else normalizeDelta(rawHeading - previous)
-            val smoothingFactor = if (abs(latestTurnRate) > 0.8) 0.55 else 0.22
-            smoothedHeading = if (previous == null) rawHeading else normalizeHeading(previous + (delta * smoothingFactor))
-            headingState.value = smoothedHeading
-        }
-
-        val listener = object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent) {
-                when (event.sensor.type) {
-                    Sensor.TYPE_ROTATION_VECTOR -> {
-                        SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-                        SensorManager.getOrientation(rotationMatrix, orientation)
-                        publishHeading(normalizeHeading(Math.toDegrees(orientation[0].toDouble())))
-                    }
-                    Sensor.TYPE_ACCELEROMETER -> {
-                        event.values.copyInto(accelerometerValues)
-                        hasAccelerometer = true
-                        if (rotationSensor == null) publishFromFallback()
-                    }
-                    Sensor.TYPE_MAGNETIC_FIELD -> {
-                        event.values.copyInto(magnetometerValues)
-                        hasMagnetometer = true
-                        if (rotationSensor == null) publishFromFallback()
-                    }
-                    Sensor.TYPE_GYROSCOPE -> {
-                        latestTurnRate = event.values[2].toDouble()
-                    }
+fun rememberHeadingState(location:GeoPoint?=null): MutableState<Double?> {
+    val context=LocalContext.current
+    val view=LocalView.current
+    val lifecycle=LocalLifecycleOwner.current.lifecycle
+    val currentLocation=rememberUpdatedState(location)
+    val heading=remember { mutableStateOf<Double?>(null) }
+    val filter=remember { HeadingFilter() }
+    DisposableEffect(context,view,lifecycle) {
+        val manager=context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val sensor=manager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        val matrix=FloatArray(9);val remapped=FloatArray(9);val orientation=FloatArray(3)
+        var registered=false
+        var reliable=false
+        var rotation:Int?=null
+        fun clear(){filter.reset();heading.value=null}
+        val listener=object:SensorEventListener {
+            override fun onSensorChanged(event:SensorEvent) {
+                if(!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)){clear();return}
+                val point=currentLocation.value?.takeIf{it.valid} ?: run{clear();return}
+                if(!reliable || event.accuracy<SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM){clear();return}
+                SensorManager.getRotationMatrixFromVector(matrix,event.values)
+                val displayRotation=view.display?.rotation ?: Surface.ROTATION_0
+                if(rotation!=displayRotation){clear();rotation=displayRotation}
+                val axes=when(displayRotation){
+                    Surface.ROTATION_90 -> SensorManager.AXIS_Y to SensorManager.AXIS_MINUS_X
+                    Surface.ROTATION_180 -> SensorManager.AXIS_MINUS_X to SensorManager.AXIS_MINUS_Y
+                    Surface.ROTATION_270 -> SensorManager.AXIS_MINUS_Y to SensorManager.AXIS_X
+                    else -> SensorManager.AXIS_X to SensorManager.AXIS_Y
                 }
+                if(!SensorManager.remapCoordinateSystem(matrix,axes.first,axes.second,remapped)){clear();return}
+                SensorManager.getOrientation(remapped,orientation)
+                val declination=GeomagneticField(point.latitude.toFloat(),point.longitude.toFloat(),0f,System.currentTimeMillis()).declination
+                heading.value=filter.sample(Math.toDegrees(orientation[0].toDouble()),declination.toDouble(),event.timestamp/1_000_000,true)
             }
-
-            private fun publishFromFallback() {
-                if (!hasAccelerometer || !hasMagnetometer) return
-                if (SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerValues, magnetometerValues)) {
-                    SensorManager.getOrientation(rotationMatrix, orientation)
-                    publishHeading(normalizeHeading(Math.toDegrees(orientation[0].toDouble())))
-                }
+            override fun onAccuracyChanged(sensor:Sensor?,accuracy:Int){
+                reliable=accuracy>=SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM
+                if(!reliable) clear()
             }
-
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
         }
-
-        rotationSensor?.let { manager.registerListener(listener, it, SensorManager.SENSOR_DELAY_GAME) }
-        accelerometer?.let { manager.registerListener(listener, it, SensorManager.SENSOR_DELAY_GAME) }
-        magnetometer?.let { manager.registerListener(listener, it, SensorManager.SENSOR_DELAY_GAME) }
-        gyroscope?.let { manager.registerListener(listener, it, SensorManager.SENSOR_DELAY_GAME) }
-
-        onDispose { manager.unregisterListener(listener) }
+        fun update(){
+            if(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)){
+                if(!registered && sensor!=null) registered=manager.registerListener(listener,sensor,SensorManager.SENSOR_DELAY_UI)
+            } else {manager.unregisterListener(listener);registered=false;reliable=false;clear()}
+        }
+        val observer=LifecycleEventObserver{_,_->update()}
+        lifecycle.addObserver(observer);update()
+        onDispose{lifecycle.removeObserver(observer);manager.unregisterListener(listener);clear()}
     }
-
-    return headingState
-}
-
-private fun normalizeHeading(value: Double): Double = (value + 360.0) % 360.0
-
-private fun normalizeDelta(value: Double): Double = when {
-    value > 180 -> value - 360
-    value < -180 -> value + 360
-    else -> value
+    LaunchedEffect(filter){while(true){delay(500);heading.value=filter.current(SystemClock.elapsedRealtime())}}
+    return heading
 }

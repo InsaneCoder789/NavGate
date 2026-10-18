@@ -397,7 +397,7 @@ private fun ArAssistScreen(
     uiState: NavGateUiState,
     onSwitchToMap: () -> Unit,
 ) {
-    val headingState = rememberHeadingState()
+    val headingState = rememberHeadingState(uiState.snapshot.userLocation?.let { com.rohanc.navgate.core.GeoPoint(it.latitude,it.longitude) })
     val alignment = alignmentStatus(uiState.snapshot, headingState.value)
 
     Box(modifier = Modifier.fillMaxSize()) {
