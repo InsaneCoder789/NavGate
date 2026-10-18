@@ -10,3 +10,4 @@ app/build/
 navigation-core/build/
 __pycache__/
 *.pyc
+.kotlin/
