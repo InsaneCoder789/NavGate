@@ -32,6 +32,7 @@ class NavGateServices private constructor(context: Context) {
         }
     }.getOrNull()
     val packImports = SignedPackImport(RegionPackInstaller(regions,updateKey))
+    val regionDocuments = RegionDocumentImporter(packImports,context.contentResolver)
     fun backend(scope: CoroutineScope): NavigationBackend = NavigationBackend(scope,repository,regions,AndroidBackendClock,checkpoints)
 
     companion object {
