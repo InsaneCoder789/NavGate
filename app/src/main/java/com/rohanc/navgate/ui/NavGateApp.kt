@@ -96,7 +96,7 @@ fun NavGateApp() {
                 GoogleOnboardingScreen(onContinue = viewModel::dismissOnboarding)
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    VoiceGuidance(
+                    val voiceAvailability = VoiceGuidance(
                         enabled = uiState.voiceAnnouncement != null,
                         utteranceKey = "${uiState.voiceSequence}",
                         message = uiState.voiceAnnouncement,
@@ -129,13 +129,13 @@ fun NavGateApp() {
                     )
 
                     // Minimal integration feedback only; the user will replace this shell through Stitch.
-                    if (uiState.statusMessage != null || uiState.canResume) {
+                    if (uiState.statusMessage != null || uiState.canResume || (uiState.voiceAnnouncement != null && voiceAvailability == VoiceAvailability.Unavailable)) {
                         Snackbar(
                             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
                             action = {
                                 if (uiState.canResume) TextButton(onClick = viewModel::startNavigation) { Text("Resume") }
                             },
-                        ) { Text(uiState.statusMessage ?: "A saved trip is available to resume") }
+                        ) { Text(uiState.statusMessage ?: if (uiState.canResume) "A saved trip is available to resume" else "Offline voice unavailable; follow text instructions") }
                     }
 
                     // AR Overlay (Full Screen when active)
