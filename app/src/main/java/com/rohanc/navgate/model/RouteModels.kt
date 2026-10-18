@@ -1,5 +1,8 @@
 package com.rohanc.navgate.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class TravelProfile {
     Walking,
     Driving,
@@ -49,10 +52,17 @@ data class RouteResponse(
     val warnings: List<String> = emptyList(),
 )
 
+@Serializable
 data class RouteHistoryEntry(
     val destinationId: String,
     val destinationTitle: String,
     val travelMode: TravelProfile,
     val recordedAtEpochMillis: Long,
     val etaSeconds: Double,
+    val tripId: String = "",
+    val status: String = "Legacy",
+    val regionId: String? = null,
+    val graphVersion: String? = null,
+    val estimatedDistanceMeters: Double? = null,
+    val finishedAtEpochMillis: Long? = null,
 )

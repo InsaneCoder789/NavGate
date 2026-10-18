@@ -6,513 +6,257 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.rohanc.navgate.data.BackendNavigationRepository
+import com.rohanc.navgate.core.*
 import com.rohanc.navgate.data.AppPreferencesStore
-import com.rohanc.navgate.data.SharedPrefsAppPreferencesStore
-import com.rohanc.navgate.data.NavigationRepository
-import com.rohanc.navgate.data.SharedPrefsUserPlacesStore
 import com.rohanc.navgate.data.UserPlacesStore
-import com.rohanc.navgate.model.Coordinate
-import com.rohanc.navgate.model.PlaceSearchResult
-import com.rohanc.navgate.model.PlaceType
-import com.rohanc.navgate.model.RouteRequest
-import com.rohanc.navgate.model.RouteHistoryEntry
-import com.rohanc.navgate.model.TravelProfile
-import com.rohanc.navgate.navigation.NavigationEngine
-import com.rohanc.navgate.navigation.NavigationSnapshot
-import com.rohanc.navgate.navigation.PresentationMode
+import com.rohanc.navgate.data.local.AndroidBackendClock
+import com.rohanc.navgate.data.local.NavGateServices
+import com.rohanc.navgate.data.local.toAppPlace
+import com.rohanc.navgate.data.local.toAppRoute
+import com.rohanc.navgate.model.*
+import com.rohanc.navgate.navigation.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class AppTab {
-    Explore,
-    Go,
-    Saved,
-    Recents,
-}
-
-enum class CityMode(
-    val label: String,
-    val backendCity: String?,
-) {
-    Mumbai("Mumbai", "Mumbai"),
-    KiitBeta("KIIT Beta", "Bhubaneswar"),
+// Existing shell vocabulary is retained solely as an adapter for the forthcoming Stitch UI.
+enum class AppTab { Explore, Go, Saved, Recents }
+enum class CityMode(val label: String, val backendCity: String?, val regionId: String) {
+    Mumbai("Mumbai", "Mumbai", "mumbai"),
+    KiitBeta("KIIT Beta", "Bhubaneswar", "kiit"),
 }
 
 class NavGateViewModel(
-    private val repository: NavigationRepository = BackendNavigationRepository(),
-    private val engine: NavigationEngine = NavigationEngine(),
+    backendFactory: (CoroutineScope) -> NavigationBackend,
     private val userPlacesStore: UserPlacesStore,
     private val appPreferencesStore: AppPreferencesStore,
+    private val clock: BackendClock = AndroidBackendClock,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(NavGateUiState())
-    val uiState: StateFlow<NavGateUiState> = _uiState.asStateFlow()
+    private val backend = backendFactory(viewModelScope)
+    /** Primary frontend integration contract. New Stitch screens can consume this directly. */
+    val backendState: StateFlow<BackendSnapshot> = backend.state
+    private val mutable = MutableStateFlow(NavGateUiState())
+    val uiState: StateFlow<NavGateUiState> = mutable.asStateFlow()
+    private var heading: Double? = null
+    private var requestId = 0L
+    private var lastDurableRevision = 0L
 
     init {
-        loadPreferences()
-        refreshPlaces()
-        loadPersistedPlaces()
+        viewModelScope.launch {
+            backend.state.collect { state ->
+                val route = state.session.route
+                mutable.update { current ->
+                    val preview = if (state.session.status == SessionStatus.Preview && route != null && current.selectedOrigin != null && current.selectedDestination != null) {
+                        RoutePreview.from(current.selectedOrigin,current.selectedDestination,route.toAppRoute())
+                    } else null
+                    current.copy(
+                        places = state.places.map { it.toAppPlace() }, isLoadingPlaces = state.searching || state.initializing,
+                        isLoadingRoute = state.planning, preview = preview, isPreviewVisible = preview != null,
+                        snapshot = state.session.toLegacySnapshot(heading),
+                        statusMessage = state.storageError ?: state.routeFailure?.detail ?: state.session.signalReason,
+                        routeFailure = state.routeFailure?.reason,
+                        canResume = state.session.status == SessionStatus.ResumeAvailable,
+                        selectedOrigin = if (current.selectedOrigin?.id == LIVE_LOCATION_ID && state.session.signalReason == null) state.session.location?.let(::livePlace) ?: current.selectedOrigin else current.selectedOrigin,
+                    )
+                }
+                if (state.durableRevision != lastDurableRevision) {
+                    lastDurableRevision = state.durableRevision
+                    refreshUserPlaces()
+                }
+            }
+        }
+        viewModelScope.launch {
+            backend.announcements.collect { message -> mutable.update { it.copy(voiceAnnouncement=message,voiceSequence=it.voiceSequence+1) } }
+        }
+        viewModelScope.launch {
+            try {
+                val city = appPreferencesStore.cityMode()
+                val onboarding = appPreferencesStore.isOnboardingSeen()
+                val beta = appPreferencesStore.kiitBetaAccess()
+                mutable.update { it.copy(cityMode=city,showOnboarding=!onboarding,kiitBetaAccess=beta) }
+                backend.search("",city.regionId)
+                refreshUserPlaces()
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutable.update { it.copy(statusMessage="Local preferences or user data could not be loaded") } }
+        }
     }
 
     fun updateSearch(query: String) {
-        _uiState.update { it.copy(searchQuery = query, activeTab = AppTab.Explore) }
-        refreshPlaces(query)
+        mutable.update { it.copy(searchQuery=query,activeTab=AppTab.Explore) }
+        viewModelScope.launch { backend.search(query,mutable.value.cityMode.regionId) }
     }
 
     fun setCityMode(mode: CityMode) {
-        _uiState.update {
-            it.copy(
-                cityMode = mode,
-                selectedOrigin = if (mode == CityMode.Mumbai && it.selectedOrigin?.campusLabel != null) null else it.selectedOrigin,
-                selectedDestination = if (mode == CityMode.Mumbai && it.selectedDestination?.campusLabel != null) null else it.selectedDestination,
-                preview = null,
-                isPreviewVisible = false,
-            )
+        if (!canEditTrip()) return
+        mutable.update { it.copy(cityMode=mode,selectedOrigin=null,selectedDestination=null,focusedPlace=null,selectedEntranceId=null,preview=null,isPreviewVisible=false) }
+        viewModelScope.launch {
+            backend.clear()
+            backend.search(mutable.value.searchQuery,mode.regionId)
+            storeOperation { appPreferencesStore.setCityMode(mode) }
         }
-        viewModelScope.launch { appPreferencesStore.setCityMode(mode) }
-        refreshPlaces(_uiState.value.searchQuery)
     }
 
     fun setKiitBetaAccess(enabled: Boolean) {
-        _uiState.update { it.copy(kiitBetaAccess = enabled) }
-        viewModelScope.launch { appPreferencesStore.setKiitBetaAccess(enabled) }
+        mutable.update { it.copy(kiitBetaAccess=enabled) }
+        viewModelScope.launch { storeOperation { appPreferencesStore.setKiitBetaAccess(enabled) } }
     }
 
     fun dismissOnboarding() {
-        _uiState.update { it.copy(showOnboarding = false) }
-        viewModelScope.launch { appPreferencesStore.markOnboardingSeen() }
+        mutable.update { it.copy(showOnboarding=false) }
+        viewModelScope.launch { storeOperation { appPreferencesStore.markOnboardingSeen() } }
     }
 
     fun selectOrigin(place: PlaceSearchResult) {
-        _uiState.update {
-            it.copy(
-                selectedOrigin = place,
-                focusedPlace = null,
-                preview = null,
-                snapshot = it.snapshot.copy(origin = place.coordinate),
-                activeTab = AppTab.Go,
-                searchQuery = "",
-            )
-        }
+        if (!canEditTrip()) return
+        if (place.coordinate == null) { mutable.update { it.copy(statusMessage="This place has no reviewed coordinates; choose another start") }; return }
+        mutable.update { it.copy(selectedOrigin=place,focusedPlace=null,activeTab=AppTab.Go,searchQuery="") }
         recordRecent(place)
-        recomputePreviewIfReady()
+        recomputePreview()
     }
 
     fun selectDestination(place: PlaceSearchResult) {
-        val inferredOrigin =
-            _uiState.value.selectedOrigin
-                ?.takeIf { !it.isSyntheticLiveLocation() || isCoordinateUsableForCity(it.coordinate, _uiState.value.cityMode) }
-                ?: _uiState.value.snapshot.userLocation
-                    ?.takeIf { isCoordinateUsableForCity(it, _uiState.value.cityMode) }
-                    ?.let(::liveLocationPlace)
-                ?: defaultOriginFor(_uiState.value.cityMode)
-        _uiState.update {
-            it.copy(
-                selectedOrigin = inferredOrigin,
-                selectedDestination = place,
-                focusedPlace = null,
-                preview = null,
-                snapshot =
-                    it.snapshot.copy(
-                        origin = inferredOrigin.coordinate,
-                        destination = place.coordinate,
-                    ),
-                activeTab = AppTab.Go,
-                searchQuery = "",
-            )
-        }
+        if (!canEditTrip()) return
+        val live = backend.state.value.session.takeIf { it.signalReason == null }?.location
+        mutable.update { it.copy(selectedOrigin=it.selectedOrigin ?: live?.let(::livePlace),selectedDestination=place,
+            selectedEntranceId=null,focusedPlace=null,activeTab=AppTab.Go,searchQuery="") }
         recordRecent(place)
-        recomputePreviewIfReady()
+        recomputePreview()
+    }
+
+    fun selectEntrance(id: String?) {
+        if (!canEditTrip()) return
+        mutable.update { it.copy(selectedEntranceId=id) }
+        recomputePreview()
+    }
+
+    fun setTravelProfile(profile: TravelProfile) {
+        if (!canEditTrip()) return
+        mutable.update { it.copy(travelProfile=profile) }
+        recomputePreview()
+    }
+
+    private fun recomputePreview() {
+        val state = mutable.value
+        val origin = state.selectedOrigin?.coordinate
+        val destination = state.selectedDestination
+        val request = if (origin != null && destination != null) PlanRequest(++requestId,state.cityMode.regionId,
+            GeoPoint(origin.latitude,origin.longitude),destination.id,state.selectedEntranceId,state.travelProfile.name.lowercase()) else null
+        viewModelScope.launch {
+            if (request == null) {
+                backend.clear()
+                mutable.update { it.copy(statusMessage=if (destination == null) "Choose a destination" else "Choose a start or enable accurate location") }
+            } else backend.plan(request)
+        }
     }
 
     fun startNavigation() {
-        val state = _uiState.value
-        val liveLocation = state.snapshot.userLocation
-        val destination = state.selectedDestination
-        val shouldResyncToLive =
-            liveLocation != null &&
-                destination != null &&
-                isCoordinateUsableForCity(liveLocation, state.cityMode) &&
-                state.selectedOrigin?.id in setOf("mumbai-origin", "kiit-origin")
-
-        if (shouldResyncToLive) {
-            viewModelScope.launch {
-                val liveOrigin = liveLocationPlace(liveLocation!!)
-                val route = repository.fetchRoute(routeRequest(liveOrigin.coordinate, destination!!.coordinate, destination))
-                engine.selectRoute(liveOrigin.coordinate, destination.coordinate, route)
-                val snapshot = engine.startNavigation()
-                _uiState.update {
-                    it.copy(
-                        selectedOrigin = liveOrigin,
-                        preview = RoutePreview.from(liveOrigin, destination, route),
-                        snapshot = snapshot,
-                        focusedPlace = null,
-                        isPreviewVisible = false,
-                        activeTab = AppTab.Go,
-                    )
-                }
-                recordRecent(destination)
-                recordRouteHistory(destination, snapshot.etaSeconds)
-            }
-            return
-        }
-
-        val snapshot = engine.startNavigation()
-        _uiState.update {
-            it.copy(
-                snapshot = snapshot,
-                focusedPlace = null,
-                isPreviewVisible = false,
-                activeTab = AppTab.Go,
-            )
-        }
-        _uiState.value.selectedDestination?.let(::recordRecent)
-        recordRouteHistory(_uiState.value.selectedDestination, snapshot.etaSeconds)
-    }
-
-    fun switchMode(mode: PresentationMode) {
-        engine.setPresentationMode(mode)
-        _uiState.update {
-            it.copy(snapshot = it.snapshot.copy(presentationMode = mode))
+        if (mutable.value.startPending) return
+        mutable.update { it.copy(startPending=true) }
+        viewModelScope.launch {
+            try { backend.start() }
+            finally { mutable.update { it.copy(startPending=false) } }
         }
     }
 
     fun stopNavigation() {
-        val snapshot = engine.stopNavigation()
-        _uiState.update {
-            it.copy(
-                snapshot = snapshot,
-                isPreviewVisible = false,
-                activeTab = AppTab.Go,
-            )
-        }
+        viewModelScope.launch { backend.stop(); mutable.update { it.copy(voiceAnnouncement=null) } }
     }
 
-    fun focusPlace(place: PlaceSearchResult) {
-        _uiState.update {
-            it.copy(
-                focusedPlace = place,
-                activeTab = AppTab.Explore,
-            )
-        }
+    fun switchMode(mode: PresentationMode) {
+        viewModelScope.launch { backend.presentation(if(mode==PresentationMode.MAP) Presentation.Map else Presentation.CameraAssist) }
     }
 
-    fun dismissFocusedPlace() {
-        _uiState.update { it.copy(focusedPlace = null) }
+    fun onLocationFix(fix: LocationFix) {
+        heading=fix.heading?.takeIf { it.isFinite() }
+        viewModelScope.launch { backend.location(fix) }
     }
 
-    fun updateProgress(lastFixAgeMillis: Long = 0, heading: Double? = null) {
-        val location = _uiState.value.snapshot.userLocation
-            ?: _uiState.value.selectedOrigin?.coordinate
-            ?: return
-        val snapshot = engine.updateUserProgress(location, heading, lastFixAgeMillis)
-        _uiState.update { it.copy(snapshot = snapshot) }
+    fun onLocationSample(location: Coordinate, heading: Double?, lastFixAgeMillis: Long, accuracyMeters: Double = Double.POSITIVE_INFINITY) {
+        onLocationFix(LocationFix(GeoPoint(location.latitude,location.longitude),clock.elapsedMillis()-lastFixAgeMillis,accuracyMeters,heading))
     }
 
-    fun onLocationSample(location: Coordinate, heading: Double?, lastFixAgeMillis: Long) {
-        val state = _uiState.value
-        if (!isCoordinateUsableForCity(location, state.cityMode)) {
-            return
-        }
-        val liveSnapshot = engine.updateUserProgress(location, heading, lastFixAgeMillis)
-        _uiState.update { current ->
-            current.copy(
-                snapshot = liveSnapshot,
-                selectedOrigin =
-                    if ((current.selectedOrigin == null || current.selectedOrigin.id == LIVE_LOCATION_ID) &&
-                        isCoordinateUsableForCity(location, current.cityMode)
-                    ) {
-                        liveLocationPlace(location)
-                    } else if (!current.snapshot.isNavigating && current.selectedOrigin?.isDefaultPreviewOrigin() == true) {
-                        liveLocationPlace(location)
-                    } else {
-                        current.selectedOrigin
-                    },
-            )
-        }
-        if (!state.snapshot.isNavigating && state.selectedDestination != null && state.selectedOrigin?.isDefaultPreviewOrigin() == true) {
-            recomputePreviewIfReady()
-        }
-        if (!state.snapshot.isArrived && liveSnapshot.isArrived) {
-            recordRouteHistory(state.selectedDestination, 0.0)
-        }
+    fun checkSignal() { viewModelScope.launch { backend.tick() } }
+    fun retryInitialization() { viewModelScope.launch { backend.retryInitialization() } }
 
-        val destination = state.selectedDestination?.coordinate ?: return
-        if (!liveSnapshot.isNavigating) return
-        if (!engine.shouldReroute(location)) return
-
-        engine.markRerouting(true)
-        _uiState.update { it.copy(snapshot = it.snapshot.copy(isRerouting = true)) }
-        viewModelScope.launch {
-            val route = repository.fetchRoute(routeRequest(origin = location, destination = destination, destinationPlace = state.selectedDestination))
-            val rerouted = engine.replaceActiveRoute(location, destination, route, location, heading, lastFixAgeMillis)
-            _uiState.update {
-                it.copy(
-                    snapshot = rerouted,
-                    preview = it.preview?.copy(
-                        distanceLabel = route.distanceMeters.asDistanceLabel(),
-                        etaLabel = route.durationSeconds.asEtaLabel(),
-                        firstInstruction = route.steps.firstOrNull()?.instruction ?: "Route updated",
-                    ),
-                )
-            }
-        }
-    }
-
-    fun setCurrentLocationAsOrigin(location: Coordinate) {
-        if (!isCoordinateUsableForCity(location, _uiState.value.cityMode)) {
-            return
-        }
-        _uiState.update {
-            val existingOrigin = it.selectedOrigin
-            val liveOrigin = if (existingOrigin == null || existingOrigin.id == LIVE_LOCATION_ID) liveLocationPlace(location) else existingOrigin
-            it.copy(
-                selectedOrigin = liveOrigin,
-                snapshot = it.snapshot.copy(userLocation = location, origin = liveOrigin.coordinate),
-            )
-        }
-    }
-
-    fun selectTab(tab: AppTab) {
-        _uiState.update {
-            it.copy(
-                activeTab = tab,
-                searchQuery = if (tab == AppTab.Explore) it.searchQuery else "",
-                focusedPlace = if (tab == AppTab.Explore && !it.isPreviewVisible) it.focusedPlace else null,
-            )
-        }
-    }
-
-    fun setTravelProfile(profile: TravelProfile) {
-        _uiState.update { it.copy(travelProfile = profile) }
-        recomputePreviewIfReady()
-    }
-
+    fun setCurrentLocationAsOrigin(location: Coordinate) = selectOrigin(livePlace(GeoPoint(location.latitude,location.longitude)))
+    fun focusPlace(place: PlaceSearchResult) { mutable.update { it.copy(focusedPlace=place,activeTab=AppTab.Explore) } }
+    fun dismissFocusedPlace() { mutable.update { it.copy(focusedPlace=null) } }
+    fun selectTab(tab: AppTab) { mutable.update { it.copy(activeTab=tab,searchQuery=if(tab==AppTab.Explore) it.searchQuery else "",focusedPlace=null) } }
     fun toggleSaved(place: PlaceSearchResult) {
-        viewModelScope.launch {
-            val saved = userPlacesStore.toggleSaved(place)
-            _uiState.update { it.copy(savedPlaces = saved, activeTab = if (saved.any { p -> p.id == place.id }) AppTab.Saved else it.activeTab) }
-        }
+        viewModelScope.launch { storeOperation { val saved=userPlacesStore.toggleSaved(place); mutable.update { it.copy(savedPlaces=saved) } } }
     }
-
-    private fun recomputePreviewIfReady() {
-        val state = _uiState.value
-        val origin = state.selectedOrigin ?: return
-        val destination = state.selectedDestination ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingRoute = true) }
-            val route = repository.fetchRoute(routeRequest(origin.coordinate, destination.coordinate, destination))
-            val snapshot = engine.selectRoute(origin.coordinate, destination.coordinate, route)
-            _uiState.update {
-                it.copy(
-                    isLoadingRoute = false,
-                    preview = RoutePreview.from(origin, destination, route),
-                    snapshot = snapshot,
-                    isPreviewVisible = true,
-                )
-            }
-        }
-    }
-
-    private fun refreshPlaces(query: String = _uiState.value.searchQuery) {
-        _uiState.update { it.copy(isLoadingPlaces = true) }
-        viewModelScope.launch {
-            val places = repository.searchPlaces(query, _uiState.value.cityMode.backendCity)
-            _uiState.update { it.copy(places = places, isLoadingPlaces = false) }
-        }
-    }
-
-    private fun loadPersistedPlaces() {
-        viewModelScope.launch {
-            val saved = userPlacesStore.savedPlaces()
-            val recents = userPlacesStore.recentPlaces()
-            val history = userPlacesStore.routeHistory()
-            _uiState.update { it.copy(savedPlaces = saved, recentPlaces = recents, routeHistory = history) }
-        }
-    }
-
-    private fun loadPreferences() {
-        viewModelScope.launch {
-            val onboardingSeen = appPreferencesStore.isOnboardingSeen()
-            val cityMode = appPreferencesStore.cityMode()
-            val kiitBeta = appPreferencesStore.kiitBetaAccess()
-            _uiState.update {
-                it.copy(
-                    showOnboarding = !onboardingSeen,
-                    cityMode = cityMode,
-                    kiitBetaAccess = kiitBeta,
-                )
-            }
-            refreshPlaces(_uiState.value.searchQuery)
-        }
-    }
-
     private fun recordRecent(place: PlaceSearchResult) {
-        viewModelScope.launch {
-            val recents = userPlacesStore.recordRecent(place)
-            _uiState.update { it.copy(recentPlaces = recents) }
+        viewModelScope.launch { storeOperation { val recent=userPlacesStore.recordRecent(place); mutable.update { it.copy(recentPlaces=recent) } } }
+    }
+    private suspend fun refreshUserPlaces() {
+        storeOperation {
+            val saved=userPlacesStore.savedPlaces(); val recents=userPlacesStore.recentPlaces(); val history=userPlacesStore.routeHistory()
+            mutable.update { it.copy(savedPlaces=saved,recentPlaces=recents,routeHistory=history) }
         }
     }
-
-    private fun recordRouteHistory(destination: PlaceSearchResult?, etaSeconds: Double) {
-        destination ?: return
-        viewModelScope.launch {
-            val history =
-                userPlacesStore.recordRouteHistory(
-                    RouteHistoryEntry(
-                        destinationId = destination.id,
-                        destinationTitle = destination.title,
-                        travelMode = _uiState.value.travelProfile,
-                        recordedAtEpochMillis = System.currentTimeMillis(),
-                        etaSeconds = etaSeconds,
-                    ),
-                )
-            _uiState.update { it.copy(routeHistory = history) }
-        }
+    private suspend fun storeOperation(operation: suspend () -> Unit) {
+        try { operation() }
+        catch(cancelled: CancellationException) { throw cancelled }
+        catch(_: Exception) { mutable.update { it.copy(statusMessage="Local data could not be saved or loaded; existing records were retained") } }
     }
-
-    private fun routeRequest(origin: Coordinate, destination: Coordinate, destinationPlace: PlaceSearchResult?) =
-        RouteRequest(
-            origin = origin,
-            destination = destination,
-            profile = _uiState.value.travelProfile,
-            destinationPlaceId = destinationPlace?.id,
-            cityHint = destinationPlace?.city ?: _uiState.value.cityMode.backendCity,
-        )
+    private fun canEditTrip(): Boolean {
+        if (mutable.value.startPending || backend.state.value.session.status in NavigationSession.ACTIVE) {
+            mutable.update { it.copy(statusMessage="Stop the current trip before changing its region or destination") }
+            return false
+        }
+        return true
+    }
+    override fun onCleared() { backend.close(); super.onCleared() }
 
     companion object {
-        private const val LIVE_LOCATION_ID = "live-location"
-
-        fun factory(application: Application): ViewModelProvider.Factory =
-            viewModelFactory {
-                initializer {
-                    NavGateViewModel(
-                        repository = BackendNavigationRepository(application = application),
-                        engine = NavigationEngine(),
-                        userPlacesStore = SharedPrefsUserPlacesStore(application),
-                        appPreferencesStore = SharedPrefsAppPreferencesStore(application),
-                    )
-                }
+        private const val LIVE_LOCATION_ID="live-location"
+        fun factory(application: Application): ViewModelProvider.Factory = viewModelFactory {
+            initializer {
+                val services=NavGateServices.get(application)
+                NavGateViewModel(services::backend,services.users,services.preferences)
             }
-
-        private fun liveLocationPlace(location: Coordinate): PlaceSearchResult =
-            PlaceSearchResult(
-                id = LIVE_LOCATION_ID,
-                title = "Live location",
-                subtitle = "Current GPS position",
-                latitude = location.latitude,
-                longitude = location.longitude,
-                type = PlaceType.Transit,
-                city = "Current city",
-                category = "Live",
-            )
-
-        private fun PlaceSearchResult.isSyntheticLiveLocation(): Boolean = id == LIVE_LOCATION_ID
-
-        private fun PlaceSearchResult.isDefaultPreviewOrigin(): Boolean = id == "mumbai-origin" || id == "kiit-origin"
-
-        private fun isCoordinateUsableForCity(location: Coordinate, cityMode: CityMode): Boolean {
-            val cityAnchor = defaultOriginFor(cityMode).coordinate
-            return haversineKilometers(location, cityAnchor) <= 120.0
         }
-
-        private fun haversineKilometers(first: Coordinate, second: Coordinate): Double {
-            val earthRadiusKm = 6371.0
-            val dLat = Math.toRadians(second.latitude - first.latitude)
-            val dLon = Math.toRadians(second.longitude - first.longitude)
-            val lat1 = Math.toRadians(first.latitude)
-            val lat2 = Math.toRadians(second.latitude)
-            val a =
-                kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
-                    kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2) *
-                    kotlin.math.cos(lat1) * kotlin.math.cos(lat2)
-            val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
-            return earthRadiusKm * c
-        }
-
-        private fun defaultOriginFor(cityMode: CityMode): PlaceSearchResult =
-            when (cityMode) {
-                CityMode.Mumbai ->
-                    PlaceSearchResult(
-                        id = "mumbai-origin",
-                        title = "Mumbai center",
-                        subtitle = "Default start for route previews",
-                        latitude = 19.0760,
-                        longitude = 72.8777,
-                        type = PlaceType.Transit,
-                        city = "Mumbai",
-                        category = "Origin",
-                    )
-                CityMode.KiitBeta ->
-                    PlaceSearchResult(
-                        id = "kiit-origin",
-                        title = "Patia campus",
-                        subtitle = "Default start for route previews",
-                        latitude = 20.3534,
-                        longitude = 85.8195,
-                        type = PlaceType.Transit,
-                        city = "Bhubaneswar",
-                        category = "Origin",
-                    )
-            }
+        private fun livePlace(point: GeoPoint)=PlaceSearchResult(LIVE_LOCATION_ID,"Your location","Last accepted GPS position",point.latitude,point.longitude,PlaceType.Transit)
     }
+}
+
+private fun SessionSnapshot.toLegacySnapshot(heading: Double?): NavigationSnapshot {
+    val appRoute=route?.toAppRoute()
+    val accepted=status in setOf(SessionStatus.Navigating,SessionStatus.Rerouting,SessionStatus.Arrived) && !offRoute
+    val confidence=SignalConfidence(if(accepted) GuidanceConfidence.Medium else GuidanceConfidence.Low,
+        signalReason ?: if(accepted) "GPS accepted; field accuracy is unmeasured" else "Waiting for usable location")
+    return NavigationSnapshot(origin=route?.geometry?.firstOrNull()?.let { Coordinate(it.latitude,it.longitude) },
+        destination=route?.geometry?.lastOrNull()?.let { Coordinate(it.latitude,it.longitude) },route=appRoute,
+        currentStepIndex=maneuverIndex,currentInstruction=instruction,nextInstructionHint=route?.maneuvers?.getOrNull(maneuverIndex+1)?.instruction,
+        currentManeuverType=appRoute?.steps?.getOrNull(maneuverIndex)?.maneuverType ?: ManeuverType.Start,
+        distanceToNextStep=distanceToManeuver,etaSeconds=remainingSeconds,isOffRoute=offRoute,isRerouting=status==SessionStatus.Rerouting,
+        locationConfidence=confidence,headingConfidence=SignalConfidence(GuidanceConfidence.Low,"World anchoring is not available"),guidanceConfidence=confidence,
+        presentationMode=if(presentation==Presentation.Map) PresentationMode.MAP else PresentationMode.AR_ASSIST,
+        isNavigating=status in NavigationSession.ACTIVE,isArrived=status==SessionStatus.Arrived,
+        userLocation=location?.let { Coordinate(it.latitude,it.longitude) },userHeading=heading)
 }
 
 data class NavGateUiState(
-    val searchQuery: String = "",
-    val places: List<PlaceSearchResult> = emptyList(),
-    val isLoadingPlaces: Boolean = false,
-    val focusedPlace: PlaceSearchResult? = null,
-    val selectedOrigin: PlaceSearchResult? = null,
-    val selectedDestination: PlaceSearchResult? = null,
-    val preview: RoutePreview? = null,
-    val snapshot: NavigationSnapshot = NavigationSnapshot(),
-    val isLoadingRoute: Boolean = false,
-    val isPreviewVisible: Boolean = false,
-    val activeTab: AppTab = AppTab.Explore,
-    val travelProfile: TravelProfile = TravelProfile.Walking,
-    val savedPlaces: List<PlaceSearchResult> = emptyList(),
-    val recentPlaces: List<PlaceSearchResult> = emptyList(),
-    val routeHistory: List<RouteHistoryEntry> = emptyList(),
-    val cityMode: CityMode = CityMode.Mumbai,
-    val kiitBetaAccess: Boolean = false,
-    val showOnboarding: Boolean = true,
+    val searchQuery:String="",val places:List<PlaceSearchResult> = emptyList(),val isLoadingPlaces:Boolean=false,
+    val focusedPlace:PlaceSearchResult?=null,val selectedOrigin:PlaceSearchResult?=null,val selectedDestination:PlaceSearchResult?=null,
+    val preview:RoutePreview?=null,val snapshot:NavigationSnapshot=NavigationSnapshot(),val isLoadingRoute:Boolean=false,
+    val isPreviewVisible:Boolean=false,val activeTab:AppTab=AppTab.Explore,val travelProfile:TravelProfile=TravelProfile.Walking,
+    val savedPlaces:List<PlaceSearchResult> = emptyList(),val recentPlaces:List<PlaceSearchResult> = emptyList(),
+    val routeHistory:List<RouteHistoryEntry> = emptyList(),val cityMode:CityMode=CityMode.KiitBeta,val kiitBetaAccess:Boolean=false,
+    val showOnboarding:Boolean=true,val selectedEntranceId:String?=null,val statusMessage:String?=null,
+    val routeFailure:RouteFailure?=null,val canResume:Boolean=false,val startPending:Boolean=false,
+    val voiceAnnouncement:String?=null,val voiceSequence:Long=0,
 )
 
-data class RoutePreview(
-    val originTitle: String,
-    val destinationTitle: String,
-    val distanceLabel: String,
-    val etaLabel: String,
-    val firstInstruction: String,
-) {
+data class RoutePreview(val originTitle:String,val destinationTitle:String,val distanceLabel:String,val etaLabel:String,val firstInstruction:String) {
     companion object {
-        fun from(
-            origin: PlaceSearchResult,
-            destination: PlaceSearchResult,
-            route: com.rohanc.navgate.model.RouteResponse,
-        ): RoutePreview =
-            RoutePreview(
-                originTitle = origin.title,
-                destinationTitle = destination.title,
-                distanceLabel = route.distanceMeters.asDistanceLabel(),
-                etaLabel = route.durationSeconds.asEtaLabel(),
-                firstInstruction = route.steps.firstOrNull()?.instruction ?: "Route ready",
-            )
+        fun from(origin:PlaceSearchResult,destination:PlaceSearchResult,route:RouteResponse)=RoutePreview(origin.title,destination.title,
+            route.distanceMeters.asDistanceLabel(),route.durationSeconds.asEtaLabel(),route.steps.firstOrNull()?.instruction ?: "Route ready")
     }
 }
-
-internal fun Double.asDistanceLabel(): String =
-    if (this >= 1000) {
-        "%.1f km".format(this / 1000.0)
-    } else {
-        "${kotlin.math.round(this).toInt()} m"
-    }
-
-internal fun Double.asEtaLabel(): String {
-    val minutes = kotlin.math.ceil(this / 60.0).toInt().coerceAtLeast(1)
-    return if (minutes < 60) "$minutes min" else "${minutes / 60} hr ${minutes % 60} min"
-}
+internal fun Double.asDistanceLabel():String=if(this>=1000) "%.1f km".format(this/1000) else "${kotlin.math.round(this).toInt()} m"
+internal fun Double.asEtaLabel():String { val minutes=kotlin.math.ceil(this/60).toInt().coerceAtLeast(1);return if(minutes<60) "$minutes min" else "${minutes/60} hr ${minutes%60} min" }

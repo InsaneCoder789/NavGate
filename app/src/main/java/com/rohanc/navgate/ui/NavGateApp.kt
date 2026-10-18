@@ -88,9 +88,7 @@ fun NavGateApp() {
         }
     }
 
-    BindLocationTracking(enabled = hasLocationPermissionState) { coordinate, heading, fixAgeMillis ->
-        viewModel.onLocationSample(coordinate, heading, fixAgeMillis)
-    }
+    BindLocationTracking(enabled = hasLocationPermissionState, onLocationSample = viewModel::onLocationFix, onSignalTick = viewModel::checkSignal)
 
     NavGateTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -99,13 +97,9 @@ fun NavGateApp() {
             } else {
                 Box(modifier = Modifier.fillMaxSize()) {
                     VoiceGuidance(
-                        enabled = uiState.snapshot.isNavigating,
-                        utteranceKey = "${uiState.snapshot.currentStepIndex}-${uiState.snapshot.isRerouting}",
-                        message = when {
-                            uiState.snapshot.isRerouting -> "Rerouting. ${uiState.snapshot.currentInstruction}"
-                            uiState.snapshot.shouldSpeakInstruction -> uiState.snapshot.currentInstruction
-                            else -> null
-                        },
+                        enabled = uiState.voiceAnnouncement != null,
+                        utteranceKey = "${uiState.voiceSequence}",
+                        message = uiState.voiceAnnouncement,
                     )
 
                     NavGateHome(
@@ -133,6 +127,16 @@ fun NavGateApp() {
                             locationPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                         }
                     )
+
+                    // Minimal integration feedback only; the user will replace this shell through Stitch.
+                    if (uiState.statusMessage != null || uiState.canResume) {
+                        Snackbar(
+                            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+                            action = {
+                                if (uiState.canResume) TextButton(onClick = viewModel::startNavigation) { Text("Resume") }
+                            },
+                        ) { Text(uiState.statusMessage ?: "A saved trip is available to resume") }
+                    }
 
                     // AR Overlay (Full Screen when active)
                     AnimatedVisibility(

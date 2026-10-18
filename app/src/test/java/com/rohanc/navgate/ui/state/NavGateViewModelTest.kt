@@ -1,172 +1,79 @@
 package com.rohanc.navgate.ui.state
 
-import com.rohanc.navgate.data.FakeCampusRepository
-import com.rohanc.navgate.data.InMemoryAppPreferencesStore
-import com.rohanc.navgate.data.InMemoryUserPlacesStore
-import com.rohanc.navgate.model.TravelProfile
+import com.rohanc.navgate.core.*
 import com.rohanc.navgate.navigation.PresentationMode
+import com.rohanc.navgate.model.TravelProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Test
+import kotlinx.coroutines.test.*
+import org.junit.*
+import org.junit.Assert.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class NavGateViewModelTest {
-    private val dispatcher = StandardTestDispatcher()
+    private val dispatcher=StandardTestDispatcher()
+    @Before fun setUp(){Dispatchers.setMain(dispatcher)}
+    @After fun tearDown(){Dispatchers.resetMain()}
 
-    @Before
-    fun setUp() {
-        Dispatchers.setMain(dispatcher)
+    @Test fun `local preview exposes real route provenance to the example shell`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
+            assertTrue(vm.uiState.value.isPreviewVisible)
+            assertEquals("local_campus_astar",vm.uiState.value.snapshot.route?.routeSource)
+            assertEquals("Test Destination",vm.uiState.value.preview?.destinationTitle)
+        } finally{h.backend.close()}
     }
-
-    @After
-    fun tearDown() {
-        Dispatchers.resetMain()
+    @Test fun `preview cannot start from a manual origin without fresh real position`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle();vm.startNavigation();advanceUntilIdle()
+            assertFalse(vm.uiState.value.snapshot.isNavigating)
+            assertNotNull(vm.uiState.value.statusMessage)
+            vm.onLocationFix(LocationFix(h.a,h.time,4.0));advanceUntilIdle();vm.startNavigation();advanceUntilIdle()
+            assertTrue(vm.uiState.value.snapshot.isNavigating)
+            assertFalse(vm.uiState.value.isPreviewVisible)
+        } finally{h.backend.close()}
     }
-
-    @Test
-    fun `route preview appears when origin and destination are selected`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-
-        val places = repository.allPlaces()
-        viewModel.selectOrigin(places[0])
-        viewModel.selectDestination(places[1])
-        advanceUntilIdle()
-
-        val preview = viewModel.uiState.value.preview
-        assertNotNull(preview)
-        assertTrue(viewModel.uiState.value.isPreviewVisible)
-        assertEquals("North Gate", preview?.originTitle)
-        assertEquals("Central Library", preview?.destinationTitle)
+    @Test fun `unknown coordinates remain nullable and cannot become an origin`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();assertNull(h.appPlace(2).coordinate);vm.selectOrigin(h.appPlace(2));advanceUntilIdle()
+            assertNull(vm.uiState.value.selectedOrigin);assertNotNull(vm.uiState.value.statusMessage)
+        } finally{h.backend.close()}
     }
-
-    @Test
-    fun `starting navigation hides preview and keeps shared route state`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-
-        val places = repository.allPlaces()
-        viewModel.selectOrigin(places[0])
-        viewModel.selectDestination(places[2])
-        advanceUntilIdle()
-        viewModel.startNavigation()
-
-        val state = viewModel.uiState.value
-        assertFalse(state.isPreviewVisible)
-        assertTrue(state.snapshot.isNavigating)
-        assertNotNull(state.snapshot.route)
-        assertEquals(AppTab.Go, state.activeTab)
+    @Test fun `unsupported driving yields a typed failure rather than fake directions`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));vm.setTravelProfile(TravelProfile.Driving);advanceUntilIdle()
+            assertEquals(RouteFailure.UnsupportedProfile,vm.uiState.value.routeFailure)
+            assertNull(vm.uiState.value.preview)
+        } finally{h.backend.close()}
     }
-
-    @Test
-    fun `mode switching updates the shared presentation mode`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-
-        viewModel.switchMode(PresentationMode.AR_ASSIST)
-
-        assertEquals(PresentationMode.AR_ASSIST, viewModel.uiState.value.snapshot.presentationMode)
+    @Test fun `saved and recent records still use the injected local store`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.toggleSaved(h.appPlace(1));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
+            assertEquals("b",vm.uiState.value.savedPlaces.single().id)
+            assertEquals("b",vm.uiState.value.recentPlaces.first().id)
+        } finally{h.backend.close()}
     }
-
-    @Test
-    fun `saved and recent places update through store`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-        val place = repository.allPlaces().first()
-
-        viewModel.toggleSaved(place)
-        viewModel.selectDestination(place)
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value.savedPlaces.any { it.id == place.id })
-        assertTrue(viewModel.uiState.value.recentPlaces.any { it.id == place.id })
+    @Test fun `presentation changes preserve the shared route`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
+            val id=vm.backendState.value.session.route?.id
+            vm.switchMode(PresentationMode.AR_ASSIST);advanceUntilIdle()
+            assertEquals(id,vm.backendState.value.session.route?.id)
+            assertEquals(PresentationMode.AR_ASSIST,vm.uiState.value.snapshot.presentationMode)
+        } finally{h.backend.close()}
     }
-
-    @Test
-    fun `travel profile changes and recomputes route preview`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-        val places = repository.allPlaces()
-
-        viewModel.selectOrigin(places[0])
-        viewModel.selectDestination(places[1])
-        advanceUntilIdle()
-        viewModel.setTravelProfile(TravelProfile.Driving)
-        advanceUntilIdle()
-
-        assertEquals(TravelProfile.Driving, viewModel.uiState.value.travelProfile)
-        assertNotNull(viewModel.uiState.value.preview)
-    }
-
-    @Test
-    fun `starting navigation records route history`() = runTest {
-        val repository = FakeCampusRepository()
-        val store = InMemoryUserPlacesStore()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = store, appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-        val places = repository.allPlaces()
-
-        viewModel.selectOrigin(places[0])
-        viewModel.selectDestination(places[1])
-        advanceUntilIdle()
-        viewModel.startNavigation()
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value.routeHistory.any { it.destinationId == places[1].id })
-    }
-
-    @Test
-    fun `switching to mumbai updates place context`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-
-        viewModel.setCityMode(CityMode.Mumbai)
-        advanceUntilIdle()
-
-        assertEquals(CityMode.Mumbai, viewModel.uiState.value.cityMode)
-        assertTrue(viewModel.uiState.value.places.all { it.city == "Mumbai" })
-    }
-
-    @Test
-    fun `kiit beta access can be toggled`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-
-        viewModel.setKiitBetaAccess(true)
-
-        assertTrue(viewModel.uiState.value.kiitBetaAccess)
-    }
-
-    @Test
-    fun `selecting a result clears the active search query`() = runTest {
-        val repository = FakeCampusRepository()
-        val viewModel = NavGateViewModel(repository = repository, userPlacesStore = InMemoryUserPlacesStore(), appPreferencesStore = InMemoryAppPreferencesStore())
-        advanceUntilIdle()
-        val place = repository.allPlaces().first()
-
-        viewModel.updateSearch("north")
-        advanceUntilIdle()
-        viewModel.selectDestination(place)
-        advanceUntilIdle()
-
-        assertEquals("", viewModel.uiState.value.searchQuery)
+    @Test fun `region change cancels preview and unsupported region has no fake places`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
+            vm.setCityMode(CityMode.Mumbai);advanceUntilIdle()
+            assertNull(vm.uiState.value.snapshot.route);assertTrue(vm.uiState.value.places.isEmpty())
+        } finally{h.backend.close()}
     }
 }
