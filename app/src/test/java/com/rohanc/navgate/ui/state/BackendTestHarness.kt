@@ -23,14 +23,15 @@ internal class BackendTestHarness(private val dispatcher:CoroutineDispatcher) : 
         entrances=listOf(Entrance("entry","b","b","Test entry",true)))
     lateinit var backend:NavigationBackend
     val users=InMemoryUserPlacesStore()
-    override suspend fun initialize()=Unit
+    var initializeData: suspend () -> Unit = {}
+    override suspend fun initialize()=initializeData()
     override suspend fun active(regionId:String)=installed.takeIf{it.regionId==regionId}
     override suspend fun version(regionId:String,version:String)=active(regionId)?.takeIf{it.version==version}
     override suspend fun activate(pack:RegionPack,sha256:String){installed=pack}
     override suspend fun search(query:String,regionId:String)=if(regionId=="kiit") places.filter{it.title.contains(query,true)} else emptyList()
     override suspend fun place(regionId:String,id:String)=places.find{it.id==id}
-    fun viewModel():NavGateViewModel=NavGateViewModel(
+    fun viewModel(preferences: com.rohanc.navgate.data.AppPreferencesStore = InMemoryAppPreferencesStore(storedCityMode=CityMode.KiitBeta)):NavGateViewModel=NavGateViewModel(
         backendFactory={scope:CoroutineScope -> NavigationBackend(scope,this,this,this,compute=dispatcher,io=dispatcher).also{backend=it}},
-        userPlacesStore=users,appPreferencesStore=InMemoryAppPreferencesStore(storedCityMode=CityMode.KiitBeta),clock=this)
+        userPlacesStore=users,appPreferencesStore=preferences,clock=this)
     fun appPlace(index:Int)=places[index].toAppPlace()
 }

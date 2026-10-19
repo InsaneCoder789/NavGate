@@ -76,4 +76,23 @@ class NavGateViewModelTest {
             assertNull(vm.uiState.value.snapshot.route);assertTrue(vm.uiState.value.places.isEmpty())
         } finally{h.backend.close()}
     }
+    @Test fun `clearing recents preserves saved places`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.toggleSaved(h.appPlace(1));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
+            vm.clearRecents();advanceUntilIdle()
+            assertTrue(vm.uiState.value.recentPlaces.isEmpty())
+            assertEquals("b",vm.uiState.value.savedPlaces.single().id)
+        } finally { h.backend.close() }
+    }
+    @Test fun `frontend preferences and region readiness reach the native state`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle()
+            val preferences=com.rohanc.navgate.data.FrontendPreferences(appearance="light",reduceTransparency=true,voiceEnabled=false)
+            vm.updateFrontendPreferences(preferences);vm.refreshRegionStatus();advanceUntilIdle()
+            assertEquals(preferences,vm.uiState.value.frontendPreferences)
+            assertNotNull(vm.uiState.value.regionStatus)
+        } finally { h.backend.close() }
+    }
 }

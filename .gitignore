@@ -14,3 +14,55 @@ __pycache__/
 
 # Reproducible development graph candidates; raw source and report are versioned.
 /data/osm/kiit-candidates.json
+
+# Laptop-only visual references and captured QA evidence; keep app resources tracked.
+/design/**/*.[pP][nN][gG]
+/design/**/*.[jJ][pP][gG]
+/design/**/*.[jJ][pP][eE][gG]
+/design/**/*.[wW][eE][bB][pP]
+/design/**/*.[gG][iI][fF]
+/design/**/*.[aA][vV][iI][fF]
+/design/**/*.[hH][eE][iI][cC]
+/design/**/*.[hH][eE][iI][fF]
+/design/**/*.[bB][mM][pP]
+/design/**/*.[tT][iI][fF]
+/design/**/*.[tT][iI][fF][fF]
+/design/**/*.[sS][vV][gG]
+/design/**/*.[iI][cC][oO]
+/output/**/*.[pP][nN][gG]
+/output/**/*.[jJ][pP][gG]
+/output/**/*.[jJ][pP][eE][gG]
+/output/**/*.[wW][eE][bB][pP]
+/output/**/*.[gG][iI][fF]
+/output/**/*.[aA][vV][iI][fF]
+/output/**/*.[hH][eE][iI][cC]
+/output/**/*.[hH][eE][iI][fF]
+/output/**/*.[bB][mM][pP]
+/output/**/*.[tT][iI][fF]
+/output/**/*.[tT][iI][fF][fF]
+/output/**/*.[sS][vV][gG]
+/output/**/*.[iI][cC][oO]
+/.qa/**/*.[pP][nN][gG]
+/.qa/**/*.[jJ][pP][gG]
+/.qa/**/*.[jJ][pP][eE][gG]
+/.qa/**/*.[wW][eE][bB][pP]
+/.qa/**/*.[gG][iI][fF]
+/.qa/**/*.[aA][vV][iI][fF]
+/.qa/**/*.[hH][eE][iI][cC]
+/.qa/**/*.[hH][eE][iI][fF]
+/.qa/**/*.[bB][mM][pP]
+/.qa/**/*.[tT][iI][fF]
+/.qa/**/*.[tT][iI][fF][fF]
+/.qa/**/*.[sS][vV][gG]
+/.qa/**/*.[iI][cC][oO]
+
+# Local test reports/workspaces and browser automation state.
+/.qa/
+/.playwright-cli/
+
+# Local-only frontend planning and HTML references; never publish these.
+/design/
+/output/
+/DESIGN.md
+/PRODUCT.md
+/docs/FRONTEND_*.md
