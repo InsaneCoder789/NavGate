@@ -14,7 +14,9 @@ Native Android campus navigation built with **Kotlin, Jetpack Compose and Materi
 
 ## Current status
 
-**The bundled KIIT data is a catalogue, not a routable campus map:** 175 places, 84 without coordinates, and no reviewed paths or entrances. Search works; planning reports `MissingGraph` until reviewed routing data is installed.
+The bundled campus dataset covers **Kalinga Institute of Industrial Technology (Deemed to be University), Bhubaneswar, Odisha, India**. It currently contains 175 destination records, including 84 without geographic coordinates. Reviewed pedestrian paths and building entrances have not yet been incorporated.
+
+Local destination search is available. Route planning returns an explicit `MissingGraph` result until a reviewed routing pack is installed. The current dataset supports campus discovery and does not yet support validated pedestrian navigation.
 
 Map tiles require internet; offline basemap downloads are not implemented. Signed imports remain disabled until a trusted publisher key is configured. Camera assistance is a compass overlay, not world-anchored AR. Physical campus navigation has not been accepted for release.
 
