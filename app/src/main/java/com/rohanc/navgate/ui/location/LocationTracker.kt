@@ -58,8 +58,9 @@ fun BindLocationTracking(enabled: Boolean,onLocationSample: (LocationFix) -> Uni
         refresh()
         onDispose { owner.lifecycle.removeObserver(observer);remove() }
     }
-    LaunchedEffect(owner,enabled) {
-        if(enabled) owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { while(true) { delay(1000);tick() } }
+    LaunchedEffect(owner) {
+        // Freshness must age even after permission loss removes the location listener.
+        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { while(true) { tick();delay(1000) } }
     }
 }
 
