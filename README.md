@@ -1,67 +1,106 @@
+![NavGate — Campus navigation for Android](docs/assets/navgate-banner.png)
+
 # NavGate
 
-NavGate is a native Kotlin/Compose navigation prototype. Its application backend runs on the phone: local place search, versioned Room data, A* walking routing, a shared navigation session, location quality/progress/rerouting, and recoverable trips. It requires no paid routing API, cloud account, or hosted server.
+Native Android campus navigation built with **Kotlin, Jetpack Compose and Material 3**. Search, bookmarks, settings and the navigation engine run locally; no cloud account or hosted backend is required.
 
-**Current data limitation:** the bundled KIIT catalogue contains 175 destinations, 84 without coordinates, and no reviewed walking graph or entrances. Search works locally. Route planning returns an explicit `MissingGraph` result until a reviewed pack is installed. Real OSM geometry has been acquired as development candidates; those candidates are not silently enabled for navigation.
+## Features
 
-## Start here
+- MapLibre maps with translucent sheets, place discovery and editable route endpoints.
+- Local place search, saved places and trip history using Room; preferences using DataStore.
+- A* walking-route engine with shared map/camera trip state, location-quality checks and recovery.
+- Optional offline text-to-speech and compass-based camera assistance.
+- Versioned routing packs with signature validation and trip-pinned data.
 
-- [Implemented backend and Stitch integration contract](docs/BACKEND_INTEGRATION.md): APIs, ownership, engineering diagrams, persistence, complexity, update flow and limitations.
-- [Technical proposal](docs/TECHNICAL_PROPOSAL.md): architecture rationale and longer-term phases.
-- [Implementation status and evidence](docs/IMPLEMENTATION_STATUS.md): commit ledger, executed checks and acceptance gaps.
-- [Initial repository understanding](docs/PROJECT_UNDERSTANDING.md): historical audit at the pre-migration baseline.
-- [OSM source and import policy](data/osm/README.md): bounded source snapshot, attribution and candidate regeneration.
+## Current status
 
-The user will create the frontend in Stitch. Existing Compose screens are an integration shell; this backend work does not finalize the visual design.
+**The bundled KIIT data is a catalogue, not a routable campus map:** 175 places, 84 without coordinates, and no reviewed paths or entrances. Search works; planning reports `MissingGraph` until reviewed routing data is installed.
 
-## Run Android
+Map tiles require internet; offline basemap downloads are not implemented. Signed imports remain disabled until a trusted publisher key is configured. Camera assistance is a compass overlay, not world-anchored AR. Physical campus navigation has not been accepted for release.
 
-Open the repository root in Android Studio, sync Gradle, and run `app`. Install Android SDK 35 and a compatible JDK. The verified host uses Java 22 with Java 17 bytecode targets. Keep `local.properties` machine-local; do not commit SDK paths.
+## App flow
 
-Production services are wired through `NavGateServices` and `NavGateViewModel`. MapLibre renders the map, framework LocationManager supplies foreground location, Room stores structured data, DataStore stores settings, and optional Android offline TTS speaks instructions. Map and camera presentation share one trip. Camera assistance is a compass overlay; world-anchored AR and an ML localization model are not implemented.
+Explore the campus map → search or choose a place → inspect its details → select walking endpoints → preview a route → start guidance → inspect steps or camera assistance → finish the trip.
 
-Routing data and basemap resources are separate. Offline basemap download is not implemented. Online map rendering still needs connectivity and provider availability. The new local repository does not fall back to public OSRM or fabricated geometry.
+Planning and guidance require a valid reviewed graph and usable endpoints. The bundled catalogue intentionally stops at an explicit unavailable-route state. Saved places, recent searches, settings and region information remain usable without a planned trip. Map and camera views share the same navigation session; switching views does not create a second trip.
 
-## Verify
+## Technology
 
-With an API 34 device/emulator connected:
+| Area | Implementation |
+| --- | --- |
+| Interface | Kotlin, Jetpack Compose, Material 3; dark/daylight/system appearance |
+| Maps | MapLibre with OpenFreeMap styles and online map resources |
+| Routing | Local A* engine with explicit failure states |
+| Persistence | Room for places, bookmarks, history and checkpoints; DataStore for preferences |
+| Location | Android framework LocationManager with freshness/accuracy checks |
+| Guidance | Shared navigation session, optional installed offline TTS and compass overlay |
+| Updates | Bounded signed routing-pack imports with atomic version activation |
+
+The map uses tinted translucent surfaces with an opaque fallback. This is not a claim of true map-backdrop blur.
+
+## Build and test
+
+Requires Android SDK 35, Android 8.0+ (API 26), and a compatible JDK. The project was verified with JDK 22 and targets Java 17 bytecode.
+
+1. Clone the repository and open its root in Android Studio.
+2. Install Android SDK 35 and configure a compatible JDK for Gradle.
+3. Sync Gradle, select an Android device/emulator, and run the `app` configuration.
+
+From the repository root:
 
 ```sh
-./gradlew :navigation-core:test :app:testDebugUnitTest :app:assembleDebug :app:connectedDebugAndroidTest :app:lintDebug --console=plain
+./gradlew :app:assembleDebug
+./gradlew :navigation-core:test :app:testDebugUnitTest
+```
+
+With an emulator or device connected:
+
+```sh
+./gradlew :app:connectedDebugAndroidTest
+```
+
+Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
+
+Additional checks:
+
+```sh
+./gradlew :app:lintDebug
 python3 -m unittest discover -s scripts/tests -v
 ```
 
-JVM tests compare A* costs against an independent Dijkstra oracle and exercise route/session/update failures. Instrumentation uses isolated databases/preferences and tests durable activation, migration, retention, recovery, document access and the real bundled catalogue. These checks do not establish outdoor walking, GNSS, physical compass, audio, or production acceptance.
+Keep `local.properties` and signing keys private. Initial dependency resolution requires internet; use `--offline` only after dependencies are cached. Synthetic routing graphs are test fixtures only.
 
-## Campus data and updates
+### Verification scope
 
-Regenerate the information-only catalogue with `python3 scripts/build_region_catalog.py`. Extract source-backed graph candidates with `python3 scripts/build_osm_candidates.py`. Neither command invents walking entrances or approves access from coordinate proximity.
+The latest frontend integration run recorded **38 app JVM tests, 34 core JVM tests and 13 Android instrumentation tests passing**. Coverage includes routing/session contracts, endpoint selection, bookmark state, trip utility navigation, stale-signal recovery, Room persistence and document-import boundaries. Independent API 34 emulator smoke checks exercised the real map, catalogue search, saved places and settings.
 
-Pack updates validate bounded input, schema, topology, signature and selected region, then atomically switch active versions. Active trips remain pinned to their old graph. Manual document imports are exposed for future Stitch screens, but signed updates are disabled until the publisher bundles its trusted public key. See the integration contract for the exact trust-root path and release signing command. Private signing keys must remain outside Git.
+These are results from that recorded run, not a guarantee that every device or future revision passes. Outdoor walking, physical GPS/compass alignment, camera faults, offline audio and complete accessibility acceptance remain outstanding.
 
-The OSM snapshot is © OpenStreetMap contributors under ODbL; workbook redistribution/provenance remains a separate review item.
+## Architecture and repository
 
-## Optional historical Go service
+`Compose → NavGateViewModel → local Kotlin engine → Room / DataStore`
 
-The existing `backend/` source is preserved as a development/reference service. It exposes `/health`, `/places`, `/places/{id}`, `/categories`, `/route`, and `/reroute`, with a Valhalla → OSRM → simplified geometry chain. Its final simplified fallback is not a validated walking route. None of this chain is a production fallback for the local Kotlin engine.
+| Directory | Purpose |
+| --- | --- |
+| `app/` | Android UI, platform adapters, persistence and integration tests |
+| `navigation-core/` | Platform-independent geometry, routing, session and pack validation |
+| `data/` | Catalogue sources, OSM snapshot, provenance and generated reports |
+| `scripts/` | Catalogue generation, candidate extraction and Python regressions |
+| `docs/` | Backend contracts, implementation evidence and technical proposal |
+| `backend/` | Historical optional Go service; not required by the Android app |
 
-With Go 1.23+ installed:
+### Data and update rules
 
-```sh
-cd backend
-go test ./...
-```
+- `python3 scripts/build_region_catalog.py` regenerates the information-only catalogue.
+- `python3 scripts/build_osm_candidates.py` extracts development graph candidates; it does not approve access or create reviewed entrances.
+- Imports validate size bounds, schema, topology, signature and region before switching the active version.
+- Active trips stay pinned to their graph version. Imported documents cannot supply their own trusted publisher key.
+- Routing packs and map tiles are separate. Installing routing data does not install an offline basemap.
 
-To run it with Docker from the repository root:
+### Permissions and device behavior
 
-```sh
-docker build -t navgate-backend:local ./backend
-docker run -d --name navgate-backend-local -p 8080:8080 navgate-backend:local
-curl http://localhost:8080/health
-```
+Location permission supports current-position selection and foreground guidance. Users can browse and choose endpoints manually without granting it. Camera permission is requested only for optional camera assistance; camera hardware is not mandatory. Internet/network-state access supports map loading and connectivity feedback. Offline speech requires a compatible voice already installed on the device.
 
-The full provider deployment is documented in [SELF_HOSTING.md](backend/SELF_HOSTING.md). Self-hosting consumes machine/storage/network resources even without per-request API billing. It is optional; Android campus engine testing does not require this stack. Supabase starter work is historical and is not required for local search, bookmarks or navigation.
+[Backend contracts](docs/BACKEND_INTEGRATION.md) · [Implementation evidence](docs/IMPLEMENTATION_STATUS.md) · [Technical proposal](docs/TECHNICAL_PROPOSAL.md) · [OSM data and attribution](data/osm/README.md)
 
-## Remaining release work
-
-Review source-supported walking connectivity and building entrances, resolve workbook data rights, perform real campus/device walks and failure recovery checks, and decide whether to add permitted offline basemap resources. Broader city routing, indoor connectivity and world-anchored AR require separate implementation and acceptance. No production navigation readiness is claimed.
+OSM data is © OpenStreetMap contributors, ODbL. Workbook provenance and redistribution require review. The historical Go service in `backend/` is optional and is not the Android engine's routing fallback.
