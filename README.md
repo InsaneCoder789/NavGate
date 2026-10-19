@@ -12,19 +12,34 @@ Native Android campus navigation built with **Kotlin, Jetpack Compose and Materi
 - Optional offline text-to-speech and compass-based camera assistance.
 - Versioned routing packs with signature validation and trip-pinned data.
 
-## Current status
-
-The bundled campus dataset covers **Kalinga Institute of Industrial Technology (Deemed to be University), Bhubaneswar, Odisha, India**. It currently contains 175 destination records, including 84 without geographic coordinates. Reviewed pedestrian paths and building entrances have not yet been incorporated.
-
-Local destination search is available. Route planning returns an explicit `MissingGraph` result until a reviewed routing pack is installed. The current dataset supports campus discovery and does not yet support validated pedestrian navigation.
-
-Map tiles require internet; offline basemap downloads are not implemented. Signed imports remain disabled until a trusted publisher key is configured. Camera assistance is a compass overlay, not world-anchored AR. Physical campus navigation has not been accepted for release.
-
 ## App flow
 
-Explore the campus map → search or choose a place → inspect its details → select walking endpoints → preview a route → start guidance → inspect steps or camera assistance → finish the trip.
+```mermaid
+flowchart TD
+    Explore[Explore campus map] --> Search[Search or select a place]
+    Saved[Saved places] --> Details[Place details]
+    Recents[Recent places] --> Details
+    Search --> Details
+    Details -->|Save or remove bookmark| Saved
+    Details --> Endpoints[Choose walking endpoints]
+    Endpoints --> Plan{Route available?}
+    Plan -->|Reviewed graph and usable endpoints| Preview[Route preview]
+    Plan -->|Missing data or no route| Recovery[Explain issue and offer recovery]
+    Recovery --> Endpoints
+    Preview -->|Start with usable location| Guidance[Active guidance]
+    Preview -->|Edit endpoints| Endpoints
+    Guidance --> Steps[Turn-by-turn steps]
+    Steps --> Guidance
+    Guidance --> Camera[Optional camera assistance]
+    Camera --> Guidance
+    Guidance -->|Arrival| Arrival[Trip complete]
+    Guidance -->|Stop| Explore
+    Arrival --> Explore
+    Explore --> Settings[Settings and region information]
+    Settings --> Explore
+```
 
-Planning and guidance require a valid reviewed graph and usable endpoints. The bundled catalogue intentionally stops at an explicit unavailable-route state. Saved places, recent searches, settings and region information remain usable without a planned trip. Map and camera views share the same navigation session; switching views does not create a second trip.
+Map, steps and camera assistance share one navigation session. Saved places, recents and settings remain accessible without a planned route.
 
 ## Technology
 
