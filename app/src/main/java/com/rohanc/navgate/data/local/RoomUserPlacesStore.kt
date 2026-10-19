@@ -74,8 +74,9 @@ class RoomUserPlacesStore(context: Context, private val database: NavGateDatabas
         return routeHistory()
     }
 
-    suspend fun clearRecents() { initialize(); dao.clear(RECENTS) }
+    override suspend fun clearRecents() { initialize(); dao.clear(RECENTS) }
     /** Clears summaries in both tables. An active navigation checkpoint is separate and can produce a new summary. */
+    override suspend fun clearRouteHistory() { clearHistory() }
     suspend fun clearHistory() { initialize(); database.withTransaction { dao.clear(HISTORY);dao.clearTrips() } }
     private suspend fun places(kind: String, limit: Int): List<PlaceSearchResult> = dao.records(kind,limit).map { Json.decodeFromString(it.payload) }
 

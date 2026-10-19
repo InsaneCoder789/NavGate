@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.rohanc.navgate.core.*
 import com.rohanc.navgate.data.AppPreferencesStore
+import com.rohanc.navgate.data.FrontendPreferences
 import com.rohanc.navgate.data.UserPlacesStore
 import com.rohanc.navgate.data.local.AndroidBackendClock
 import com.rohanc.navgate.data.local.NavGateServices
@@ -22,6 +23,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 // Existing shell vocabulary is retained solely as an adapter for the forthcoming Stitch UI.
 enum class AppTab { Explore, Go, Saved, Recents }
@@ -42,12 +46,19 @@ class NavGateViewModel(
     private val mutable = MutableStateFlow(NavGateUiState())
     val uiState: StateFlow<NavGateUiState> = mutable.asStateFlow()
     private var heading: Double? = null
+    private var latestLocationSample: LocationFix? = null
+    private val guidancePolicy = GuidancePolicy()
     private var requestId = 0L
     private var lastDurableRevision = 0L
+    private var backendWasInitializing = true
+    private val preferenceWrites = Mutex()
+    private var persistedFrontendPreferences = FrontendPreferences()
 
     init {
         viewModelScope.launch {
             backend.state.collect { state ->
+                if (backendWasInitializing && !state.initializing && mutable.value.preferencesLoaded) refreshRegionStatus()
+                backendWasInitializing = state.initializing
                 val route = state.session.route
                 mutable.update { current ->
                     val preview = if (state.session.status == SessionStatus.Preview && route != null && current.selectedOrigin != null && current.selectedDestination != null) {
@@ -60,6 +71,7 @@ class NavGateViewModel(
                         statusMessage = state.storageError ?: state.routeFailure?.detail ?: state.session.signalReason,
                         routeFailure = state.routeFailure?.reason,
                         canResume = state.session.status == SessionStatus.ResumeAvailable,
+                        currentLocationUsable = freshCurrentLocation() != null,
                         selectedOrigin = if (current.selectedOrigin?.id == LIVE_LOCATION_ID && state.session.signalReason == null) state.session.location?.let(::livePlace) ?: current.selectedOrigin else current.selectedOrigin,
                     )
                 }
@@ -77,11 +89,14 @@ class NavGateViewModel(
                 val city = appPreferencesStore.cityMode()
                 val onboarding = appPreferencesStore.isOnboardingSeen()
                 val beta = appPreferencesStore.kiitBetaAccess()
-                mutable.update { it.copy(cityMode=city,showOnboarding=!onboarding,kiitBetaAccess=beta) }
+                val frontend = appPreferencesStore.frontendPreferences()
+                persistedFrontendPreferences = frontend
+                mutable.update { it.copy(cityMode=city,showOnboarding=!onboarding,kiitBetaAccess=beta,frontendPreferences=frontend,preferencesLoaded=true) }
                 backend.search("",city.regionId)
+                refreshRegionStatus()
                 refreshUserPlaces()
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { mutable.update { it.copy(statusMessage="Local preferences or user data could not be loaded") } }
+            catch (_: Exception) { mutable.update { it.copy(statusMessage="Local preferences or user data could not be loaded",preferencesLoaded=true) } }
         }
     }
 
@@ -92,11 +107,12 @@ class NavGateViewModel(
 
     fun setCityMode(mode: CityMode) {
         if (!canEditTrip()) return
-        mutable.update { it.copy(cityMode=mode,selectedOrigin=null,selectedDestination=null,focusedPlace=null,selectedEntranceId=null,preview=null,isPreviewVisible=false) }
+        mutable.update { it.copy(cityMode=mode,selectedOrigin=null,selectedDestination=null,focusedPlace=null,selectedEntranceId=null,preview=null,isPreviewVisible=false,regionStatus=null) }
         viewModelScope.launch {
             backend.clear()
             backend.search(mutable.value.searchQuery,mode.regionId)
             storeOperation { appPreferencesStore.setCityMode(mode) }
+            refreshRegionStatus()
         }
     }
 
@@ -118,9 +134,17 @@ class NavGateViewModel(
         recomputePreview()
     }
 
+    fun startHere(place:PlaceSearchResult) {
+        if(!canEditTrip())return
+        if(place.coordinate==null){mutable.update{it.copy(statusMessage="This place has no reviewed starting coordinate")};return}
+        mutable.update{it.copy(selectedOrigin=place,selectedDestination=null,selectedEntranceId=null,focusedPlace=null,preview=null,isPreviewVisible=false,statusMessage="Choose a destination")}
+        recordRecent(place)
+        viewModelScope.launch{backend.clear()}
+    }
+
     fun selectDestination(place: PlaceSearchResult) {
         if (!canEditTrip()) return
-        val live = backend.state.value.session.takeIf { it.signalReason == null }?.location
+        val live = freshCurrentLocation()
         mutable.update { it.copy(selectedOrigin=it.selectedOrigin ?: live?.let(::livePlace),selectedDestination=place,
             selectedEntranceId=null,focusedPlace=null,activeTab=AppTab.Go,searchQuery="") }
         recordRecent(place)
@@ -163,7 +187,12 @@ class NavGateViewModel(
     }
 
     fun stopNavigation() {
-        viewModelScope.launch { backend.stop(); mutable.update { it.copy(voiceAnnouncement=null) } }
+        if (mutable.value.stopPending) return
+        mutable.update { it.copy(stopPending=true) }
+        viewModelScope.launch {
+            try { backend.stop(); mutable.update { it.copy(voiceAnnouncement=null) } }
+            finally { mutable.update { it.copy(stopPending=false) } }
+        }
     }
 
     fun switchMode(mode: PresentationMode) {
@@ -172,6 +201,7 @@ class NavGateViewModel(
 
     fun onLocationFix(fix: LocationFix) {
         heading=fix.heading?.takeIf { it.isFinite() }
+        if (latestLocationSample?.let { fix.elapsedMillis > it.elapsedMillis } != false) latestLocationSample=fix
         viewModelScope.launch { backend.location(fix) }
     }
 
@@ -179,12 +209,71 @@ class NavGateViewModel(
         onLocationFix(LocationFix(GeoPoint(location.latitude,location.longitude),clock.elapsedMillis()-lastFixAgeMillis,accuracyMeters,heading))
     }
 
-    fun checkSignal() { viewModelScope.launch { backend.tick() } }
+    fun checkSignal() {
+        // Idle/Preview ticks do not publish backend snapshots, but their last GPS fix still ages.
+        mutable.update { it.copy(currentLocationUsable=freshCurrentLocation()!=null) }
+        viewModelScope.launch { backend.tick() }
+    }
     fun retryInitialization() { viewModelScope.launch { backend.retryInitialization() } }
+    fun clearRouteHistory() { viewModelScope.launch { storeOperation { userPlacesStore.clearRouteHistory();refreshUserPlaces() } } }
+    fun clearRecents() { viewModelScope.launch { storeOperation { userPlacesStore.clearRecents();refreshUserPlaces() } } }
+    fun updateFrontendPreferences(value: FrontendPreferences) {
+        mutable.update { it.copy(frontendPreferences=value) }
+        viewModelScope.launch { preferenceWrites.withLock {
+            try { appPreferencesStore.setFrontendPreferences(value);persistedFrontendPreferences=value }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutable.update {
+                it.copy(frontendPreferences=if(it.frontendPreferences==value) persistedFrontendPreferences else it.frontendPreferences,
+                    statusMessage="Appearance settings could not be saved; please try again")
+            } }
+        } }
+    }
+    fun useCurrentOrigin(): Boolean {
+        if (!canEditTrip()) return false
+        val session=backend.state.value.session
+        val fix=freshCurrentLocation()
+        if(fix==null || session.signalReason!=null) { mutable.update { it.copy(statusMessage="Waiting for a fresh accurate location; choose a start manually") };return false }
+        selectOrigin(livePlace(fix))
+        return true
+    }
+    private fun freshCurrentLocation(): GeoPoint? {
+        val sample=latestLocationSample ?: return null
+        val session=backend.state.value.session
+        val age=clock.elapsedMillis()-sample.elapsedMillis
+        return session.location?.takeIf {
+            session.signalReason==null && it==sample.point && sample.point.valid &&
+                sample.accuracyMeters.isFinite() && sample.accuracyMeters>0 &&
+                sample.accuracyMeters<=guidancePolicy.maxAccuracyMeters && age in 0..guidancePolicy.maxFixAgeMillis
+        }
+    }
+    fun swapEndpoints() {
+        if(!canEditTrip())return
+        val state=mutable.value
+        val from=state.selectedOrigin;val to=state.selectedDestination
+        if(from==null || to?.coordinate==null || from.id==LIVE_LOCATION_ID) {
+            mutable.update { it.copy(statusMessage="Choose two campus places to swap endpoints") };return
+        }
+        mutable.update { it.copy(selectedOrigin=to,selectedDestination=from,selectedEntranceId=null) };recomputePreview()
+    }
+    fun clearPlan() { if(!canEditTrip())return;viewModelScope.launch {
+        backend.clear();mutable.update { it.copy(selectedOrigin=null,selectedDestination=null,focusedPlace=null,preview=null,isPreviewVisible=false,statusMessage=null) }
+    } }
+    fun finishArrival(keepDestinationContext:Boolean=false,destinationContext:PlaceSearchResult?=null) { val destination=mutable.value.selectedDestination ?: destinationContext;viewModelScope.launch { backend.clear();mutable.update { it.copy(selectedOrigin=null,selectedDestination=null,focusedPlace=if(keepDestinationContext)destination else null,activeTab=AppTab.Explore) } } }
+    fun refreshRegionStatus() { val id=mutable.value.cityMode.regionId;viewModelScope.launch {
+        backend.state.first { !it.initializing }
+        storeOperation { val status=backend.regionStatus(id);mutable.update { if(it.cityMode.regionId==id)it.copy(regionStatus=status) else it } }
+    } }
+    fun replan() { if(canEditTrip()) recomputePreview() }
 
     fun setCurrentLocationAsOrigin(location: Coordinate) = selectOrigin(livePlace(GeoPoint(location.latitude,location.longitude)))
     fun focusPlace(place: PlaceSearchResult) { mutable.update { it.copy(focusedPlace=place,activeTab=AppTab.Explore) } }
     fun dismissFocusedPlace() { mutable.update { it.copy(focusedPlace=null) } }
+    fun searchSaved(query: String): List<PlaceSearchResult> {
+        val term=query.trim()
+        return mutable.value.savedPlaces.filter { place ->
+            term.isEmpty() || listOfNotNull(place.title,place.subtitle,place.category,place.campusLabel).any { it.contains(term,ignoreCase=true) }
+        }
+    }
     fun selectTab(tab: AppTab) { mutable.update { it.copy(activeTab=tab,searchQuery=if(tab==AppTab.Explore) it.searchQuery else "",focusedPlace=null) } }
     fun toggleSaved(place: PlaceSearchResult) {
         viewModelScope.launch { storeOperation { val saved=userPlacesStore.toggleSaved(place); mutable.update { it.copy(savedPlaces=saved) } } }
@@ -204,7 +293,7 @@ class NavGateViewModel(
         catch(_: Exception) { mutable.update { it.copy(statusMessage="Local data could not be saved or loaded; existing records were retained") } }
     }
     private fun canEditTrip(): Boolean {
-        if (mutable.value.startPending || backend.state.value.session.status in NavigationSession.ACTIVE) {
+        if (mutable.value.startPending || mutable.value.stopPending || backend.state.value.session.status in NavigationSession.ACTIVE) {
             mutable.update { it.copy(statusMessage="Stop the current trip before changing its region or destination") }
             return false
         }
@@ -250,6 +339,8 @@ data class NavGateUiState(
     val showOnboarding:Boolean=true,val selectedEntranceId:String?=null,val statusMessage:String?=null,
     val routeFailure:RouteFailure?=null,val canResume:Boolean=false,val startPending:Boolean=false,
     val voiceAnnouncement:String?=null,val voiceSequence:Long=0,
+    val frontendPreferences:FrontendPreferences=FrontendPreferences(),val regionStatus:RegionStatus?=null,
+    val preferencesLoaded:Boolean=false,val stopPending:Boolean=false,val currentLocationUsable:Boolean=false,
 )
 
 data class RoutePreview(val originTitle:String,val destinationTitle:String,val distanceLabel:String,val etaLabel:String,val firstInstruction:String) {

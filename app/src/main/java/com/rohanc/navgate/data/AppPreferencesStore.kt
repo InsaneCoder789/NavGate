@@ -5,6 +5,8 @@ import androidx.core.content.edit
 import com.rohanc.navgate.ui.state.CityMode
 
 interface AppPreferencesStore {
+    suspend fun frontendPreferences(): FrontendPreferences = FrontendPreferences()
+    suspend fun setFrontendPreferences(value: FrontendPreferences) {}
     suspend fun isOnboardingSeen(): Boolean
 
     suspend fun markOnboardingSeen()
@@ -23,6 +25,17 @@ class SharedPrefsAppPreferencesStore(
 ) : AppPreferencesStore {
     private val prefs = context.getSharedPreferences("navgate_app_preferences", Context.MODE_PRIVATE)
 
+    override suspend fun frontendPreferences() = FrontendPreferences(
+        appearance=prefs.getString("frontend_appearance","dark") ?: "dark",
+        reduceTransparency=prefs.getBoolean("frontend_solid",false),
+        reduceMotion=prefs.getBoolean("frontend_motion",false),
+        voiceEnabled=prefs.getBoolean("frontend_voice",true),
+    )
+    override suspend fun setFrontendPreferences(value:FrontendPreferences) {
+        check(prefs.edit().putString("frontend_appearance",value.appearance)
+            .putBoolean("frontend_solid",value.reduceTransparency).putBoolean("frontend_motion",value.reduceMotion)
+            .putBoolean("frontend_voice",value.voiceEnabled).commit()) { "Preferences could not be saved" }
+    }
     override suspend fun isOnboardingSeen(): Boolean = prefs.getBoolean(KEY_ONBOARDING_SEEN, false)
 
     override suspend fun markOnboardingSeen() {
@@ -55,6 +68,9 @@ class InMemoryAppPreferencesStore(
     private var storedCityMode: CityMode = CityMode.Mumbai,
     private var storedKiitBetaAccess: Boolean = false,
 ) : AppPreferencesStore {
+    private var frontend = FrontendPreferences()
+    override suspend fun frontendPreferences() = frontend
+    override suspend fun setFrontendPreferences(value: FrontendPreferences) { frontend = value }
     override suspend fun isOnboardingSeen(): Boolean = onboardingSeen
 
     override suspend fun markOnboardingSeen() {

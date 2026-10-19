@@ -12,6 +12,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 interface UserPlacesStore {
+    suspend fun clearRouteHistory()
+    suspend fun clearRecents() {}
     suspend fun savedPlaces(): List<PlaceSearchResult>
 
     suspend fun recentPlaces(): List<PlaceSearchResult>
@@ -29,6 +31,8 @@ class SharedPrefsUserPlacesStore(
     context: Context,
 ) : UserPlacesStore {
     private val prefs = context.getSharedPreferences("navgate_user_places", Context.MODE_PRIVATE)
+    override suspend fun clearRouteHistory() { withContext(Dispatchers.IO) { check(prefs.edit().remove(HISTORY_KEY).commit()) { "History could not be cleared" } } }
+    override suspend fun clearRecents() { withContext(Dispatchers.IO) { prefs.edit { remove(RECENTS_KEY) } } }
 
     override suspend fun savedPlaces(): List<PlaceSearchResult> = withContext(Dispatchers.IO) { readList(SAVED_KEY) }
 
@@ -151,6 +155,8 @@ class InMemoryUserPlacesStore(
     private var recents: List<PlaceSearchResult> = emptyList(),
     private var history: List<RouteHistoryEntry> = emptyList(),
 ) : UserPlacesStore {
+    override suspend fun clearRouteHistory() { history=emptyList() }
+    override suspend fun clearRecents() { recents=emptyList() }
     override suspend fun savedPlaces(): List<PlaceSearchResult> = saved
 
     override suspend fun recentPlaces(): List<PlaceSearchResult> = recents
