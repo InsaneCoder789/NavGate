@@ -9,9 +9,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+data class PlaceSearchPage(val places:List<CampusPlace>,val notice:String?=null)
+
 interface BackendData {
     suspend fun initialize()
     suspend fun search(query: String, regionId: String): List<CampusPlace>
+    suspend fun searchPage(query:String,regionId:String):PlaceSearchPage = PlaceSearchPage(search(query,regionId))
     suspend fun place(regionId: String, id: String): CampusPlace?
 }
 
@@ -36,6 +39,7 @@ data class BackendSnapshot(
     val searching: Boolean = false,
     val planning: Boolean = false,
     val query: String = "",
+    val searchNotice:String?=null,
     val regionId: String = "kiit",
     val places: List<CampusPlace> = emptyList(),
     val session: SessionSnapshot = SessionSnapshot(),
@@ -136,21 +140,22 @@ class NavigationBackend(
             is Event.Barrier -> event.done.complete(Unit)
             is Event.Search -> {
                 searchJob?.cancel(); val generation = ++searchGeneration
-                mutable.value = mutable.value.copy(searching = true, query = event.query, regionId = event.regionId)
+                mutable.value = mutable.value.copy(searching = true, query = event.query, regionId = event.regionId, searchNotice=null)
                 searchJob = scope.launch {
                     try {
-                        val (results,availability) = withContext(io) {
-                            val places=data.search(event.query,event.regionId)
+                        val (page,availability) = withContext(io) {
+                            val page=data.searchPage(event.query,event.regionId)
+                            val places=page.places
                             val all=destinationAvailability(regions.active(event.regionId))
-                            places to places.mapNotNull{place -> all[place.id]?.let{place.id to it}}.toMap()
+                            page to places.mapNotNull{place -> all[place.id]?.let{place.id to it}}.toMap()
                         }
-                        events.send(Event.SearchResult(generation,results,null,availability))
+                        events.send(Event.SearchResult(generation,page.places,null,availability,page.notice))
                     } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { events.send(Event.SearchResult(generation, emptyList(),"Local place search is unavailable")) }
+                    catch (_: Exception) { events.send(Event.SearchResult(generation, emptyList(),"Place search is unavailable. Check your connection or installed data.")) }
                 }
             }
             is Event.SearchResult -> if (event.generation == searchGeneration) {
-                mutable.value = mutable.value.copy(searching = false, places = event.places, destinationAvailability = event.availability, storageError = event.error)
+                mutable.value = mutable.value.copy(searching = false, places = event.places, destinationAvailability = event.availability, storageError = event.error, searchNotice=event.notice)
             }
             is Event.Plan -> {
                 if (session.state.value.status in NavigationSession.ACTIVE) {
@@ -228,7 +233,7 @@ class NavigationBackend(
         data class Barrier(val done: CompletableDeferred<Unit>) : Event
         data object Initialize : Event
         data class Search(val query: String, val regionId: String) : Event
-        data class SearchResult(val generation: Long, val places: List<CampusPlace>, val error: String?, val availability:Map<String,DestinationAvailability> = emptyMap()) : Event
+        data class SearchResult(val generation: Long, val places: List<CampusPlace>, val error: String?, val availability:Map<String,DestinationAvailability> = emptyMap(),val notice:String?=null) : Event
         data class Plan(val request: PlanRequest) : Event
         data class PlanResult(val generation: Long, val result: RouteResult) : Event
         data object Start : Event
