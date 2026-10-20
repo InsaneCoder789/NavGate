@@ -32,11 +32,11 @@ class NativeFrontendFlowTest {
     @After fun teardown(){compose.runOnUiThread{store.clear()}}
 
     @Test fun actualButtonsOpenOnboardingUtilitiesPersistBookmarkAndPlanSelectedEndpoints(){
-        compose.onNodeWithText("KIIT Beta",useUnmergedTree=true).performClick()
+        compose.onNodeWithText("Worldwide",useUnmergedTree=true).performClick()
         compose.onNodeWithText("Offline & region data").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithText("Continue to map").performScrollTo().performClick()
-        compose.onNodeWithText("Search campus places").performClick()
+        compose.onNodeWithText("Search anywhere").performClick()
         compose.waitUntil(5_000){vm.uiState.value.places.size==3}
         compose.onNodeWithText("Destination Place").performScrollTo().performClick()
         compose.onNodeWithText("Save place").performScrollTo().performClick()

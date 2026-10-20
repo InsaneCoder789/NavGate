@@ -65,7 +65,7 @@ class NavGateViewModel(
                         RoutePreview.from(current.selectedOrigin,current.selectedDestination,route.toAppRoute())
                     } else null
                     current.copy(
-                        places = state.places.map { it.toAppPlace() }, isLoadingPlaces = state.searching || state.initializing,
+                        places = state.places.map { it.toAppPlace() }, searchNotice=state.searchNotice, isLoadingPlaces = state.searching || state.initializing,
                         isLoadingRoute = state.planning, preview = preview, isPreviewVisible = preview != null,
                         snapshot = state.session.toLegacySnapshot(heading),
                         statusMessage = state.storageError ?: state.routeFailure?.detail ?: state.session.signalReason,
@@ -330,6 +330,7 @@ private fun SessionSnapshot.toLegacySnapshot(heading: Double?): NavigationSnapsh
 }
 
 data class NavGateUiState(
+    val searchNotice:String?=null,
     val searchQuery:String="",val places:List<PlaceSearchResult> = emptyList(),val isLoadingPlaces:Boolean=false,
     val focusedPlace:PlaceSearchResult?=null,val selectedOrigin:PlaceSearchResult?=null,val selectedDestination:PlaceSearchResult?=null,
     val preview:RoutePreview?=null,val snapshot:NavigationSnapshot=NavigationSnapshot(),val isLoadingRoute:Boolean=false,

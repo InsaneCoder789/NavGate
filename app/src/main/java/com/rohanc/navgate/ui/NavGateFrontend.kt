@@ -206,7 +206,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                     Row(verticalAlignment=Alignment.CenterVertically){
                         if(screen!="Explore" && ui.preferencesLoaded)FilledIconButton(onClick={back()}){Icon(Icons.Rounded.ArrowBack,"Back")}
                         Spacer(Modifier.weight(1f))
-                        FilledTonalButton(enabled=ui.preferencesLoaded,onClick={openUtility("Offline")}){Text(ui.cityMode.label)}
+                        FilledTonalButton(enabled=ui.preferencesLoaded,onClick={openUtility("Offline")}){Text("Worldwide")}
                         IconButton(enabled=ui.preferencesLoaded,onClick={openUtility("Settings")}){Icon(Icons.Rounded.Settings,"Settings",tint=MaterialTheme.colorScheme.onSurface)}
                     }
                     if(active && (!permission||backend.session.signalReason!=null))NavGateGlass{Text("Location needs attention",fontWeight=FontWeight.Bold);Text(if(!permission)"Location access is off. Guidance will pause until a fresh accurate fix is available." else backend.session.signalReason.orEmpty());if(!permission)TextButton(onClick={appSettings()}){Text("Open app settings")}}
@@ -218,7 +218,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                             val title=if(!ui.preferencesLoaded)"Loading local preferences" else if((ui.showOnboarding && screen=="Explore")||screen=="Setup")"Welcome to NavGate" else when(screen){"Place"->ui.focusedPlace?.title ?: "Place";"Route"->"Your walking route";"Navigation"->"On your way";"Arrival"->"You have arrived";"Offline"->"Offline & region data";"Camera"->"Camera assistance";else->screen}
                             Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
                             if(!ui.preferencesLoaded){CircularProgressIndicator();Text("Loading your region and saved settings…")}else if((ui.showOnboarding && screen=="Explore")||screen=="Setup"){
-                                Text("Find your way around campus with clear maps and walking guidance.")
+                                Text("Search cities, addresses and landmarks around the world.")
                                 Text("Location helps position you. You can also choose a start manually.")
                                 Button(onClick={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},modifier=Modifier.fillMaxWidth()){Text("Enable location")}
                                 TextButton(onClick={vm.dismissOnboarding();screen="Explore"}){Text("Continue to map")}
@@ -226,18 +226,19 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                             }else when(screen){
                                 "Explore"->{
                                     Text("Where would you like to go?",style=MaterialTheme.typography.titleLarge)
-                                    OutlinedButton(onClick={search("place")},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.Search,null);Text("Search campus places",Modifier.padding(8.dp))}
+                                    OutlinedButton(onClick={search("place")},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.Search,null);Text("Search anywhere",Modifier.padding(8.dp))}
                                     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Gate","Academic","Food","Hostel","Transit").forEach{category->FilterChip(ui.searchQuery==category,{vm.updateSearch(category);searchFor="place";screen="Results"},{Text(category)})}}
-                                    Text("Around campus",fontWeight=FontWeight.Bold)
+                                    Text("Installed local places",fontWeight=FontWeight.Bold)
                                     if(ui.isLoadingPlaces)LinearProgressIndicator(Modifier.fillMaxWidth())
                                     if(!ui.isLoadingPlaces&&ui.places.isEmpty())Text("No places are installed for this region. Open region data to check availability.")
                                     ui.places.take(2).forEach{place->PlaceRow(place,onDirections={directions(place)},onSave={vm.toggleSaved(place)},onShare={share(place)},saved=ui.savedPlaces.any{it.id==place.id}){placeCaller="Explore";vm.focusPlace(place);screen="Place"}}
                                 }
                                 "Search","Results"->{
-                                    OutlinedTextField(value=ui.searchQuery,onValueChange=vm::updateSearch,label={Text(if(searchFor=="from")"Choose start" else if(searchFor=="to")"Choose destination" else "Search campus")},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={keyboard?.hide();screen="Results"}),modifier=Modifier.fillMaxWidth())
+                                    OutlinedTextField(value=ui.searchQuery,onValueChange=vm::updateSearch,label={Text(if(searchFor=="from")"Choose start" else if(searchFor=="to")"Choose destination" else "Search anywhere")},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={keyboard?.hide();screen="Results"}),modifier=Modifier.fillMaxWidth())
                                     if(searchFor=="from"){TextButton(onClick={currentOrigin()}){Text("Use current location")};if(!permission)TextButton(onClick={appSettings()}){Text("Location permission settings")}}
                                     TextButton(onClick={vm.updateSearch("")}){Text("Clear query")}
                                     if(ui.searchQuery.isBlank()&&ui.recentPlaces.isNotEmpty()&&searchFor!="saved"){Text("Recent places",fontWeight=FontWeight.Bold);ui.recentPlaces.take(3).forEach{place->PlaceRow(place,onDirections=if(searchFor in listOf("from","to"))null else ({directions(place)})){choose(place)}};TextButton(onClick={clearDialog=true}){Text("Clear recent places")}}
+                                    if(searchFor!="saved")ui.searchNotice?.let{Text(it,style=MaterialTheme.typography.bodySmall)}
                                     val results=if(searchFor=="saved")vm.searchSaved(ui.searchQuery)else ui.places
                                     if(ui.isLoadingPlaces&&searchFor!="saved")LinearProgressIndicator(Modifier.fillMaxWidth())
                                     if(!ui.isLoadingPlaces && results.isEmpty()){Text("No places found. Try a different name.");TextButton(onClick={vm.updateSearch("")}){Text("Clear search")}}
@@ -245,9 +246,9 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                                     if(screen=="Results")TextButton(onClick={mapList=!mapList}){Text(if(mapList)"Show map only"else"Show result list")}
                                     if(mapList||screen=="Search")results.filterNot{place->screen=="Search"&&ui.searchQuery.isBlank()&&searchFor!="saved"&&ui.recentPlaces.take(3).any{it.id==place.id}}.forEach{place->PlaceRow(place,onDirections=if(searchFor in listOf("from","to"))null else ({directions(place)})){choose(place)}}
                                 }
-                                "MapPick"->{Text("Tap a mapped campus place to choose a starting point. Places without reviewed coordinates cannot be selected on the map.");Button(onClick={search("from")}){Text("Search for a start instead")}}
+                                "MapPick"->{Text("Tap a mapped place to choose a starting point. Places without reviewed coordinates cannot be selected on the map.");Button(onClick={search("from")}){Text("Search for a start instead")}}
                                 "Place"->{ui.focusedPlace?.let{place->
-                                    Text(place.subtitle);Text(place.category ?: place.type.name);Text(readinessLabel(details?.availability?.readiness ?: backend.destinationAvailability[place.id]?.readiness));Text(if(place.coordinate==null)"Coordinates have not been reviewed for this place." else "Campus location · ${place.type}")
+                                    Text(place.subtitle);Text(place.category ?: place.type.name);Text(if(place.id.startsWith("osm:"))"Worldwide search result. Directions require a supported routing provider." else readinessLabel(details?.availability?.readiness ?: backend.destinationAvailability[place.id]?.readiness));Text(if(place.coordinate==null)"Coordinates have not been reviewed for this place." else if(place.id.startsWith("osm:"))"OpenStreetMap location · ${place.city.orEmpty()}" else "Installed location · ${place.type}")
                                     Button(enabled=!active,onClick={directions(place)},modifier=Modifier.fillMaxWidth()){Text("Directions")}
                                     details?.availability?.entranceIds.orEmpty().forEach{id->OutlinedButton(enabled=!active,onClick={directions(place);vm.selectEntrance(id)}){Text("Use entrance: ${details?.entranceLabels?.get(id) ?: id}")}}
                                     TextButton(onClick={expandedDetails=!expandedDetails}){Text(if(expandedDetails)"Collapse details"else"Expand details")}
@@ -396,11 +397,12 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
 @Composable private fun PreferenceRow(label:String,checked:Boolean,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(label,Modifier.weight(1f));Switch(checked,onChange)}}
 
 @Composable private fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onPlace:(PlaceSearchResult)->Unit){
-    val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.3548,longitude=85.8161),zoom=15.5))
+    val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
     val connection=rememberMapConnection()
     var following by rememberSaveable { mutableStateOf(true) }
+    var centeredOnLocation by rememberSaveable { mutableStateOf(false) }
     var followingSession by rememberSaveable { mutableStateOf<String?>(null) }
     var perspective by rememberSaveable { mutableStateOf(false) }
     var retry by remember { mutableIntStateOf(0) }
@@ -422,10 +424,16 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     LaunchedEffect(camera.moveReason){if(camera.moveReason==CameraMoveReason.GESTURE)following=false}
     LaunchedEffect(ui.focusedPlace?.id,ui.cityMode){val target=ui.focusedPlace?.coordinate
         if(target!=null){following=false;move(camera.position.copy(target=Position(latitude=target.latitude,longitude=target.longitude),zoom=17.0))}
-        else if(!active&&ui.snapshot.route==null)move(camera.position.copy(target=if(ui.cityMode==CityMode.KiitBeta)Position(latitude=20.3548,longitude=85.8161)else Position(latitude=19.0760,longitude=72.8777),zoom=15.5))
+        else if(!active&&ui.snapshot.route==null && !centeredOnLocation){
+            val fix=ui.snapshot.userLocation?.takeIf{ui.currentLocationUsable}
+            if(fix!=null){centeredOnLocation=true;move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=15.5))}
+        }
     }
     LaunchedEffect(ui.snapshot.route){if(!active)fitRoute()}
     LaunchedEffect(ui.snapshot.userLocation,following,active,permission){val fix=ui.snapshot.userLocation
+        if(!active && !centeredOnLocation && ui.focusedPlace==null && ui.snapshot.route==null && permission && ui.currentLocationUsable && fix!=null){
+            centeredOnLocation=true;move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=15.5))
+        }
         if(active&&following&&permission&&ui.currentLocationUsable&&fix!=null&&ui.snapshot.locationConfidence.label!=com.rohanc.navgate.navigation.GuidanceConfidence.Low)move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=17.5))
     }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)){

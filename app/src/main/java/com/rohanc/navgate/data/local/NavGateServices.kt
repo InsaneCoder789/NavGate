@@ -1,6 +1,8 @@
 package com.rohanc.navgate.data.local
 
 import android.content.Context
+import com.rohanc.navgate.data.search.PhotonPlaceSearch
+import com.rohanc.navgate.data.search.WorldwideSearchData
 import android.os.SystemClock
 import com.rohanc.navgate.core.BackendClock
 import com.rohanc.navgate.core.NavigationBackend
@@ -22,6 +24,7 @@ class NavGateServices private constructor(context: Context) {
     val users = RoomUserPlacesStore(context,database)
     val preferences = DataStoreAppPreferencesStore(context)
     val repository = LocalNavigationRepository(context,regions,users)
+    val searchData = WorldwideSearchData(repository,PhotonPlaceSearch())
     val checkpoints = RoomSessionStore(database,regions)
     // Only a key shipped by the app publisher is trusted. Imported files cannot choose their own trust root.
     private val updateKey = runCatching {
@@ -33,7 +36,7 @@ class NavGateServices private constructor(context: Context) {
     }.getOrNull()
     val packImports = SignedPackImport(RegionPackInstaller(regions,updateKey))
     val regionDocuments = RegionDocumentImporter(packImports,context.contentResolver)
-    fun backend(scope: CoroutineScope): NavigationBackend = NavigationBackend(scope,repository,regions,AndroidBackendClock,checkpoints)
+    fun backend(scope: CoroutineScope): NavigationBackend = NavigationBackend(scope,searchData,regions,AndroidBackendClock,checkpoints)
 
     companion object {
         @Volatile private var instance: NavGateServices? = null

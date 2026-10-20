@@ -72,3 +72,7 @@ Baseline: `7ddd187`, main tracking origin/main at `https://github.com/InsaneCode
 20. Final documentation commit — Implemented backend contract, engineering diagrams, README migration and this evidence audit. Its exact SHA is available from `git log -1`; embedding its own SHA would require rewriting the commit.
 
 Pending frontend/design/session artifacts are intentionally outside these backend commits.
+
+## Worldwide search expansion
+
+The production service now uses Photon-backed worldwide search in addition to installed local records; selected offline regions no longer bound online search. Search labels and initial camera behavior reflect the new scope. See [WORLDWIDE_SEARCH.md](WORLDWIDE_SEARCH.md). Host live checks found Paris, Sydney and New York. Job `job-mvgrbq9f-ba8048af` passed the build, lint, 34 core tests and 45 app unit tests, then failed while installing the Android test APK on Pixel_9_Pro with a package-service Broken pipe error. Native/live Android tests did not run in that job. Worldwide routing remains a separate provider boundary.
