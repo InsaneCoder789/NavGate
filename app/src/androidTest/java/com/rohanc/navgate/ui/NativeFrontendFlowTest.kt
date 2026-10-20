@@ -56,6 +56,21 @@ class NativeFrontendFlowTest {
         compose.onNodeWithText("Directions",substring=false).assertIsDisplayed()
     }
 
+    @Test fun floatingDockNavigatesAllDestinationsAndRetainsSavedSearchCaller(){
+        compose.onNodeWithText("Continue to map").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Expand panel").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Collapse panel").performScrollTo().performClick()
+        compose.onNodeWithText("Go",substring=false).performClick()
+        compose.onNodeWithText("From: Choose start").assertExists()
+        compose.onNodeWithText("Saved",substring=false).performClick()
+        compose.onNodeWithText("Search saved places",substring=false).performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.onNodeWithText("Search saved places",substring=false).assertExists()
+        compose.onNodeWithText("Recents",substring=false).performClick()
+        compose.onNodeWithText("Explore",substring=false).performClick()
+        compose.onNodeWithText("Search anywhere").assertExists()
+    }
+
     @Test fun missingStartCoordinateDoesNotSilentlyLeaveSelection(){
         compose.onNodeWithText("Continue to map").performScrollTo().performClick()
         compose.onNodeWithText("Go",substring=false).performClick()

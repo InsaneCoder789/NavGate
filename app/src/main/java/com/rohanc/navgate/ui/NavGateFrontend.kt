@@ -1,6 +1,8 @@
 package com.rohanc.navgate.ui
 
 import android.Manifest
+import android.app.Activity
+import androidx.core.view.WindowCompat
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
@@ -21,6 +23,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -36,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -192,6 +196,19 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         if(screen=="Camera")vm.switchMode(PresentationMode.MAP)
         screen=frontendBack(screen,active,placeCaller,settingsCaller,utilityCaller,searchFor,directionCaller)
     }
+    DisposableEffect(dark) {
+        val window=(context as? Activity)?.window
+        val bars=window?.let{WindowCompat.getInsetsController(it,it.decorView)}
+        val oldStatus=bars?.isAppearanceLightStatusBars
+        val oldNavigation=bars?.isAppearanceLightNavigationBars
+        bars?.isAppearanceLightStatusBars=!dark
+        bars?.isAppearanceLightNavigationBars=!dark
+        onDispose {
+            if(oldStatus!=null)bars?.isAppearanceLightStatusBars=oldStatus
+            if(oldNavigation!=null)bars?.isAppearanceLightNavigationBars=oldNavigation
+        }
+    }
+    var sheetExpanded by rememberSaveable(screen){mutableStateOf(screen in listOf("Search","Results","Settings","Offline","Steps","Saved","Recents"))}
     BackHandler(enabled=screen!="Explore"){back()}
     NavGateTheme(dark=dark){CompositionLocalProvider(LocalSolidGlass provides prefs.reduceTransparency){
         Surface(Modifier.fillMaxSize()){
@@ -204,19 +221,27 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                 if(screen=="Camera" && cameraPermission)CameraPreview(Modifier.fillMaxSize())
                 Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
                     Row(verticalAlignment=Alignment.CenterVertically){
-                        if(screen!="Explore" && ui.preferencesLoaded)FilledIconButton(onClick={back()}){Icon(Icons.Rounded.ArrowBack,"Back")}
+                        if(screen!="Explore" && ui.preferencesLoaded)MapControlButton(onClick={back()}){Icon(Icons.Rounded.ArrowBack,"Back")}
+                        if(screen!="Explore")Spacer(Modifier.width(10.dp))
+                        Surface(onClick={openUtility("Offline")},enabled=ui.preferencesLoaded,shape=RoundedCornerShape(24.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.97f),shadowElevation=3.dp){
+                            Row(Modifier.heightIn(min=48.dp).padding(horizontal=16.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                                Icon(Icons.Rounded.Place,null,Modifier.size(18.dp),tint=MaterialTheme.colorScheme.primary)
+                                Text("Worldwide",style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.SemiBold)
+                                Icon(Icons.Rounded.ExpandMore,null,Modifier.size(16.dp))
+                            }
+                        }
                         Spacer(Modifier.weight(1f))
-                        FilledTonalButton(enabled=ui.preferencesLoaded,onClick={openUtility("Offline")}){Text("Worldwide")}
-                        IconButton(enabled=ui.preferencesLoaded,onClick={openUtility("Settings")}){Icon(Icons.Rounded.Settings,"Settings",tint=MaterialTheme.colorScheme.onSurface)}
+                        MapControlButton(enabled=ui.preferencesLoaded,onClick={openUtility("Settings")}){Icon(Icons.Rounded.Settings,"Settings",tint=MaterialTheme.colorScheme.onSurface)}
                     }
                     if(active && (!permission||backend.session.signalReason!=null))NavGateGlass{Text("Location needs attention",fontWeight=FontWeight.Bold);Text(if(!permission)"Location access is off. Guidance will pause until a fresh accurate fix is available." else backend.session.signalReason.orEmpty());if(!permission)TextButton(onClick={appSettings()}){Text("Open app settings")}}
                     if(screen=="Navigation" && active)NavGateGlass(guidance=true){Text(backend.session.instruction ?: "Waiting for guidance",style=MaterialTheme.typography.headlineSmall);Text(backend.session.distanceToManeuver.asDistanceLabel())}
                     Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.BottomCenter){
-                    NavGateGlass(Modifier.fillMaxWidth().heightIn(max=if(screen in listOf("Search","Results","Settings","Offline","Steps","Saved","Recents")||(screen=="Place"&&expandedDetails)) 600.dp else 410.dp)){
+                    NavGateGlass(Modifier.fillMaxWidth().heightIn(max=if(sheetExpanded) 600.dp else 410.dp)){
                         val pageScroll=key(screen){rememberScrollState()}
                         Column(Modifier.verticalScroll(pageScroll),verticalArrangement=Arrangement.spacedBy(12.dp)){
                             val title=if(!ui.preferencesLoaded)"Loading local preferences" else if((ui.showOnboarding && screen=="Explore")||screen=="Setup")"Welcome to NavGate" else when(screen){"Place"->ui.focusedPlace?.title ?: "Place";"Route"->"Your walking route";"Navigation"->"On your way";"Arrival"->"You have arrived";"Offline"->"Offline & region data";"Camera"->"Camera assistance";else->screen}
-                            Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+                            SheetGrip(expanded=sheetExpanded,onExpandedChange={sheetExpanded=it})
+                            if(screen!="Explore"||ui.showOnboarding||!ui.preferencesLoaded)Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
                             if(!ui.preferencesLoaded){CircularProgressIndicator();Text("Loading your region and saved settings…")}else if((ui.showOnboarding && screen=="Explore")||screen=="Setup"){
                                 Text("Search cities, addresses and landmarks around the world.")
                                 Text("Location helps position you. You can also choose a start manually.")
@@ -226,12 +251,12 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                             }else when(screen){
                                 "Explore"->{
                                     Text("Where would you like to go?",style=MaterialTheme.typography.titleLarge)
-                                    OutlinedButton(onClick={search("place")},modifier=Modifier.fillMaxWidth()){Icon(Icons.Rounded.Search,null);Text("Search anywhere",Modifier.padding(8.dp))}
+                                    Surface(onClick={search("place")},shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceVariant){Row(Modifier.fillMaxWidth().heightIn(min=56.dp).padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){Icon(Icons.Rounded.Search,null,tint=MaterialTheme.colorScheme.primary);Text("Search anywhere",style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
                                     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Gate","Academic","Food","Hostel","Transit").forEach{category->FilterChip(ui.searchQuery==category,{vm.updateSearch(category);searchFor="place";screen="Results"},{Text(category)})}}
                                     Text("Installed local places",fontWeight=FontWeight.Bold)
                                     if(ui.isLoadingPlaces)LinearProgressIndicator(Modifier.fillMaxWidth())
                                     if(!ui.isLoadingPlaces&&ui.places.isEmpty())Text("No places are installed for this region. Open region data to check availability.")
-                                    ui.places.take(2).forEach{place->PlaceRow(place,onDirections={directions(place)},onSave={vm.toggleSaved(place)},onShare={share(place)},saved=ui.savedPlaces.any{it.id==place.id}){placeCaller="Explore";vm.focusPlace(place);screen="Place"}}
+                                    ui.places.take(1).forEach{place->PlaceRow(place){placeCaller="Explore";vm.focusPlace(place);screen="Place"}}
                                 }
                                 "Search","Results"->{
                                     OutlinedTextField(value=ui.searchQuery,onValueChange=vm::updateSearch,label={Text(if(searchFor=="from")"Choose start" else if(searchFor=="to")"Choose destination" else "Search anywhere")},singleLine=true,keyboardOptions=KeyboardOptions(imeAction=ImeAction.Search),keyboardActions=KeyboardActions(onSearch={keyboard?.hide();screen="Results"}),modifier=Modifier.fillMaxWidth())
@@ -371,9 +396,10 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                         }
                     }
                     }
-                    if(!ui.showOnboarding && !active && screen!="Arrival")NavigationBar(containerColor=MaterialTheme.colorScheme.surface.copy(alpha=.96f)){
-                        listOf("Explore" to Icons.Rounded.Explore,"Directions" to Icons.Rounded.DirectionsWalk,"Saved" to Icons.Rounded.BookmarkBorder,"Recents" to Icons.Rounded.History).forEach{(name,icon)->NavigationBarItem(selected=selectedFrontendTab(if(screen in listOf("Settings","Offline"))utilityStack.firstOrNull() ?: screen else screen,searchFor)==name,onClick={utilityStack=emptyList();if(name=="Directions")directionCaller="Explore";screen=name},icon={Icon(icon,name)},label={Text(if(name=="Directions")"Go" else name)})}
-                    }
+                    if(!ui.showOnboarding && !active && screen!="Arrival")NavGateDock(
+                        modifier=Modifier.align(Alignment.CenterHorizontally),
+                        selected=selectedFrontendTab(if(screen in listOf("Settings","Offline"))utilityStack.firstOrNull() ?: screen else screen,searchFor),
+                        onSelect={name->utilityStack=emptyList();if(name=="Directions")directionCaller="Explore";screen=name})
                 }
             }
         }
@@ -385,13 +411,25 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
 }
 
 @Composable private fun PlaceRow(place:PlaceSearchResult,onDirections:(()->Unit)?=null,onSave:(()->Unit)?=null,onShare:(()->Unit)?=null,saved:Boolean=false,onClick:()->Unit){
+    val colors=MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth()){
-        Row(Modifier.fillMaxWidth().clickable(onClick=onClick).padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Place,null,tint=MaterialTheme.colorScheme.secondary);Column(Modifier.padding(start=12.dp).weight(1f)){Text(place.title,fontWeight=FontWeight.SemiBold);Text(place.subtitle,style=MaterialTheme.typography.bodySmall)};Icon(Icons.Rounded.ChevronRight,null)}
-        if(onDirections!=null||onSave!=null||onShare!=null)Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-            onDirections?.let{OutlinedButton(onClick=it){Text("Directions")}}
-            onSave?.let{IconButton(onClick=it){Icon(if(saved)Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,if(saved)"Unsave ${place.title}"else"Save ${place.title}")}}
-            onShare?.let{IconButton(onClick=it){Icon(Icons.Rounded.Share,"Share ${place.title}")}}
+        Row(Modifier.fillMaxWidth().clickable(onClick=onClick).padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
+            Surface(shape=RoundedCornerShape(14.dp),color=colors.secondaryContainer.copy(alpha=.65f)){
+                Box(Modifier.size(44.dp),contentAlignment=Alignment.Center){Icon(Icons.Rounded.Place,null,Modifier.size(22.dp),tint=colors.onSecondaryContainer)}
+            }
+            Column(Modifier.padding(horizontal=12.dp).weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
+                Text(place.title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
+                Text(place.subtitle,style=MaterialTheme.typography.bodySmall,color=colors.onSurfaceVariant,maxLines=2,overflow=TextOverflow.Ellipsis)
+            }
+            Icon(Icons.Rounded.ChevronRight,null,Modifier.size(20.dp),tint=colors.onSurfaceVariant)
         }
+        if(onDirections!=null||onSave!=null||onShare!=null)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
+            onDirections?.let{FilledTonalButton(onClick=it,shape=RoundedCornerShape(14.dp),contentPadding=PaddingValues(horizontal=14.dp,vertical=8.dp)){Icon(Icons.Rounded.DirectionsWalk,null,Modifier.size(18.dp));Spacer(Modifier.width(6.dp));Text("Directions")}}
+            Spacer(Modifier.weight(1f))
+            onSave?.let{IconButton(onClick=it){Icon(if(saved)Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,if(saved)"Unsave ${place.title}"else"Save ${place.title}",tint=if(saved)colors.primary else colors.onSurfaceVariant)}}
+            onShare?.let{IconButton(onClick=it){Icon(Icons.Rounded.Share,"Share ${place.title}",tint=colors.onSurfaceVariant)}}
+        }
+        HorizontalDivider(Modifier.padding(top=8.dp),color=colors.onSurface.copy(alpha=.07f))
     }
 }
 @Composable private fun PreferenceRow(label:String,checked:Boolean,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(label,Modifier.weight(1f));Switch(checked,onChange)}}
@@ -457,11 +495,11 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             CircleLayer(id="location-uncertainty",source=location,radius=const(radius.dp),color=const(NavSecondary.copy(alpha=.15f)))
             CircleLayer(id="current-position",source=location,radius=const(7.dp),color=const(if(!ui.currentLocationUsable)Color.Gray else NavSecondary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
         }}
-        Column(Modifier.align(Alignment.TopEnd).padding(top=136.dp,end=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-            FilledIconButton(onClick={val fix=ui.snapshot.userLocation;if(!permission)onFeedback("Enable location access in Android settings to center the map.")else if(fix==null||!ui.currentLocationUsable)onFeedback("Waiting for a fresh location. You can choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=17.5))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
-            FilledIconButton(enabled=!loading&&!failed,onClick={following=false;scope.launch{move(camera.position.copy(bearing=0.0))}}){Icon(Icons.Rounded.Explore,"Orient map north")}
-            FilledIconButton(enabled=!loading&&!failed,onClick={perspective=!perspective;scope.launch{move(camera.position.copy(tilt=if(perspective)35.0 else 0.0))}}){Text(if(perspective)"2D"else"3D")}
-            if(ui.snapshot.route!=null)FilledIconButton(enabled=!loading&&!failed,onClick={fitRoute()}){Icon(Icons.Rounded.ZoomOutMap,"Fit route")}
+        Column(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top=80.dp,end=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+            MapControlButton(onClick={val fix=ui.snapshot.userLocation;if(!permission)onFeedback("Enable location access in Android settings to center the map.")else if(fix==null||!ui.currentLocationUsable)onFeedback("Waiting for a fresh location. You can choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=17.5))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
+            MapControlButton(enabled=!loading&&!failed,onClick={following=false;scope.launch{move(camera.position.copy(bearing=0.0))}}){Icon(Icons.Rounded.Explore,"Orient map north")}
+            MapControlButton(enabled=!loading&&!failed,onClick={perspective=!perspective;scope.launch{move(camera.position.copy(tilt=if(perspective)35.0 else 0.0))}}){Text(if(perspective)"2D"else"3D")}
+            if(ui.snapshot.route!=null)MapControlButton(enabled=!loading&&!failed,onClick={fitRoute()}){Icon(Icons.Rounded.ZoomOutMap,"Fit route")}
         }
         if(!connection&&!loading&&!failed)Text("No map connection. Cached tiles may remain visible; local places are still available.",Modifier.align(Alignment.TopStart).padding(top=132.dp,start=16.dp,end=80.dp).background(MaterialTheme.colorScheme.surface).padding(12.dp))
         if(loading)Text("Loading map…",Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp))
