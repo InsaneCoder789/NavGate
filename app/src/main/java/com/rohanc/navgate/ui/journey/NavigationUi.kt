@@ -28,7 +28,7 @@ private val GuidanceTeal = Color(0xFF265E66)
 
 /** Turn-by-turn guidance: next manoeuvre on top, trip summary and exit at the bottom. */
 @Composable
-fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
+fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions, online: Boolean = true) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
@@ -58,8 +58,10 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
         if (hint && driving) GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false) {
             Text("Mount your phone safely. Spoken directions are on.", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium)
         }
+        val offlineOffRoute = !online && session.offRoute
+        if (!online) OfflineNotice(offlineOffRoute, if (offlineOffRoute) rejoinHint(session) else null)
         val status = session.status
-        if (status == SessionStatus.SignalLimited || status == SessionStatus.GuidanceUnavailable || status == SessionStatus.Rerouting || session.offRoute) {
+        if (!offlineOffRoute && (status == SessionStatus.SignalLimited || status == SessionStatus.GuidanceUnavailable || status == SessionStatus.Rerouting || session.offRoute)) {
             GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, tint = Color(0xFFFFB74D)) {
                 Text(when {
                     status == SessionStatus.Rerouting -> "Finding a new route…"
@@ -87,12 +89,38 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
     }
 }
 
+/** Shown while there is no internet. Guidance itself keeps running from the saved route, so this only reassures and, if needed, points back to the road. */
+@Composable
+private fun OfflineNotice(offRoute: Boolean, rejoin: String?) {
+    GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, tint = if (offRoute) Color(0xFFFFB74D) else null) {
+        Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Rounded.CloudOff, null, Modifier.size(20.dp))
+            Text(when {
+                offRoute && rejoin != null -> "Offline. $rejoin New directions will load as soon as you are back online."
+                offRoute -> "Offline. Head back toward the route; new directions will load when you reconnect."
+                else -> "Offline. Guidance continues from your saved route."
+            }, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+/** "The route is 120 m north-east of you": a compass pointer back to the planned road, which works with no connection. */
+internal fun rejoinHint(session: SessionSnapshot): String? {
+    val here = session.location ?: return null
+    val route = session.route ?: return null
+    val nearest = com.rohanc.navgate.core.projectPath(here, route.geometry) ?: return null
+    if (nearest.distanceMeters < 15) return null
+    val words = listOf("north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west")
+    val direction = words[(((here.bearingTo(nearest.point) + 22.5) % 360) / 45).toInt().coerceIn(0, 7)]
+    return "The route is ${nearest.distanceMeters.toInt()} m $direction of you."
+}
+
 @Composable
 private fun ColorScheme.errorContainerFallback(): Color = Color(0xFFFFE0B2)
 
 /** Shown once guidance reaches the destination. */
 @Composable
-fun BoxScope.ArrivalUi(destinationTitle: String, driving: Boolean, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
+fun BoxScope.ArrivalUi(destinationTitle: String, driving: Boolean, tripSummary: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
     val density = LocalDensity.current
     GmSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { with(density) { onInsets(0f, it.height.toDp().value) } }) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -101,6 +129,8 @@ fun BoxScope.ArrivalUi(destinationTitle: String, driving: Boolean, onInsets: (Fl
                 Column { Text("You have arrived", style = MaterialTheme.typography.headlineSmall); Text(destinationTitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             Text(if (driving) "Your driving guidance is complete." else "Your walking guidance is complete.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            tripSummary?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
+            if (driving) GmTonalButton("Save parking spot", Icons.Rounded.LocalParking, a.saveParking, Modifier.fillMaxWidth())
             GmPrimaryButton("Done", Icons.Rounded.Check, a.finishArrival, Modifier.fillMaxWidth())
         }
     }

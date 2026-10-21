@@ -75,7 +75,14 @@ class ValhallaRoutingProvider(
         Math.round(r.origin.latitude*1000),Math.round(r.origin.longitude*1000),r.destinationPoint?.latitude,r.destinationPoint?.longitude,r.profile,r.destinationPlaceId,r.regionId).joinToString("|")
         return java.security.MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString(""){"%02x".format(it)}
     }
-    private suspend fun fetch(request:Request):String=suspendCancellableCoroutine { continuation ->
+    /** One quiet retry for a busy server (5xx) or a slow reply. No retry when there is no network at all: that fails fast instead. */
+    private suspend fun fetch(request:Request):String=try{ fetchOnce(request) }catch(e:IOException){
+        val transient=e is java.net.SocketTimeoutException || e.message?.startsWith("Routing provider HTTP 5")==true
+        if(!transient)throw e
+        delay(700);fetchOnce(request)
+    }
+
+    private suspend fun fetchOnce(request:Request):String=suspendCancellableCoroutine { continuation ->
         val call=client.newCall(request)
         continuation.invokeOnCancellation{call.cancel()}
         call.enqueue(object:Callback {

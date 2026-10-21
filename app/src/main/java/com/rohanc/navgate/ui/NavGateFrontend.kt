@@ -278,6 +278,11 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         swap=vm::swapEndpoints,clearPlan={vm.clearPlan();selectedManeuver=null;screen="Explore"},setProfile={vm.setTravelProfile(it)},replan=vm::replan,start=vm::startNavigation,
         requestStop={stopDialog=true},requestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},
         openAppSettings={appSettings()},showSteps={screen="Steps"},openCamera={screen="Camera";vm.switchMode(PresentationMode.AR_ASSIST)},
+        saveParking={
+            val here=ui.displayLocation
+            if(here==null)feedback="Waiting for your location to save the parking spot."
+            else{vm.toggleSaved(PlaceSearchResult("parked:${System.currentTimeMillis()}","Parked car","Saved on arrival",here.latitude,here.longitude,com.rohanc.navgate.model.PlaceType.Landmark));feedback="Parking spot saved. Find it under Saved."}
+        },
         setViewMode={mode->
             if(mode=="AR"){
                 val blocked=com.rohanc.navgate.ui.ar.arBlockedReason(backend.session.route,ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)},ui.displayAccuracy?.toDouble())
@@ -299,10 +304,45 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         call={phone->runCatching{context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+phone.filter{it.isDigit()||it=='+'})))}},
         openWebsite={site->runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(if(site.startsWith("http://")||site.startsWith("https://"))site else "https://$site")))}})
     val importing=importJob?.isActive==true
+    // --- Behind the scenes: connectivity, trip memory, touch cues, screen wake ---
+    val online=com.rohanc.navgate.ui.map.rememberMapConnection()
+    SideEffect{vm.networkAvailable=online}
+    val tripRoute=backend.session.route
+    // Save the map along the route while there is a connection, so it still draws if the signal drops mid-trip.
+    LaunchedEffect(tripRoute?.id,online,screen){
+        if(online&&tripRoute!=null&&screen in listOf("Directions","Route","Navigation","Camera"))
+            com.rohanc.navgate.ui.map.RouteTilePrefetcher.prefetch(context,tripRoute.id,tripRoute.geometry)
+    }
+    // Keep the screen on while guiding, and give a touch cue before each turn.
+    DisposableEffect(active,screen){
+        val window=(context as? Activity)?.window
+        if(active||screen=="Camera")window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose{window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)}
+    }
+    val drivingTrip=(tripRoute?.profile?:"")=="driving"
+    val toTurn=backend.session.distanceToManeuver
+    val cue=if(!active)0 else if(drivingTrip) when{toTurn<40->2;toTurn<150->1;else->0} else when{toTurn<12->2;toTurn<40->1;else->0}
+    val turnKind=tripRoute?.maneuvers?.getOrNull(backend.session.maneuverIndex)?.kind
+    LaunchedEffect(active,backend.session.maneuverIndex,cue){
+        if(cue>0)com.rohanc.navgate.ui.location.TurnHaptics.cue(context,turnKind,cue)
+    }
+    // Trip summary for the arrival screen.
+    var tripStartMillis by remember{mutableLongStateOf(0L)}
+    var topSpeedMps by remember{mutableDoubleStateOf(0.0)}
+    LaunchedEffect(active){if(active&&tripStartMillis==0L){tripStartMillis=System.currentTimeMillis();topSpeedMps=0.0}}
+    // Collected in an effect, not in composition, so the 10 Hz motion updates do not recompose the whole screen.
+    LaunchedEffect(active){if(active)vm.motionState.collect{m->m?.speedMps?.takeIf{it<80}?.let{if(it>topSpeedMps)topSpeedMps=it}}}
+    LaunchedEffect(screen){if(screen=="Explore")tripStartMillis=0L}
+    val tripSummary=if(screen=="Arrival"&&tripStartMillis>0&&tripRoute!=null){
+        val minutes=((System.currentTimeMillis()-tripStartMillis)/60_000.0).coerceAtLeast(1.0)
+        val km=tripRoute.distanceMeters/1000.0
+        listOfNotNull("%.1f km".format(km),"${minutes.toInt()} min","avg %d km/h".format((km/(minutes/60.0)).toInt()),
+            topSpeedMps.takeIf{drivingTrip&&it>1}?.let{"top %d km/h".format((it*3.6).toInt())}).joinToString(" · ")
+    }else null
     val data=JourneyData(screen,searchFor,ui,backend.session,ui.snapshot.route?.steps.orEmpty(),backend.session.route?.takeIf{it.external}?.warnings.orEmpty(),permission,prefs.voiceEnabled,ui.areaName,
         if(searchFor=="saved")vm.searchSaved(ui.searchQuery)else ui.places,details?.availability,details?.entranceLabels.orEmpty(),active,if(showMotion)vm.motionState else null,
         SettingsModel(prefs,ui.cityMode,active,voiceAvailability,permission),if(screen=="Camera")"AR" else if(prefs.buildings3d)"3D" else "2D",services.regionDocuments.enabled,importing,importState==ImportState.Verifying,cameraPermission,alignment,
-        permission&&ui.currentLocationUsable)
+        permission&&ui.currentLocationUsable,online=online,tripSummary=tripSummary)
     var showLayers by remember{mutableStateOf(false)}
     var insetTop by remember{mutableFloatStateOf(0f)}
     var insetBottom by remember{mutableFloatStateOf(0f)}
@@ -332,28 +372,27 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                             aligner.update(f.reading,compass,gps,ui.displayAccuracy?.toDouble()?:20.0,motionNow?.headingDegrees,motionNow?.speedMps?:0.0)
                         }}
                         val here=if(arStatus is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable)gps else (arCamera?.position?:gps)
-                        // Racing-game checkpoints: the track only keeps the road you are on (and the next) in memory.
+                        // Checkpoints work behind the scenes: the track keeps only the road you are on loaded, and hands the overlay a short path.
                         val track=remember(backend.session.route?.id){backend.session.route?.let{com.rohanc.navgate.ui.ar.CheckpointTrack(it)}}
-                        var gates by remember(track){mutableStateOf<List<com.rohanc.navgate.ui.ar.Gate>>(emptyList())}
-                        var burst by remember(track){mutableStateOf<com.rohanc.navgate.ui.ar.GateBurst?>(null)}
-                        var toNext by remember(track){mutableStateOf<Double?>(null)}
-                        val haptics=androidx.compose.ui.platform.LocalHapticFeedback.current
+                        var path by remember(track){mutableStateOf<List<GeoPoint>>(emptyList())}
+                        var roadEnd by remember(track){mutableStateOf(0.0)}
+                        var turnKind by remember(track){mutableStateOf<String?>(null)}
+                        var turnLabel by remember(track){mutableStateOf<String?>(null)}
                         val stepKey=here?.let{(it.latitude*1e5).toLong() to (it.longitude*1e5).toLong()}
                         LaunchedEffect(track,stepKey){
                             val position=here?:return@LaunchedEffect
                             val t=track?:return@LaunchedEffect
                             val result=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default){
-                                val passed=t.update(position);Triple(passed,t.upcoming(),t.metersToNextGate)
+                                t.update(position);Triple(t.pathAhead(),t.metersToStageEnd,t.stageEnd)
                             }
-                            gates=result.second;toNext=result.third
-                            result.first.lastOrNull()?.let{burst=com.rohanc.navgate.ui.ar.GateBurst(it,System.currentTimeMillis());haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)}
+                            path=result.first;roadEnd=result.second;turnKind=result.third?.turnKind?:if(result.third?.kind==com.rohanc.navgate.ui.ar.GateKind.Finish)"Arrive" else null;turnLabel=result.third?.label
                         }
                         if(arStatus is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable){
                             CameraPreview(Modifier.fillMaxSize())
-                            com.rohanc.navgate.ui.ar.ArCheckpointOverlay(gates,gps,arBasis,burst,toNext,Modifier.fillMaxSize())
+                            com.rohanc.navgate.ui.ar.ArRoadOverlay(path,roadEnd,gps,arBasis,turnKind,turnLabel,roadEnd,Modifier.fillMaxSize())
                         }else{
                             com.rohanc.navgate.ui.ar.ArSessionView({arFrame=it;arStatus=com.rohanc.navgate.ui.ar.ArSessionStatus.Running},{if(it is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable)arStatus=it},Modifier.fillMaxSize())
-                            com.rohanc.navgate.ui.ar.ArCheckpointOverlay(gates,arCamera?.position,arCamera?.basis,burst,toNext,Modifier.fillMaxSize(),arFrame)
+                            com.rohanc.navgate.ui.ar.ArRoadOverlay(path,roadEnd,arCamera?.position,arCamera?.basis,turnKind,turnLabel,roadEnd,Modifier.fillMaxSize(),arFrame)
                         }
                     }
                 }

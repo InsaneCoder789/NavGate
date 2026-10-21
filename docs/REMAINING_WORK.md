@@ -44,3 +44,9 @@ Written 21 October 2026 after the maps-style journey rebuild. Items are grouped 
 - Start needs a GPS fix under 8 s old and accurate to 25 m; indoors it will refuse and explain why.
 - Estimates carry no live traffic.
 - Walking and driving times come from the public Valhalla demo server.
+
+## Written but not yet run on a device (2026-10-21)
+- AR guidance is driven by a checkpoint track (only the current road is loaded); the line is continuous, no gates are drawn.
+- Offline resilience: connectivity banner, rejoin-the-route pointer, route-corridor map download (`RouteTilePrefetcher`), Valhalla retry, skipping the live-route refresh while offline.
+- Touch cues before turns (`TurnHaptics`), screen stays on while guiding, trip summary and "Save parking spot" on arrival.
+- Verify on a real drive: offline map coverage along a route, haptic patterns, AR line placement, battery use of AR at 30 fps.

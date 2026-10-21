@@ -102,41 +102,25 @@ private val Ink = Color(0xFF0B1220)
  * Pure projection over ARCore's tracking; accuracy is bounded by GPS and compass.
  */
 @Composable
-fun ArRoadOverlay(route: CampusRoute?, position: GeoPoint?, basis: CameraBasis?, turnKind: String?, turnLabel: String?, distanceToTurnMeters: Double?, modifier: Modifier = Modifier, arFrame: ArFrameState? = null) {
+fun ArRoadOverlay(path: List<GeoPoint>, roadEndMeters: Double, position: GeoPoint?, basis: CameraBasis?, turnKind: String?, turnLabel: String?, distanceToTurnMeters: Double?, modifier: Modifier = Modifier, arFrame: ArFrameState? = null) {
     val fov = rememberVerticalFov()
     val measurer = rememberTextMeasurer()
     Canvas(modifier) {
         val b = basis ?: return@Canvas
         val here = position ?: return@Canvas
-        val geometry = route?.geometry ?: return@Canvas
-        if (geometry.size < 2) return@Canvas
+        if (path.size < 2) return@Canvas
         val projection = if (arFrame != null && arFrame.width > 0) {
             ArProjection(size.width, size.height, arFrame.focalY * size.height / arFrame.height, arFrame.focalX * size.width / arFrame.width, arFrame.groundHeightMeters ?: 1.45)
         } else ArProjection(size.width, size.height, fov)
-        val start = projectPath(here, geometry) ?: return@Canvas
-        if (start.distanceMeters > 80) { drawNotice(measurer, "Walk or drive onto the route to see the line"); return@Canvas }
+        if (here.distanceTo(path.first()) > 80) { drawNotice(measurer, "Walk or drive onto the route to see the line"); return@Canvas }
         val phase = ((arFrame?.reading?.timeMillis ?: System.currentTimeMillis()) % 1600L) / 1600f
-
-        // Metres of this road still ahead (the next turn), measured along the drawn shape.
-        val roadEnd = if (distanceToTurnMeters != null) route.routeToShapeMeters(distanceToTurnMeters).coerceIn(4.0, ROAD_MAX_METERS) else ROAD_MAX_METERS
-        val stub = 14.0
+        val roadEnd = roadEndMeters.coerceIn(4.0, ROAD_MAX_METERS)
         val points = ArrayList<Pair<Double, Double>>()   // east, north metres from the camera
         val travelAt = ArrayList<Double>()
         var travelled = 0.0
-        var previous = start.point
-        points.add(start.point.offsetFrom(here)); travelAt.add(0.0)
-        loop@ for (i in start.segment + 1 until geometry.size) {
-            val next = geometry[i]
-            val length = previous.distanceTo(next)
-            var d = STEP_METERS
-            while (d < length) {
-                if (travelled + d > roadEnd + stub) break@loop
-                val t = d / length
-                points.add(GeoPoint(previous.latitude + (next.latitude - previous.latitude) * t, previous.longitude + (next.longitude - previous.longitude) * t).offsetFrom(here)); travelAt.add(travelled + d)
-                d += STEP_METERS
-            }
-            travelled += length; points.add(next.offsetFrom(here)); travelAt.add(travelled); previous = next
-            if (travelled > roadEnd + stub) break
+        for (i in path.indices) {
+            if (i > 0) travelled += path[i - 1].distanceTo(path[i])
+            points.add(path[i].offsetFrom(here)); travelAt.add(travelled)
         }
         fun ground(e: Double, n: Double, lift: Double = 0.0) = projection.ground(b, e, n, projection.eyeHeightMeters, lift)?.let { Offset(it.first, it.second) }
         val left = ArrayList<Offset?>(); val right = ArrayList<Offset?>(); val centre = ArrayList<Offset?>()

@@ -212,6 +212,8 @@ class NavGateViewModel(
 
     /** A route planned from "Your location" may be minutes old; plan again from where the user is now before starting. */
     private suspend fun refreshLiveRouteBeforeStart() {
+        // Offline: keep the route that is already planned instead of replacing it with a failure.
+        if (!networkAvailable) return
         val state = mutable.value
         val route = backend.state.value.session.route ?: return
         val fresh = freshCurrentLocation() ?: return
@@ -256,6 +258,9 @@ class NavGateViewModel(
     private val motionMutable = MutableStateFlow<MotionEstimate?>(null)
     /** Sensor-fused position, speed and heading at sensor rate. Collected only by the marker and sensor panel so the rest of the screen is not redrawn. */
     val motionState: StateFlow<MotionEstimate?> = motionMutable.asStateFlow()
+
+    /** Set by the screen from the connectivity monitor; routing refreshes are skipped while offline. */
+    @Volatile var networkAvailable: Boolean = true
     fun onMotion(estimate: MotionEstimate?) { motionMutable.value = estimate }
 
     /** A raw receiver fix: used to show where the user is and to rank nearby search results; guidance only consumes fused fixes. */

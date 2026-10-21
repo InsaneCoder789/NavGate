@@ -114,6 +114,23 @@ class CheckpointTrack(private val route: CampusRoute, private val spacingMeters:
         return out
     }
 
+    /** The road ahead as points every [step] metres, from your spot to the end of this road plus a short stub of the next one. */
+    fun pathAhead(stubMeters: Double = 14.0, maxMeters: Double = 220.0, step: Double = 2.0): List<GeoPoint> {
+        val end = boundaries.getOrElse(stage + 1) { totalMeters }
+        val limit = min(min(end + stubMeters, alongHint + maxMeters), totalMeters)
+        val out = ArrayList<GeoPoint>()
+        var s = alongHint
+        while (s < limit) { out.add(pointAt(s)); s += step }
+        out.add(pointAt(limit))
+        return out
+    }
+
+    /** Metres from you to the end of the road you are on (the next turn, or the finish). */
+    val metersToStageEnd: Double get() = (boundaries.getOrElse(stage + 1) { totalMeters } - alongHint).coerceAtLeast(0.0)
+
+    /** The turn (or finish) that ends the current road. */
+    val stageEnd: Gate? get() = gates(stage).lastOrNull()
+
     val loadedStages: Int get() = loaded.size
     val metersToNextGate: Double? get() = gates(stage).getOrNull(next)?.let { it.alongMeters - alongHint }
 
