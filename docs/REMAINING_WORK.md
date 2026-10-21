@@ -50,3 +50,6 @@ Written 21 October 2026 after the maps-style journey rebuild. Items are grouped 
 - Offline resilience: connectivity banner, rejoin-the-route pointer, route-corridor map download (`RouteTilePrefetcher`), Valhalla retry, skipping the live-route refresh while offline.
 - Touch cues before turns (`TurnHaptics`), screen stays on while guiding, trip summary and "Save parking spot" on arrival.
 - Verify on a real drive: offline map coverage along a route, haptic patterns, AR line placement, battery use of AR at 30 fps.
+
+## Live traffic (not built)
+- A TomTom-based traffic layer was tried and removed: no open-source live per-road feed exists. Realistic options later are crowd-sourced speeds from NavGate users (needs a backend), or a paid provider such as HERE or TomTom. Counting nearby phones over Wi-Fi/Bluetooth is not viable (see project notes).
