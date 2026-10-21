@@ -53,3 +53,8 @@ Written 21 October 2026 after the maps-style journey rebuild. Items are grouped 
 
 ## Live traffic (not built)
 - A TomTom-based traffic layer was tried and removed: no open-source live per-road feed exists. Realistic options later are crowd-sourced speeds from NavGate users (needs a backend), or a paid provider such as HERE or TomTom. Counting nearby phones over Wi-Fi/Bluetooth is not viable (see project notes).
+
+## Navigation reliability round (not yet run on a device)
+- Added: `RouteTracker` (route-locked position), session coasting for poor/odd fixes, relocation after long gaps, wrong-way detection, dead reckoning along the route during GPS loss, backup routes (Valhalla alternates) with instant switch, spoken heads-ups, raw GPS as the guidance input, GPS-only while navigating, 25 Hz batched sensors, 2 Hz idle ticker, foreground service, location-off notice.
+- Replayed in `DriveSimulationTest` and `SessionScenarioTest`; verify on a real drive: tunnel behaviour, backup switching at a junction, notification text, battery draw over a 30 minute trip.
+- Still open: a second routing provider for failover, crowd-sourced traffic, Play Store notification-permission wording, accessibility pass.

@@ -75,6 +75,19 @@ class ValhallaRoutingProvider(
         Math.round(r.origin.latitude*1000),Math.round(r.origin.longitude*1000),r.destinationPoint?.latitude,r.destinationPoint?.longitude,r.profile,r.destinationPlaceId,r.regionId).joinToString("|")
         return java.security.MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString(""){"%02x".format(it)}
     }
+    /** Backup routes: the best route from where you are now plus up to two alternates, validated like any other route. */
+    override suspend fun alternatives(request:PlanRequest):List<CampusRoute> {
+        if(request.profile !in setOf("walking","driving") || !request.origin.valid || request.destinationPoint?.valid!=true)return emptyList()
+        return try {
+            delay(reserveSlot())
+            val http=Request.Builder().url(endpoint.newBuilder().addQueryParameter("json",payload(request,alternates=2)).build())
+                .header("User-Agent","NavGate/1.0 (https://github.com/InsaneCoder789/NavGate)")
+                .header("X-Client-Id","github.com/InsaneCoder789/NavGate").header("Accept","application/json").build()
+            parseWithAlternates(fetch(http),request,endpoint.host,epochMillis())
+        }catch(cancelled:CancellationException){throw cancelled}
+        catch(_:Exception){emptyList()}
+    }
+
     /** One quiet retry for a busy server (5xx) or a slow reply. No retry when there is no network at all: that fails fast instead. */
     private suspend fun fetch(request:Request):String=try{ fetchOnce(request) }catch(e:IOException){
         val transient=e is java.net.SocketTimeoutException || e.message?.startsWith("Routing provider HTTP 5")==true
@@ -106,9 +119,10 @@ class ValhallaRoutingProvider(
 
     companion object {
         private const val MAX_BYTES=4*1024*1024
-        internal fun payload(request:PlanRequest):String=buildJsonObject {
+        internal fun payload(request:PlanRequest,alternates:Int=0):String=buildJsonObject {
             val costing=if(request.profile=="driving")"auto"else"pedestrian"
             put("costing",costing);put("units","kilometers");put("language","en-US")
+            if(alternates>0)put("alternates",alternates)
             putJsonObject("costing_options"){putJsonObject(costing){put("use_ferry",0)}}
             putJsonArray("locations") { for(point in listOf(request.origin,requireNotNull(request.destinationPoint))) add(buildJsonObject {
                 put("lat",point.latitude);put("lon",point.longitude);put("search_cutoff",100);put("radius",25)
@@ -116,6 +130,13 @@ class ValhallaRoutingProvider(
                 if(request.profile=="driving")putJsonObject("search_filter"){put("exclude_ferry",true)}
             }) }
         }.toString()
+
+        /** The main trip plus any `alternates`, each validated by [parse]; anything that fails validation is dropped. */
+        internal fun parseWithAlternates(payload:String,request:PlanRequest,provider:String,now:Long):List<CampusRoute> = try {
+            val root=Json.parseToJsonElement(payload).jsonObject
+            val trips=listOf(root.toString())+(root["alternates"]?.jsonArray?.map{it.jsonObject.toString()}.orEmpty())
+            trips.mapNotNull{(parse(it,request,provider,now) as? RouteResult.Ready)?.route}
+        }catch(cancelled:CancellationException){throw cancelled}catch(_:Exception){emptyList()}
 
         internal fun parse(payload:String,request:PlanRequest,provider:String,now:Long):RouteResult {
             try {

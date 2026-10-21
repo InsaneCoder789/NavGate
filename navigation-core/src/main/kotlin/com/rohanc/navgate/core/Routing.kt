@@ -236,6 +236,9 @@ private fun buildManeuvers(path: List<GeoPoint>): List<Maneuver> {
 
 interface RoutingProvider {
     suspend fun plan(request: PlanRequest, pinnedVersion: String? = null): RouteResult
+
+    /** Other good ways to the same destination (and a fresh best route), used as ready-made backups if the driver leaves the planned road. */
+    suspend fun alternatives(request: PlanRequest): List<CampusRoute> = emptyList()
 }
 
 class RoutePlanner(private val regions: RegionStore) : RoutingProvider {

@@ -20,38 +20,56 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rohanc.navgate.core.GeoPoint
 import com.rohanc.navgate.core.MotionEstimate
-import com.rohanc.navgate.core.projectPath
+import com.rohanc.navgate.core.RouteGeometry
+import kotlin.math.abs
+import kotlin.math.max
 import kotlinx.coroutines.flow.StateFlow
 import org.maplibre.compose.camera.CameraState
 import io.github.dellisd.spatialk.geojson.Position
 
-/** Where the vehicle is drawn and which way it faces, after fusing sensors and snapping to the road. */
+/** Where the vehicle is drawn and which way it faces. */
 data class VehiclePose(val point: GeoPoint, val headingDegrees: Double?, val onRoute: Boolean, val accuracyMeters: Double)
 
-/** Snaps a fused position to the route when it is plausibly on it; otherwise keeps the free position. */
-fun poseOnRoute(estimate: MotionEstimate, route: List<GeoPoint>, alongMeters: Double): VehiclePose {
-    if (route.size >= 2) {
-        val window = (estimate.speedMps * 3 + 80)
-        val hit = projectPath(estimate.point, route, maxOf(0.0, alongMeters - 40.0), alongMeters + window)
-        val tolerance = maxOf(30.0, estimate.accuracyMeters * 2)
-        if (hit != null && hit.distanceMeters <= tolerance) {
-            val bearing = route.getOrNull(hit.segment)?.let { a -> route.getOrNull(hit.segment + 1)?.let { b -> a.bearingTo(b) } }
-            return VehiclePose(hit.point, bearing ?: estimate.headingDegrees, true, estimate.accuracyMeters)
-        }
-    }
-    return VehiclePose(estimate.point, estimate.headingDegrees, false, estimate.accuracyMeters)
-}
+/**
+ * What the navigation session knows about progress along the route at its last fix. The marker uses it to glide the car
+ * forward at the tracked speed between fixes, so it never jumps sideways or snaps on and off the road.
+ */
+data class TrackInput(val alongShapeMeters: Double, val speedMps: Double, val fixElapsedMillis: Long, val locked: Boolean)
 
 /**
- * A top-down car (or arrow when walking) drawn over the map at the fused, road-snapped position. It follows the camera at
- * the sensor rate instead of the 1 Hz GPS rate, which is what keeps guidance feeling smooth.
+ * Smooths the displayed distance along the route. It moves toward the extrapolated target a bit each update, never goes backwards
+ * by more than a hair, and only teleports for a genuinely large change (a re-lock after a tunnel).
+ */
+class AlongSmoother {
+    private var shown = Double.NaN
+    fun next(target: Double): Double {
+        if (shown.isNaN() || abs(target - shown) > 80.0) { shown = target; return shown }
+        val delta = target - shown
+        shown += if (delta >= 0) delta * 0.5 else max(delta * 0.5, -0.3)
+        return shown
+    }
+    fun reset() { shown = Double.NaN }
+}
+
+/** Pose for a vehicle locked to the route: a point on the road and the road's own heading. */
+fun poseOnRoute(route: RouteGeometry, shownAlong: Double, accuracyMeters: Double) =
+    VehiclePose(route.pointAt(shownAlong), route.bearingAt(shownAlong), true, accuracyMeters)
+
+/**
+ * A top-down car (or arrow when walking) drawn over the map. While the vehicle is on the planned route it glides along the route
+ * itself; if it leaves the road it follows the sensor-fused free position instead. The previous per-frame snapping of the
+ * fused position onto the road is gone: that was the source of the jumping.
  */
 @Composable
-fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route: List<GeoPoint>, alongMeters: Double, driving: Boolean, following: Boolean, bodyColor: Color) {
+fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route: RouteGeometry?, track: TrackInput?, driving: Boolean, following: Boolean, bodyColor: Color) {
     val estimate by motion.collectAsStateWithLifecycle()
     val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
     val e = estimate ?: return
-    val pose = remember(e, route, alongMeters) { poseOnRoute(e, route, alongMeters) }
+    val smoother = remember(route) { AlongSmoother() }
+    val pose = if (route != null && track != null && track.locked) {
+        val sinceFix = ((android.os.SystemClock.elapsedRealtime() - track.fixElapsedMillis) / 1000.0).coerceIn(0.0, 8.0)
+        poseOnRoute(route, smoother.next((track.alongShapeMeters + track.speedMps * sinceFix).coerceIn(0.0, route.length)), e.accuracyMeters)
+    } else { smoother.reset(); VehiclePose(e.point, e.headingDegrees, false, e.accuracyMeters) }
     val heading = remember { Animatable(0f) }
     LaunchedEffect(pose.headingDegrees) {
         val target = pose.headingDegrees?.toFloat() ?: return@LaunchedEffect

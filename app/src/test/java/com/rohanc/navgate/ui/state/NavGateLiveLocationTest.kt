@@ -20,7 +20,7 @@ class NavGateLiveLocationTest {
         val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
         try {
             start(h,vm);h.time+=10_000;val point=GeoPoint(20.0,85.0002)
-            vm.onLocationFix(LocationFix(point,h.time,4.0));advanceUntilIdle()
+            vm.onRawFix(LocationFix(point,h.time,4.0));advanceUntilIdle()
             assertEquals(point,vm.backendState.value.session.location)
             assertTrue(vm.backendState.value.session.alongMeters>15)
         }finally{h.backend.close()}
@@ -28,9 +28,11 @@ class NavGateLiveLocationTest {
     @Test fun `a teleport does not trigger fake reroute or arrival`()=runTest {
         val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
         try {
-            start(h,vm);h.time+=100;vm.onLocationFix(LocationFix(h.b,h.time,4.0));advanceUntilIdle()
-            assertEquals(SessionStatus.SignalLimited,vm.backendState.value.session.status)
+            start(h,vm);h.time+=100;vm.onRawFix(LocationFix(h.b,h.time,4.0));advanceUntilIdle()
+            // The impossible jump is ignored quietly: no arrival, no reroute, progress unchanged.
+            assertNotEquals(SessionStatus.Arrived,vm.backendState.value.session.status)
             assertFalse(vm.uiState.value.snapshot.isArrived)
+            assertFalse(vm.backendState.value.session.offRoute)
         }finally{h.backend.close()}
     }
     @Test fun `stale location suspends progress until signal recovers`()=runTest {

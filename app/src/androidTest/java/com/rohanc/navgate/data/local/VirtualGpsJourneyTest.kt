@@ -97,6 +97,12 @@ class VirtualGpsJourneyTest {
             emit("DROPOUT")
             delay(9_500)
             backend.tick()
+            // A short outage no longer interrupts guidance: the trip keeps moving along the route and says so.
+            val following=withTimeout(5_000){backend.state.first{it.session.signalReason?.contains("No GPS")==true}}
+            assertEquals(SessionStatus.Navigating,following.session.status)
+            // Only a long outage is reported as lost signal.
+            delay(17_000)
+            backend.tick()
             val limited=withTimeout(5_000){backend.state.first{it.session.status==SessionStatus.SignalLimited}}
             assertTrue(limited.session.remainingMeters>50)
             assertNotEquals(SessionStatus.Arrived,limited.session.status)

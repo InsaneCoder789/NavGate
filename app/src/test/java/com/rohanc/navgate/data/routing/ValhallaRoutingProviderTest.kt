@@ -40,6 +40,19 @@ class ValhallaRoutingProviderTest {
         }
         assertThrows(IllegalArgumentException::class.java){ValhallaRoutingProvider.decodePolyline6("~")}
     }
+    @Test fun `alternates are parsed and invalid ones dropped without losing the main route`() {
+        val main=Json.parseToJsonElement(fixture("driving")).jsonObject
+        val broken=fixture("driving").replace("\"type\": 4","\"type\": 99")
+        val payload=buildJsonObject {
+            main.forEach{(k,v)->put(k,v)}
+            putJsonArray("alternates"){add(Json.parseToJsonElement(fixture("driving")));add(Json.parseToJsonElement(broken))}
+        }.toString()
+        val routes=ValhallaRoutingProvider.parseWithAlternates(payload,request(),"test",1000)
+        assertEquals(2,routes.size)                       // main + one valid alternate; the broken one is dropped
+        assertTrue(routes.map{it.id}.toSet().size==2)
+        assertTrue(ValhallaRoutingProvider.payload(request(),alternates=2).contains("\"alternates\":2"))
+        assertTrue(ValhallaRoutingProvider.parseWithAlternates("not json",request(),"test",1000).isEmpty())
+    }
     @Test fun `persistent cache distinguishes modes expires and is reused across provider instances`()=runBlocking {
         val server=MockWebServer();server.start()
         val entries=mutableMapOf<String,CampusRoute>()

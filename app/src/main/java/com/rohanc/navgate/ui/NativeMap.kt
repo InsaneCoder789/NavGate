@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import android.os.SystemClock
 import com.rohanc.navgate.ui.map.VehicleMarker
+import com.rohanc.navgate.ui.map.TrackInput
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
@@ -98,7 +99,7 @@ import com.rohanc.navgate.ui.journey.JourneyScreens
 import com.rohanc.navgate.ui.journey.JourneyUi
 
 /** The MapLibre map with route, markers, vehicle and map controls. */
-@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit={},motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,onPlace:(PlaceSearchResult)->Unit){
+@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit={},motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,routeGeometry:com.rohanc.navgate.core.RouteGeometry?=null,trackInput:TrackInput?=null,onPlace:(PlaceSearchResult)->Unit){
     val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
@@ -192,7 +193,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             SymbolLayer(id="manual-itinerary-labels",source=manualDots,textField=format(span(feature.get("label").asString())),
                 textFont=const(listOf("Noto Sans Regular")),textSize=const(14.sp),textColor=const(NavTertiary),
                 textHaloColor=const(if(dark)Color.Black else Color.White),textHaloWidth=const(1.dp),textRadialOffset=const(16.sp),textAnchor=const(org.maplibre.compose.expressions.value.SymbolAnchor.Bottom))
-            val tripOrigin=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(ui.selectedOrigin?.coordinate,null)))
+            val tripOrigin=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(active)null else ui.selectedOrigin?.coordinate,null)))
             CircleLayer(id="trip-origin",source=tripOrigin,radius=const(8.dp),color=const(Color(0xFF1A73E8)),strokeColor=const(Color.White),strokeWidth=const(3.dp))
             // Destination and the place being looked at share the red marker used by maps apps.
             val pinned=ui.selectedDestination?.coordinate ?: ui.focusedPlace?.coordinate
@@ -210,8 +211,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             }
         }}
         if(active&&motion!=null){
-            val routeGeo=remember(ui.snapshot.route){ui.snapshot.route?.pathCoordinates.orEmpty().map{GeoPoint(it.latitude,it.longitude)}}
-            VehicleMarker(camera,motion,routeGeo,alongMeters,ui.travelProfile==TravelProfile.Driving,following,if(dark)Color(0xFF8AB4F8) else Color(0xFF1A73E8))
+            VehicleMarker(camera,motion,routeGeometry,trackInput,ui.travelProfile==TravelProfile.Driving,following,if(dark)Color(0xFF8AB4F8) else Color(0xFF1A73E8))
         }
         if(controlsBottomDp==null || controlsBottomDp<viewport.screenHeightDp*0.6f)Column(Modifier.align(if(controlsBottomDp!=null)Alignment.BottomEnd else Alignment.TopEnd).let{if(controlsBottomDp!=null)it.navigationBarsPadding().padding(bottom=controlsBottomDp.dp+if(screenIsExplore)72.dp else 0.dp,end=16.dp) else it.statusBarsPadding().padding(top=topInsetDp.dp,end=16.dp)},verticalArrangement=Arrangement.spacedBy(8.dp)){
             MapControlButton(onClick={val fix=ui.displayLocation ?: ui.snapshot.userLocation;if(!permission)onRequestLocation()else if(fix==null)onFeedback("Looking for your location… You can also choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=maxOf(camera.position.zoom,16.0),bearing=0.0))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}

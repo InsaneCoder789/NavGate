@@ -76,7 +76,8 @@ fun BindMotionSensors(enabled: Boolean, fusion: MotionFusion, lastKnownPoint: ()
         fun refresh() {
             val started = lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
             if (enabled && started && !registered) {
-                registered = listOfNotNull(rotation, linear, gyro).fold(false) { any, s -> manager.registerListener(listener, s, SensorManager.SENSOR_DELAY_GAME) || any }
+                // 25 Hz is plenty for road navigation (GAME is ~50 Hz); batching lets the CPU sleep between deliveries.
+                registered = listOfNotNull(rotation, linear, gyro).fold(false) { any, s -> manager.registerListener(listener, s, 40_000, 200_000) || any }
             } else if ((!enabled || !started) && registered) { manager.unregisterListener(listener); registered = false }
         }
         val observer = LifecycleEventObserver { _, _ -> refresh() }

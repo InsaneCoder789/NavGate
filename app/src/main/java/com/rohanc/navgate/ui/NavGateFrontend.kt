@@ -24,6 +24,7 @@ import com.rohanc.navgate.data.local.NavGateServices
 import com.rohanc.navgate.data.local.DestinationDetails
 import com.rohanc.navgate.data.local.destinationDetails
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -191,20 +192,23 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     val dark=when(prefs.appearance){"light"->false;"system"->isSystemInDarkTheme();else->true}
     val fusion=remember{MotionFusion()}
     if(trackLocation){
-        BindMotionSensors(enabled=permission,fusion=fusion){ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)}}
-        BindLocationTracking(enabled=permission,onLocationSample={fix->
+        BindMotionSensors(enabled=permission&&(active||screen=="Camera"),fusion=fusion){ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)}}
+        BindLocationTracking(enabled=permission,navigating=active,onLocationSample={fix->
             fusion.onGps(GpsSample(fix.point,fix.accuracyMeters,fix.speedMps,fix.heading,fix.elapsedMillis));vm.onRawFix(fix)
         },onSignalTick=vm::checkSignal)
         // Ten times a second the fused estimate drives the vehicle marker; twice a second it feeds guidance.
+        val motionBusy by rememberUpdatedState(active||screen=="Camera")
         LaunchedEffect(fusion,permission){
             if(!permission)return@LaunchedEffect
-            var tick=0
+            var lastFed=0L
             while(true){
-                delay(100)
+                // Smooth 10 Hz only while the car marker or AR needs it; a relaxed 2 Hz otherwise.
+                delay(if(motionBusy)100L else 500L)
                 val now=SystemClock.elapsedRealtime()
                 val estimate=fusion.estimate(now)
                 vm.onMotion(estimate)
-                if(estimate!=null && ++tick%5==0 && now-estimate.elapsedMillis<1_000 && !(estimate.usingDeadReckoning && estimate.accuracyMeters>45)){
+                if(estimate!=null && now-lastFed>=500 && now-estimate.elapsedMillis<1_000 && !(estimate.usingDeadReckoning && estimate.accuracyMeters>45)){
+                    lastFed=now
                     vm.onLocationFix(LocationFix(estimate.point,now,estimate.accuracyMeters,estimate.headingDegrees,estimate.speedMps))
                 }
             }
@@ -304,6 +308,25 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         call={phone->runCatching{context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+phone.filter{it.isDigit()||it=='+'})))}},
         openWebsite={site->runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(if(site.startsWith("http://")||site.startsWith("https://"))site else "https://$site")))}})
     val importing=importJob?.isActive==true
+    // Guidance keeps running with the screen off or another app in front: a foreground service holds the process, and its
+    // notification shows the next turn. It starts with the trip and ends the moment the trip does.
+    val notificationLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){}
+    var askedNotifications by rememberSaveable{mutableStateOf(false)}
+    DisposableEffect(active){
+        if(active){
+            if(Build.VERSION.SDK_INT>=33&&!askedNotifications&&ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){
+                askedNotifications=true;notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            com.rohanc.navgate.nav.NavigationService.show(context,"NavGate","Starting guidance")
+        }
+        onDispose{if(active)com.rohanc.navgate.nav.NavigationService.stop(context)}
+    }
+    val nextInstruction=backend.session.instruction
+    val nextDistanceBucket=(backend.session.distanceToManeuver/25).toInt()
+    LaunchedEffect(active,nextInstruction,nextDistanceBucket){
+        if(active)com.rohanc.navgate.nav.NavigationService.show(context,"In ${backend.session.distanceToManeuver.toInt().let{if(it>=1000)"%.1f km".format(it/1000.0)else"$it m"}}",nextInstruction)
+    }
+    val locationServicesOn=com.rohanc.navgate.ui.location.rememberLocationServicesOn()
     // --- Behind the scenes: connectivity, trip memory, touch cues, screen wake ---
     val online=com.rohanc.navgate.ui.map.rememberMapConnection()
     SideEffect{vm.networkAvailable=online}
@@ -339,10 +362,14 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         listOfNotNull("%.1f km".format(km),"${minutes.toInt()} min","avg %d km/h".format((km/(minutes/60.0)).toInt()),
             topSpeedMps.takeIf{drivingTrip&&it>1}?.let{"top %d km/h".format((it*3.6).toInt())}).joinToString(" · ")
     }else null
+    // The planned route as a measured line, and how far along it the vehicle is: what the car marker glides on.
+    val navRoute=backend.session.route
+    val navGeometry=remember(navRoute?.id){navRoute?.let{com.rohanc.navgate.core.RouteGeometry(it.geometry)}}
+    val navTrack=if(active&&navRoute!=null)com.rohanc.navgate.ui.map.TrackInput(navRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,backend.session.lockedToRoute&&backend.session.snappedLocation!=null)else null
     val data=JourneyData(screen,searchFor,ui,backend.session,ui.snapshot.route?.steps.orEmpty(),backend.session.route?.takeIf{it.external}?.warnings.orEmpty(),permission,prefs.voiceEnabled,ui.areaName,
         if(searchFor=="saved")vm.searchSaved(ui.searchQuery)else ui.places,details?.availability,details?.entranceLabels.orEmpty(),active,if(showMotion)vm.motionState else null,
         SettingsModel(prefs,ui.cityMode,active,voiceAvailability,permission),if(screen=="Camera")"AR" else if(prefs.buildings3d)"3D" else "2D",services.regionDocuments.enabled,importing,importState==ImportState.Verifying,cameraPermission,alignment,
-        permission&&ui.currentLocationUsable,online=online,tripSummary=tripSummary)
+        permission&&ui.currentLocationUsable,online=online,tripSummary=tripSummary,locationOn=locationServicesOn)
     var showLayers by remember{mutableStateOf(false)}
     var insetTop by remember{mutableFloatStateOf(0f)}
     var insetBottom by remember{mutableFloatStateOf(0f)}
@@ -352,7 +379,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             Box(Modifier.fillMaxSize()){
                 Box(Modifier.fillMaxSize().hazeSource(hazeState)){
                     val mapUi=if(screen in listOf("Search","Results")&&searchFor=="saved")ui.copy(places=vm.searchSaved(ui.searchQuery))else ui
-                    if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),onPin=when(screen){
+                    if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),routeGeometry=navGeometry,trackInput=navTrack,onPin=when(screen){
                         "ManualPin"->({point->manualPointJson=Json.encodeToString(point);inspectManualPoint=Coordinate(point.latitude,point.longitude);screen="My routes"})
                         "MapPick"->({point->choose(PlaceSearchResult("pin:${java.util.UUID.randomUUID()}","Dropped pin","Selected on map",point.latitude,point.longitude,com.rohanc.navgate.model.PlaceType.Landmark))})
                         else->null

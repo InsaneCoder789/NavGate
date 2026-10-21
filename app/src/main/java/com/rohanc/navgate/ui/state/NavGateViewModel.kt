@@ -269,15 +269,32 @@ class NavGateViewModel(
     fun onMotion(estimate: MotionEstimate?) { motionMutable.value = estimate }
 
     /** A raw receiver fix: used to show where the user is and to rank nearby search results; guidance only consumes fused fixes. */
+    @Volatile private var lastRawFixAt = Long.MIN_VALUE / 2
+    @Volatile private var lastFusedFixAt = Long.MIN_VALUE / 2
+
+    /**
+     * A raw GPS fix drives guidance directly: the route tracker does its own filtering, and feeding it an already-filtered estimate
+     * filtered it twice, which made the position lag and overshoot at stops. The map's blue dot keeps following the fused estimate.
+     */
     fun onRawFix(fix: LocationFix) {
+        val now = clock.elapsedMillis()
+        lastRawFixAt = now
         onSearchLocation(fix)
-        if (fix.point.valid && fix.accuracyMeters.isFinite()) mutable.update { it.copy(displayLocation=Coordinate(fix.point.latitude,fix.point.longitude),displayAccuracy=fix.accuracyMeters) }
+        if (fix.point.valid && fix.accuracyMeters.isFinite() && now - lastFusedFixAt > 2_500) mutable.update { it.copy(displayLocation=Coordinate(fix.point.latitude,fix.point.longitude),displayAccuracy=fix.accuracyMeters) }
+        if (latestLocationSample?.let { fix.elapsedMillis > it.elapsedMillis } != false) latestLocationSample = fix
+        viewModelScope.launch { backend.location(fix) }
     }
 
+    /** The sensor-fused estimate. It smooths what the map shows, and stands in for guidance only while raw GPS is silent (tunnels, dead reckoning). */
     fun onLocationFix(fix: LocationFix) {
+        val now = clock.elapsedMillis()
+        lastFusedFixAt = now
         onSearchLocation(fix)
         if (fix.point.valid && fix.accuracyMeters.isFinite()) mutable.update { it.copy(displayLocation=Coordinate(fix.point.latitude,fix.point.longitude),displayAccuracy=fix.accuracyMeters) }
         heading=fix.heading?.takeIf { it.isFinite() }
+        if (now - lastRawFixAt <= 2_500) return
+        // During a trip the route tracker dead-reckons along the road itself (including its turns); a straight-line estimate would leave the road.
+        if (backend.state.value.session.status in NavigationSession.ACTIVE) return
         if (latestLocationSample?.let { fix.elapsedMillis > it.elapsedMillis } != false) latestLocationSample=fix
         viewModelScope.launch { backend.location(fix) }
     }

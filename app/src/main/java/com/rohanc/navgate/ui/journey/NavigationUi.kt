@@ -28,7 +28,7 @@ private val GuidanceTeal = Color(0xFF265E66)
 
 /** Turn-by-turn guidance: next manoeuvre on top, trip summary and exit at the bottom. */
 @Composable
-fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions, online: Boolean = true) {
+fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions, online: Boolean = true, locationIssue: String? = null) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
@@ -58,6 +58,7 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
         if (hint && driving) GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false) {
             Text("Mount your phone safely. Spoken directions are on.", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium)
         }
+        if (locationIssue != null) LocationNotice(locationIssue, a)
         val offlineOffRoute = !online && session.offRoute
         if (!online) OfflineNotice(offlineOffRoute, if (offlineOffRoute) rejoinHint(session) else null)
         val status = session.status
@@ -85,6 +86,18 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
                 Text("${session.remainingMeters.asMetersLabel()} · $arrival", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OutlinedIconButton(onClick = a.showSteps, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.FormatListBulleted, "Steps") }
+        }
+    }
+}
+
+/** Guidance cannot continue without a position, so say exactly why and how to fix it. */
+@Composable
+private fun LocationNotice(issue: String, a: JourneyActions) {
+    GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, tint = Color(0xFFFFB74D)) {
+        Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(Icons.Rounded.LocationOff, null, Modifier.size(20.dp))
+            Text("$issue Guidance pauses until it is back on.", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = a.openAppSettings) { Text("Fix", maxLines = 1) }
         }
     }
 }

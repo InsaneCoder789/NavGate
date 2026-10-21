@@ -79,6 +79,9 @@ class NavigationBackend(
     private var pendingPlan: PlanRequest? = null
     private var lastCheckpointAt: Long? = null
     private var lastPersistedStatus: SessionStatus? = null
+    private var backupJob: Job? = null
+    private var backupRouteId: String? = null
+    private var lastBackupAt = 0L
 
     init {
         scope.launch {
@@ -205,6 +208,7 @@ class NavigationBackend(
             Event.Tick -> consume(session.tick(clock.elapsedMillis()))
             is Event.PresentationChange -> consume(session.presentation(event.value))
             is Event.RerouteResult -> consume(session.replace(event.request,event.result,clock.elapsedMillis()))
+            is Event.Backups -> if (session.state.value.route?.id == event.routeId) consume(session.setBackups(event.routes))
         }
     }
 
@@ -213,8 +217,29 @@ class NavigationBackend(
         mutable.value = mutable.value.copy(planning = false)
     }
 
+    /**
+     * As soon as a trip is running and a position is known, fetch ready-made backup routes in the background (again every ~90 s,
+     * and whenever the route changes). If the driver then leaves the road onto one of them, guidance switches over instantly.
+     */
+    private fun refreshBackupsIfDue(snapshot: SessionSnapshot) {
+        val route = snapshot.route ?: return
+        if (snapshot.status != SessionStatus.Navigating || route.destinationPoint == null) return
+        val origin = snapshot.snappedLocation ?: snapshot.location ?: return
+        val now = clock.elapsedMillis()
+        if ((backupRouteId == route.id && now - lastBackupAt < 90_000) || backupJob?.isActive == true) return
+        backupRouteId = route.id; lastBackupAt = now
+        val request = PlanRequest(0, route.regionId, origin, route.destinationPlaceId, route.entranceId, route.profile, route.destinationPoint, route.destinationTitle, route.source)
+        backupJob = scope.launch {
+            val routes = try { withContext(compute) { routingProvider.alternatives(request) } }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { emptyList() }
+            if (routes.isNotEmpty()) events.send(Event.Backups(route.id, routes))
+        }
+    }
+
     private suspend fun consume(update: SessionUpdate) {
         mutable.value = mutable.value.copy(session = update.snapshot)
+        refreshBackupsIfDue(update.snapshot)
         update.speak?.let { speech.tryEmit(it) }
         val now = clock.elapsedMillis()
         val status = update.snapshot.status
@@ -255,5 +280,6 @@ class NavigationBackend(
         data object Tick : Event
         data class PresentationChange(val value: Presentation) : Event
         data class RerouteResult(val request: RerouteRequest, val result: RouteResult) : Event
+        data class Backups(val routeId: String, val routes: List<CampusRoute>) : Event
     }
 }

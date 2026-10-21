@@ -35,7 +35,8 @@ class NavigationSessionTest {
     @Test fun `stale inaccurate duplicate and teleport fixes cannot cause arrival`() = runTest {
         val session=NavigationSession(); val route=route()
         session.preview(route); session.location(fix(route.geometry.first(),100),100); session.start(100)
-        assertEquals(SessionStatus.SignalLimited,session.location(fix(route.geometry.last(),200),200).snapshot.status)
+        // A teleport right after a good fix is ignored quietly: guidance carries on and never arrives early.
+        assertNotEquals(SessionStatus.Arrived,session.location(fix(route.geometry.last(),200),200).snapshot.status)
         assertEquals(SessionStatus.SignalLimited,session.tick(10_000).snapshot.status)
         session.location(fix(route.geometry.last(),11_000,200.0),11_000)
         assertNotEquals(SessionStatus.Arrived,session.state.value.status)

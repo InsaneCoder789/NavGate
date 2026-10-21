@@ -34,7 +34,7 @@ class MotionFusion(private val config: Config = Config()) {
         val accelNoise: Double = 0.7, val maxAccel: Double = 6.0, val accelSmoothing: Double = 0.25,
         val minGpsSigma: Double = 2.5, val velocitySigma: Double = 1.0, val courseMinSpeed: Double = 3.0,
         val stationarySpeed: Double = 0.5, val stationaryHoldMillis: Long = 1_200, val maxPredictMillis: Long = 1_500,
-        val resetDistanceMeters: Double = 20_000.0,
+        val resetDistanceMeters: Double = 20_000.0, val maxPlausibleSpeed: Double = 70.0,
     )
 
     private class Axis { var p = 0.0; var v = 0.0; var p00 = 1e6; var p01 = 0.0; var p11 = 25.0
@@ -77,12 +77,14 @@ class MotionFusion(private val config: Config = Config()) {
     private var startedAt: Long? = null
     private var courseAgreements = 0
     private var lastGpsAt = 0L
+    /** Online estimate of how much worse than reported the GPS currently is (1 = as reported). Learned from how far fixes land from the prediction. */
+    private var trust = 1.0
 
     @Synchronized fun reset() {
         hasOrigin = false; east.p = 0.0; east.v = 0.0; north.p = 0.0; north.v = 0.0; east.p00 = 1e6; north.p00 = 1e6
         east.p01 = 0.0; north.p01 = 0.0; east.p11 = 25.0; north.p11 = 25.0
         heading = null; lastGps = null; stationary = false; stationarySince = null; startedAt = null; courseAgreements = 0
-        biasE = 0.0; biasN = 0.0; aE = 0.0; aN = 0.0
+        biasE = 0.0; biasN = 0.0; aE = 0.0; aN = 0.0; trust = 1.0
     }
 
     private fun toLocal(point: GeoPoint) = Pair((point.longitude - originLon) * METERS_PER_DEGREE * cos(Math.toRadians(originLat)), (point.latitude - originLat) * METERS_PER_DEGREE)
@@ -100,9 +102,17 @@ class MotionFusion(private val config: Config = Config()) {
         lastUpdate = max(lastUpdate, now)
         val (x, y) = toLocal(sample.point)
         val sigma = max(sample.accuracyMeters, config.minGpsSigma)
+        // Implausible speed since the last fix (a position teleport) is a glitch, not movement.
+        val impliedSpeed = lastGps?.let { prev -> val dtS = (now - lastGpsAt).coerceAtLeast(200L) / 1000.0; prev.point.distanceTo(sample.point) / dtS } ?: 0.0
+        val teleport = impliedSpeed > config.maxPlausibleSpeed && east.p00 < 400
         // An outlier (far from the prediction, poor accuracy) is down-weighted instead of dragging the track.
         val gap = hypot(x - east.p, y - north.p)
-        val inflate = if (east.p00 < 400 && gap > 4 * sqrt(east.p00 + sigma * sigma)) 4.0 else 1.0
+        // Learned trust: if fixes keep landing farther from the prediction than their stated accuracy allows, believe them less.
+        if (east.p00 < 400 && !teleport) {
+            val nis = (gap * gap) / (2 * (east.p00 + sigma * sigma))
+            trust = (0.85 * trust + 0.15 * max(nis, 0.3)).coerceIn(0.6, 5.0)
+        }
+        val inflate = (if (teleport) 12.0 else if (east.p00 < 400 && gap > 4 * sqrt(east.p00 + sigma * sigma)) 4.0 else 1.0) * sqrt(trust) * (if (stationary) 2.0 else 1.0)
         val first = lastGps == null
         east.updatePosition(x, (sigma * inflate).pow(2)); north.updatePosition(y, (sigma * inflate).pow(2))
         gpsAccuracy = sample.accuracyMeters

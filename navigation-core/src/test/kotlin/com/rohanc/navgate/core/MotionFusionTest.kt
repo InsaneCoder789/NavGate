@@ -79,3 +79,26 @@ class MotionFusionTest {
         assertEquals(CalibrationState.CompassNeedsFigureEight, fusion.estimate(12_000)!!.calibration)
     }
 }
+
+class MotionFusionGlitchTest {
+    private val origin = GeoPoint(19.0, 72.8)
+    private fun north(meters: Double, east: Double = 0.0) = GeoPoint(origin.latitude + meters / 111_320.0, origin.longitude + east / (111_320.0 * cos(Math.toRadians(origin.latitude))))
+
+    @Test fun `a teleporting fix barely moves the fused position`() {
+        val fusion = MotionFusion()
+        for (s in 0..30) fusion.onGps(GpsSample(north(10.0 * s), 4.0, 10.0, 0.0, s * 1000L))
+        val before = fusion.estimate(30_000)!!.point
+        fusion.onGps(GpsSample(north(300.0 + 900.0, 600.0), 4.0, 10.0, 0.0, 31_000L))    // 1 km sideways-and-ahead glitch
+        val after = fusion.estimate(31_000)!!.point
+        assertTrue("moved ${before.distanceTo(after)} m", before.distanceTo(after) < 60.0)
+    }
+
+    @Test fun `waiting at a light does not creep`() {
+        val fusion = MotionFusion(); val rng = Random(5)
+        for (s in 0..10) fusion.onGps(GpsSample(north(100.0), 4.0, 0.0, null, s * 1000L))
+        val start = fusion.estimate(10_000)!!.point
+        for (s in 11..70) fusion.onGps(GpsSample(north(100.0 + rng.nextGaussian() * 4, rng.nextGaussian() * 4), 6.0, 0.1, null, s * 1000L))
+        val end = fusion.estimate(70_000)!!.point
+        assertTrue("drifted ${start.distanceTo(end)} m", start.distanceTo(end) < 4.0)
+    }
+}
