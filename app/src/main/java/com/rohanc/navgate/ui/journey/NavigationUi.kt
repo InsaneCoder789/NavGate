@@ -28,7 +28,7 @@ private val GuidanceTeal = Color(0xFF265E66)
 
 /** Turn-by-turn guidance: next manoeuvre on top, trip summary and exit at the bottom. */
 @Composable
-fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions, online: Boolean = true, traffic: com.rohanc.navgate.data.traffic.TrafficReport? = null) {
+fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions, online: Boolean = true) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
@@ -83,7 +83,6 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
                 Text(session.remainingSeconds.asEtaLabel(), style = MaterialTheme.typography.headlineMedium)
                 val arrival = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(System.currentTimeMillis() + (session.remainingSeconds * 1000).toLong()))
                 Text("${session.remainingMeters.asMetersLabel()} · $arrival", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (driving && traffic != null) TrafficLine(traffic)
             }
             OutlinedIconButton(onClick = a.showSteps, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.FormatListBulleted, "Steps") }
         }

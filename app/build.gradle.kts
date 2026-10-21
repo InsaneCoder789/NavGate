@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -25,10 +23,6 @@ android {
         }
 
         buildConfigField("String", "NAVGATE_BACKEND_URL", "\"http://10.0.2.2:8080\"")
-        // Live traffic needs a TomTom key (free tier). Put `navgate.tomtomKey=...` in local.properties or set NAVGATE_TOMTOM_KEY. Empty = traffic is off.
-        val localProperties = Properties().apply { rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) } }
-        val tomtomKey = localProperties.getProperty("navgate.tomtomKey") ?: System.getenv("NAVGATE_TOMTOM_KEY") ?: ""
-        buildConfigField("String", "TOMTOM_KEY", "\"${tomtomKey.replace("\"", "")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

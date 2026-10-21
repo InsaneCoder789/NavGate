@@ -34,7 +34,7 @@ import com.rohanc.navgate.ui.state.NavGateUiState
 
 /** Directions: route card on top, travel-mode tabs with times, the route summary and a clear Start button. */
 @Composable
-fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarnings: List<String>, permission: Boolean, onInsets: (Float, Float) -> Unit, a: JourneyActions, traffic: com.rohanc.navgate.data.traffic.TrafficReport? = null) {
+fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarnings: List<String>, permission: Boolean, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
@@ -68,7 +68,7 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
             }
             ModeTabs(ui, a)
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Summary(ui, driving, permission, routeWarnings, a, traffic.takeIf { driving })
+                Summary(ui, driving, permission, routeWarnings, a)
                 if (showSteps) StepsList(steps, origin?.title ?: "Your location")
                 if (ui.preview != null) Text("Routing by Valhalla · © OpenStreetMap contributors. Times are estimates without live traffic.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -118,16 +118,15 @@ private fun ModeTabs(ui: NavGateUiState, a: JourneyActions) {
 }
 
 @Composable
-private fun Summary(ui: NavGateUiState, driving: Boolean, permission: Boolean, warnings: List<String>, a: JourneyActions, traffic: com.rohanc.navgate.data.traffic.TrafficReport? = null) {
+private fun Summary(ui: NavGateUiState, driving: Boolean, permission: Boolean, warnings: List<String>, a: JourneyActions) {
     val preview = ui.preview
     when {
         ui.isLoadingRoute && preview == null -> Text("Finding the best ${if (driving) "driving" else "walking"} route…", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         preview != null -> {
             Text("${preview.etaLabel} (${preview.distanceLabel})", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
             val seconds = ui.snapshot.route?.durationSeconds
-            val arrive = seconds?.let { java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(System.currentTimeMillis() + ((it + (traffic?.delaySeconds ?: 0.0)) * 1000).toLong())) }
+            val arrive = seconds?.let { java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(System.currentTimeMillis() + (it * 1000).toLong())) }
             Text(listOfNotNull(arrive?.let { "Arrive $it" }, preview.firstInstruction).joinToString(" · "), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            traffic?.let { TrafficLine(it) }
             if (!permission) Banner("Turn on location to start guidance.", "Turn on", a.requestLocation)
         }
         ui.routeFailure != null -> {
@@ -173,19 +172,5 @@ fun StepsList(steps: List<RouteStep>, originLabel: String, currentIndex: Int = -
                 if (length > 0) Text(length.asMetersLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-    }
-}
-
-/** One coloured line saying what traffic does to this trip, e.g. "Moderate traffic · +6 min". */
-@Composable
-fun TrafficLine(report: com.rohanc.navgate.data.traffic.TrafficReport) {
-    val colour = when (report.level) {
-        com.rohanc.navgate.data.traffic.TrafficLevel.Clear, com.rohanc.navgate.data.traffic.TrafficLevel.Light -> androidx.compose.ui.graphics.Color(0xFF34A853)
-        com.rohanc.navgate.data.traffic.TrafficLevel.Moderate -> androidx.compose.ui.graphics.Color(0xFFFBA919)
-        com.rohanc.navgate.data.traffic.TrafficLevel.Heavy -> androidx.compose.ui.graphics.Color(0xFFEA4335)
-    }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.size(10.dp).background(colour, androidx.compose.foundation.shape.CircleShape))
-        Text(report.summary, style = MaterialTheme.typography.titleSmall, color = colour)
     }
 }

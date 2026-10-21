@@ -32,7 +32,7 @@ class JourneyData(
     val permission: Boolean, val voiceOn: Boolean, val areaName: String?, val searchResults: List<PlaceSearchResult>, val availability: DestinationAvailability?,
     val entranceLabels: Map<String, String>, val tripActive: Boolean, val motion: StateFlow<MotionEstimate?>?, val settings: SettingsModel,
     val viewMode: String, val updatesEnabled: Boolean, val importing: Boolean, val importVerifying: Boolean, val hasCameraPermission: Boolean, val alignment: AlignmentStatus, val cuesAvailable: Boolean,
-    val online: Boolean = true, val tripSummary: String? = null, val traffic: com.rohanc.navgate.data.traffic.TrafficReport? = null,
+    val online: Boolean = true, val tripSummary: String? = null,
 )
 
 /** [custom] draws the screens that own live app state (the manual route editor); everything else is drawn here. */
@@ -49,8 +49,8 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
         "Results" -> ResultsScreen(ui, userLocation, onInsets, a)
         "Search" -> SearchPage(ui.searchQuery, d.searchFor, d.searchResults, ui.recentPlaces, ui.isLoadingPlaces, ui.searchNotice.takeIf { d.searchFor != "saved" }, d.permission, userLocation, a)
         "Place" -> ui.focusedPlace?.let { place -> PlaceUi(place, ui.savedPlaces.any { it.id == place.id }, userLocation, d.availability, d.entranceLabels, d.tripActive, onInsets, a) }
-        "Directions", "Route" -> DirectionsUi(ui, d.steps, d.routeWarnings, d.permission, onInsets, a, d.traffic)
-        "Navigation" -> NavigationUi(d.session, d.steps, d.voiceOn, (d.session.route?.profile ?: ui.travelProfile.name.lowercase()) == "driving", d.motion, onInsets, a, d.online, d.traffic)
+        "Directions", "Route" -> DirectionsUi(ui, d.steps, d.routeWarnings, d.permission, onInsets, a)
+        "Navigation" -> NavigationUi(d.session, d.steps, d.voiceOn, (d.session.route?.profile ?: ui.travelProfile.name.lowercase()) == "driving", d.motion, onInsets, a, d.online)
         "Arrival" -> ArrivalUi(ui.selectedDestination?.title ?: d.session.route?.destinationTitle ?: "Destination", ui.travelProfile == TravelProfile.Driving, d.tripSummary, onInsets, a)
         "Saved" -> SavedScreen(ui, userLocation, a)
         "Recents" -> RecentsScreen(ui, userLocation, a)

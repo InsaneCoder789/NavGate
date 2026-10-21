@@ -50,8 +50,3 @@ Written 21 October 2026 after the maps-style journey rebuild. Items are grouped 
 - Offline resilience: connectivity banner, rejoin-the-route pointer, route-corridor map download (`RouteTilePrefetcher`), Valhalla retry, skipping the live-route refresh while offline.
 - Touch cues before turns (`TurnHaptics`), screen stays on while guiding, trip summary and "Save parking spot" on arrival.
 - Verify on a real drive: offline map coverage along a route, haptic patterns, AR line placement, battery use of AR at 30 fps.
-
-## Live traffic
-- Written, unit-tested and compiled, not yet run on a device or against a real TomTom key: map layer toggle (Map details -> Live traffic), route delay estimate (`TrafficEstimator`), delay line in Directions and Navigation.
-- Check TomTom's current free allowance and India coverage before shipping; HERE lists India flow explicitly and could implement `TrafficFlowSource` too.
-- Options not built: HERE or Mappls as providers, crowd-sourced speeds from NavGate users (needs a backend), per-segment coloured route line, traffic-aware rerouting.

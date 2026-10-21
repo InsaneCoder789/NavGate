@@ -14,7 +14,7 @@ import com.rohanc.navgate.data.FrontendPreferences
 
 /** "Map details": the map's look (follow the phone, always light, always dark) and 3D buildings. */
 @Composable
-fun BoxScope.LayersSheet(prefs: FrontendPreferences, onChange: (FrontendPreferences) -> Unit, onDismiss: () -> Unit, trafficAvailable: Boolean = false) {
+fun BoxScope.LayersSheet(prefs: FrontendPreferences, onChange: (FrontendPreferences) -> Unit, onDismiss: () -> Unit) {
     GmSheet(Modifier.align(Alignment.BottomCenter)) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -33,13 +33,6 @@ fun BoxScope.LayersSheet(prefs: FrontendPreferences, onChange: (FrontendPreferen
                     Text("Show building heights when the map is tilted.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(prefs.buildings3d, { onChange(prefs.copy(buildings3d = it)) })
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Live traffic", style = MaterialTheme.typography.bodyLarge)
-                    Text(if (trafficAvailable) "Colour roads by how fast traffic is moving right now." else "Needs a TomTom traffic key in the app build.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Switch(prefs.trafficLayer && trafficAvailable, { onChange(prefs.copy(trafficLayer = it)) }, enabled = trafficAvailable)
             }
         }
     }

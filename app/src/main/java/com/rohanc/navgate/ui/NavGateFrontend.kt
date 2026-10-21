@@ -304,20 +304,6 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         call={phone->runCatching{context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+phone.filter{it.isDigit()||it=='+'})))}},
         openWebsite={site->runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(if(site.startsWith("http://")||site.startsWith("https://"))site else "https://$site")))}})
     val importing=importJob?.isActive==true
-    // Live traffic: map colouring plus a delay estimate for the planned car route (needs a TomTom key; otherwise it stays off).
-    val traffic=remember{com.rohanc.navgate.data.traffic.TomTomTraffic(com.rohanc.navgate.BuildConfig.TOMTOM_KEY)}
-    val trafficEstimator=remember(traffic){com.rohanc.navgate.data.traffic.TrafficEstimator(traffic)}
-    var trafficReport by remember{mutableStateOf<com.rohanc.navgate.data.traffic.TrafficReport?>(null)}
-    val trafficRoute=backend.session.route
-    LaunchedEffect(trafficRoute?.id,traffic.available,screen){
-        trafficReport=null
-        val r=trafficRoute
-        if(!traffic.available||r==null||r.profile!="driving"||screen !in listOf("Directions","Route","Navigation"))return@LaunchedEffect
-        while(true){
-            trafficReport=trafficEstimator.estimate(r.id,r.geometry)
-            kotlinx.coroutines.delay(5*60_000L)   // refresh while the trip screen is open
-        }
-    }
     // --- Behind the scenes: connectivity, trip memory, touch cues, screen wake ---
     val online=com.rohanc.navgate.ui.map.rememberMapConnection()
     SideEffect{vm.networkAvailable=online}
@@ -356,7 +342,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     val data=JourneyData(screen,searchFor,ui,backend.session,ui.snapshot.route?.steps.orEmpty(),backend.session.route?.takeIf{it.external}?.warnings.orEmpty(),permission,prefs.voiceEnabled,ui.areaName,
         if(searchFor=="saved")vm.searchSaved(ui.searchQuery)else ui.places,details?.availability,details?.entranceLabels.orEmpty(),active,if(showMotion)vm.motionState else null,
         SettingsModel(prefs,ui.cityMode,active,voiceAvailability,permission),if(screen=="Camera")"AR" else if(prefs.buildings3d)"3D" else "2D",services.regionDocuments.enabled,importing,importState==ImportState.Verifying,cameraPermission,alignment,
-        permission&&ui.currentLocationUsable,online=online,tripSummary=tripSummary,traffic=trafficReport)
+        permission&&ui.currentLocationUsable,online=online,tripSummary=tripSummary)
     var showLayers by remember{mutableStateOf(false)}
     var insetTop by remember{mutableFloatStateOf(0f)}
     var insetBottom by remember{mutableFloatStateOf(0f)}
@@ -366,7 +352,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             Box(Modifier.fillMaxSize()){
                 Box(Modifier.fillMaxSize().hazeSource(hazeState)){
                     val mapUi=if(screen in listOf("Search","Results")&&searchFor=="saved")ui.copy(places=vm.searchSaved(ui.searchQuery))else ui
-                    if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),trafficTiles=if(prefs.trafficLayer)traffic.tileUrl(dark) else null,onPin=when(screen){
+                    if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),onPin=when(screen){
                         "ManualPin"->({point->manualPointJson=Json.encodeToString(point);inspectManualPoint=Coordinate(point.latitude,point.longitude);screen="My routes"})
                         "MapPick"->({point->choose(PlaceSearchResult("pin:${java.util.UUID.randomUUID()}","Dropped pin","Selected on map",point.latitude,point.longitude,com.rohanc.navgate.model.PlaceType.Landmark))})
                         else->null
@@ -418,7 +404,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                         }
                     }
                 }
-                if(showLayers)LayersSheet(prefs,{vm.updateFrontendPreferences(it)},{showLayers=false},trafficAvailable=traffic.available)
+                if(showLayers)LayersSheet(prefs,{vm.updateFrontendPreferences(it)},{showLayers=false})
             }
         }
         if(stopDialog)AlertDialog(onDismissRequest={stopDialog=false},title={Text("Stop this trip?")},text={Text("You can plan another route after stopping.")},confirmButton={TextButton(enabled=!ui.stopPending,onClick={vm.stopNavigation();stopDialog=false}){Text("Stop")}},dismissButton={TextButton(onClick={stopDialog=false}){Text("Keep navigating")}})
