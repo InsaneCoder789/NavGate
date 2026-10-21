@@ -158,3 +158,15 @@ python3 scripts/build_osm_candidates.py
 ```
 
 See `IMPLEMENTATION_STATUS.md` for exact evidence and remaining field limitations. Build output is not proof of a real campus walk, correct gate access, GNSS accuracy, audible TTS, camera alignment, offline map installation, or production readiness. The Go service was preserved without making it a runtime dependency; its test suite requires a separate Go toolchain.
+
+## Native frontend action integration (19 October 2026)
+
+The Compose shell now consumes the existing local `NavGateViewModel`/backend, Room user stores and DataStore preferences. It does not require a new HTTP service. Real catalogue IDs and pinned region versions flow through discovery, endpoint selection, planning, shared map/camera session, arrival and history. The SAF importer retains the existing signature and active-session guards. Unsupported routing data, offline tiles and publisher trust are reported explicitly.
+
+See [FRONTEND_ACTION_AUDIT.md](FRONTEND_ACTION_AUDIT.md) for all 138 reference actions and [FRONTEND_IMPLEMENTATION.md](FRONTEND_IMPLEMENTATION.md) for current test scope and remaining acceptance. Public destination sharing intentionally exports a destination only; it does not serialize a private route or live position.
+
+## Road routing extension — 21 October 2026
+
+`NavigationBackend` accepts an injected `RoutingProvider`; production uses `HybridRoutingProvider`. `PlanRequest` now carries destination coordinates/title and optional sticky routing source. `CampusRoute` retains backwards-compatible defaults and adds profile, provider, fetched time, destination, per-vertex elapsed seconds, warnings and cache state. `source=local_campus_astar` retains graph integrity; `source=valhalla` uses validated road geometry/timing and external checkpoints.
+
+Reroutes preserve mode, destination and provider. Room records preserve driving history without inventing a campus graph FK. The app adapter no longer labels every route walking or divides car distance by walking speed. Search ranking consumes a fresh local location supplier, with no coordinate disclosure to Photon. See [ROAD_NAVIGATION.md](ROAD_NAVIGATION.md) for the engineering flow and operational limits.

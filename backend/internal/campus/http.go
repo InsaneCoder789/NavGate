@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// maxRouteRequestBytes bounds a route request body; a real request is well under 1 KB.
+const maxRouteRequestBytes = 64 << 10
+
 type HTTPServer struct {
 	service *Service
 }
@@ -65,6 +68,7 @@ func (h *HTTPServer) handleRoute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req RouteRequest
+	r.Body = http.MaxBytesReader(w, r.Body, maxRouteRequestBytes)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid route request"})
 		return

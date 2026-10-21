@@ -15,6 +15,8 @@ enum class ManeuverType {
     Left,
     SlightRight,
     Right,
+    UTurn,
+    Roundabout,
     Arrive,
 }
 

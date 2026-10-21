@@ -53,4 +53,23 @@ class PhotonPlaceSearchTest {
             assertTrue(pending.isCancelled)
         } finally {server.shutdown()}
     }
+    @Test fun `positive and empty caches expire at their own TTL boundaries`()=runBlocking {
+        val server=MockWebServer();server.start()
+        try {
+            var time=100L
+            val search=PhotonPlaceSearch(endpoint=server.url("/api/"),minimumIntervalMillis=0,nowMillis={time})
+            server.enqueue(MockResponse().setBody(paris))
+            assertFalse(search.search("Paris").isEmpty())
+            time+=899_999
+            assertFalse(search.search("PARIS").isEmpty());assertEquals(1,server.requestCount)
+            time+=1
+            server.enqueue(MockResponse().setBody("{\"features\":[]}"))
+            assertTrue(search.search("Paris").isEmpty());assertEquals(2,server.requestCount)
+            time+=59_999
+            assertTrue(search.search("Paris").isEmpty());assertEquals(2,server.requestCount)
+            time+=1
+            server.enqueue(MockResponse().setBody(paris))
+            assertFalse(search.search("Paris").isEmpty());assertEquals(3,server.requestCount)
+        } finally {server.shutdown()}
+    }
 }

@@ -16,6 +16,12 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        // Optional device build avoids shipping unused native ABIs to a storage-limited emulator.
+        providers.gradleProperty("navgate.abi").orNull?.let { selectedAbi ->
+            require(selectedAbi in setOf("arm64-v8a","armeabi-v7a","x86","x86_64"))
+            ndk { abiFilters += selectedAbi }
+        }
+
         buildConfigField("String", "NAVGATE_BACKEND_URL", "\"http://10.0.2.2:8080\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -91,8 +97,8 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.06.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")

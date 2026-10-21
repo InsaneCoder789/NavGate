@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -51,6 +53,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rohanc.navgate.core.*
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.Coordinate
+import com.rohanc.navgate.model.TravelProfile
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import androidx.compose.ui.platform.LocalConfiguration
 import io.github.dellisd.spatialk.geojson.BoundingBox
 import com.rohanc.navgate.navigation.PresentationMode
@@ -67,6 +72,12 @@ import kotlin.math.*
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.layers.SymbolLayer
+import org.maplibre.compose.expressions.dsl.feature
+import org.maplibre.compose.expressions.dsl.asString
+import org.maplibre.compose.expressions.dsl.format
+import org.maplibre.compose.expressions.dsl.span
+import com.rohanc.navgate.ui.map.ManualRouteGeoJson
 import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.map.MaplibreMap
@@ -95,7 +106,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     val signatureLauncher=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){signature->
         val pack=packUri;val region=importRegion
         if(signature==null){feedback="Signature selection cancelled. Installed data is unchanged.";packUri=null}
-        else if(pack!=null&&region!=null){if(vm.backendState.value.session.status in NavigationSession.ACTIVE){feedback="Stop the current walk before installing region files.";packUri=null;importRegion=null}else importJob=scope.launch{
+        else if(pack!=null&&region!=null){if(vm.backendState.value.session.status in NavigationSession.ACTIVE){feedback="Stop the current trip before installing region files.";packUri=null;importRegion=null}else importJob=scope.launch{
             try { when(val result=services.regionDocuments.import(region,Uri.parse(pack),signature)){
                 is InstallResult.Installed->{feedback="Installed region ${result.regionId}, version ${result.version}";vm.refreshRegionStatus();vm.updateSearch(vm.uiState.value.searchQuery)}
                 is InstallResult.Rejected->feedback=result.reasons.joinToString("\n")
@@ -125,6 +136,12 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         catch(_:Exception){feedback="Place access details could not be loaded. Planning will check the installed region again."}
     }
     var screen by rememberSaveable { mutableStateOf("Explore") }
+    val manualFormState=rememberSaveableStateHolder()
+    var manualPinsJson by rememberSaveable { mutableStateOf("[]") }
+    val manualPins=remember(manualPinsJson){Json.decodeFromString<List<RoutePin>>(manualPinsJson)}
+    var manualPointJson by rememberSaveable { mutableStateOf<String?>(null) }
+    val manualPoint=remember(manualPointJson){manualPointJson?.let{Json.decodeFromString<GeoPoint>(it)}}
+    var inspectManualPoint by remember { mutableStateOf<Coordinate?>(null) }
     var directionCaller by rememberSaveable { mutableStateOf("Explore") }
     var directionPlaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var directionQuery by rememberSaveable { mutableStateOf("") }
@@ -152,6 +169,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}
     }
     val active=backend.session.status in NavigationSession.ACTIVE
+    val driving=(backend.session.route?.profile ?: ui.travelProfile.name.lowercase())=="driving"
     val prefs=ui.frontendPreferences
     val dark=when(prefs.appearance){"light"->false;"system"->isSystemInDarkTheme();else->true}
     if(trackLocation) BindLocationTracking(enabled=permission,onLocationSample=vm::onLocationFix,onSignalTick=vm::checkSignal)
@@ -193,6 +211,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             }
             if(directionCaller in listOf("Search","Results"))vm.updateSearch(directionQuery)
         }
+        if(screen=="ManualPin"){screen="My routes";return}
         if(screen=="Camera")vm.switchMode(PresentationMode.MAP)
         screen=frontendBack(screen,active,placeCaller,settingsCaller,utilityCaller,searchFor,directionCaller)
     }
@@ -208,13 +227,17 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             if(oldNavigation!=null)bars?.isAppearanceLightNavigationBars=oldNavigation
         }
     }
-    var sheetExpanded by rememberSaveable(screen){mutableStateOf(screen in listOf("Search","Results","Settings","Offline","Steps","Saved","Recents"))}
+    var sheetExpanded by rememberSaveable(screen){mutableStateOf(screen in listOf("My routes","Search","Results","Settings","Offline","Steps","Saved","Recents"))}
     BackHandler(enabled=screen!="Explore"){back()}
     NavGateTheme(dark=dark){CompositionLocalProvider(LocalSolidGlass provides prefs.reduceTransparency){
         Surface(Modifier.fillMaxSize()){
             Box(Modifier.fillMaxSize()){
                 val mapUi=if(screen in listOf("Search","Results")&&searchFor=="saved")ui.copy(places=vm.searchSaved(ui.searchQuery))else ui
-                if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it}){place->
+                if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),onPin=when(screen){
+                    "ManualPin"->({point->manualPointJson=Json.encodeToString(point);inspectManualPoint=Coordinate(point.latitude,point.longitude);screen="My routes"})
+                    "MapPick"->({point->choose(PlaceSearchResult("pin:${java.util.UUID.randomUUID()}","Dropped pin","Selected on map",point.latitude,point.longitude,com.rohanc.navgate.model.PlaceType.Landmark))})
+                    else->null
+                }){place->
                     if(screen in listOf("Search","Results","MapPick"))choose(place)
                     else if(!active){placeCaller=screen;vm.focusPlace(place);screen="Place"}
                 }
@@ -239,7 +262,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                     NavGateGlass(Modifier.fillMaxWidth().heightIn(max=if(sheetExpanded) 600.dp else 410.dp)){
                         val pageScroll=key(screen){rememberScrollState()}
                         Column(Modifier.verticalScroll(pageScroll),verticalArrangement=Arrangement.spacedBy(12.dp)){
-                            val title=if(!ui.preferencesLoaded)"Loading local preferences" else if((ui.showOnboarding && screen=="Explore")||screen=="Setup")"Welcome to NavGate" else when(screen){"Place"->ui.focusedPlace?.title ?: "Place";"Route"->"Your walking route";"Navigation"->"On your way";"Arrival"->"You have arrived";"Offline"->"Offline & region data";"Camera"->"Camera assistance";else->screen}
+                            val title=if(!ui.preferencesLoaded)"Loading local preferences" else if((ui.showOnboarding && screen=="Explore")||screen=="Setup")"Welcome to NavGate" else when(screen){"Place"->ui.focusedPlace?.title ?: "Place";"Route"->if(driving)"Your driving route"else"Your walking route";"Navigation"->"On your way";"Arrival"->"You have arrived";"Offline"->"Offline & region data";"Camera"->"Camera assistance";else->screen}
                             SheetGrip(expanded=sheetExpanded,onExpandedChange={sheetExpanded=it})
                             if(screen!="Explore"||ui.showOnboarding||!ui.preferencesLoaded)Text(title,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
                             if(!ui.preferencesLoaded){CircularProgressIndicator();Text("Loading your region and saved settings…")}else if((ui.showOnboarding && screen=="Explore")||screen=="Setup"){
@@ -250,6 +273,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                                 Text("Camera assistance is optional and asks for permission only when you choose it during a walk.")
                             }else when(screen){
                                 "Explore"->{
+                                    OutlinedButton(enabled=!active,onClick={screen="My routes"}){Text("My routes") }
                                     Text("Where would you like to go?",style=MaterialTheme.typography.titleLarge)
                                     Surface(onClick={search("place")},shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surfaceVariant){Row(Modifier.fillMaxWidth().heightIn(min=56.dp).padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){Icon(Icons.Rounded.Search,null,tint=MaterialTheme.colorScheme.primary);Text("Search anywhere",style=MaterialTheme.typography.bodyLarge,color=MaterialTheme.colorScheme.onSurfaceVariant)}}
                                     Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Gate","Academic","Food","Hostel","Transit").forEach{category->FilterChip(ui.searchQuery==category,{vm.updateSearch(category);searchFor="place";screen="Results"},{Text(category)})}}
@@ -271,9 +295,12 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                                     if(screen=="Results")TextButton(onClick={mapList=!mapList}){Text(if(mapList)"Show map only"else"Show result list")}
                                     if(mapList||screen=="Search")results.filterNot{place->screen=="Search"&&ui.searchQuery.isBlank()&&searchFor!="saved"&&ui.recentPlaces.take(3).any{it.id==place.id}}.forEach{place->PlaceRow(place,onDirections=if(searchFor in listOf("from","to"))null else ({directions(place)})){choose(place)}}
                                 }
-                                "MapPick"->{Text("Tap a mapped place to choose a starting point. Places without reviewed coordinates cannot be selected on the map.");Button(onClick={search("from")}){Text("Search for a start instead")}}
+                                "My routes"->{manualFormState.SaveableStateProvider("manual-editor"){ManualRoutePanel(services.manualRoutes,manualPins,{manualPinsJson=Json.encodeToString(it)},manualPoint,
+                                    onPick={screen="ManualPin"},onClearPoint={manualPointJson=null},onInspect={inspectManualPoint=Coordinate(it.latitude,it.longitude)},onClearInspection={inspectManualPoint=null})}}
+                                "ManualPin"->{Text("Tap any map location, then add a label to the selected coordinates.");OutlinedButton(onClick={screen="My routes"}){Text("Enter coordinates instead")}}
+                                "MapPick"->{Text("Tap a location on the map to choose ${if(searchFor=="from")"a start"else"a destination"}. Routes use nearby mapped roads or paths.");Button(onClick={search(searchFor)}){Text("Search instead")}}
                                 "Place"->{ui.focusedPlace?.let{place->
-                                    Text(place.subtitle);Text(place.category ?: place.type.name);Text(if(place.id.startsWith("osm:"))"Worldwide search result. Directions require a supported routing provider." else readinessLabel(details?.availability?.readiness ?: backend.destinationAvailability[place.id]?.readiness));Text(if(place.coordinate==null)"Coordinates have not been reviewed for this place." else if(place.id.startsWith("osm:"))"OpenStreetMap location · ${place.city.orEmpty()}" else "Installed location · ${place.type}")
+                                    Text(place.subtitle);Text(place.category ?: place.type.name);Text(if(place.coordinate!=null)"Walking and car directions are checked against mapped roads and paths."else"This result has no usable map coordinates.");Text(if(place.coordinate==null)"No coordinate is available."else if(place.id.startsWith("osm:"))"OpenStreetMap location · ${place.city.orEmpty()}"else if(place.id.startsWith("geonames:"))"GeoNames · CC BY 4.0"else"Installed location · ${place.type}")
                                     Button(enabled=!active,onClick={directions(place)},modifier=Modifier.fillMaxWidth()){Text("Directions")}
                                     details?.availability?.entranceIds.orEmpty().forEach{id->OutlinedButton(enabled=!active,onClick={directions(place);vm.selectEntrance(id)}){Text("Use entrance: ${details?.entranceLabels?.get(id) ?: id}")}}
                                     TextButton(onClick={expandedDetails=!expandedDetails}){Text(if(expandedDetails)"Collapse details"else"Expand details")}
@@ -282,48 +309,51 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                                     OutlinedButton(onClick={vm.toggleSaved(place)}){Text(if(ui.savedPlaces.any{it.id==place.id})"Remove from saved" else "Save place")}
                                 }}
                                 "Directions","Route"->{
-                                    if(detailId!=null&&details==null&&screen in listOf("Place","Arrival"))TextButton(onClick={detailRetry++}){Text("Reload place details")}
-                            if(selectedManeuver!=null&&screen in listOf("Route","Navigation"))TextButton(onClick={selectedManeuver=null}){Text("Clear maneuver inspection")}
-                            if(ui.canResume){
-                                        Text(details?.title ?: backend.session.route?.destinationPlaceId.orEmpty(),fontWeight=FontWeight.Bold)
+                                    if(ui.canResume){
+                                        Text(details?.title ?: backend.session.route?.destinationTitle ?: backend.session.route?.destinationPlaceId.orEmpty(),fontWeight=FontWeight.Bold)
                                         backend.session.route?.let{Text("${it.distanceMeters.asDistanceLabel()} · ${it.estimatedSeconds.asEtaLabel()}")}
                                     }else{
                                     OutlinedButton(onClick={search("from")},modifier=Modifier.fillMaxWidth()){Text("From: ${ui.selectedOrigin?.title ?: "Choose start"}")}
                                     OutlinedButton(onClick={search("to")},modifier=Modifier.fillMaxWidth()){Text("To: ${ui.selectedDestination?.title ?: "Choose destination"}")}
                                     Row(Modifier.horizontalScroll(rememberScrollState())) {TextButton(onClick=vm::swapEndpoints){Text("Swap")};TextButton(onClick={currentOrigin()}){Text("Current location")}}
                                     OutlinedButton(onClick={searchFor="from";vm.updateSearch("");screen="MapPick"}){Text("Choose start on map")}
+                                    OutlinedButton(onClick={searchFor="to";vm.updateSearch("");screen="MapPick"}){Text("Choose destination on map")}
                                     TextButton(onClick={vm.clearPlan();selectedManeuver=null;screen="Directions"}){Text("Clear plan")}
-                                    Text("Walking",fontWeight=FontWeight.Bold)
-                                    val entrances=details?.availability?.entranceIds ?: backend.destinationAvailability[ui.selectedDestination?.id]?.entranceIds.orEmpty()
+                                    Row {
+                                        FilterChip(ui.travelProfile==TravelProfile.Walking,{vm.setTravelProfile(TravelProfile.Walking)},label={Text("Walking")})
+                                        FilterChip(ui.travelProfile==TravelProfile.Driving,{vm.setTravelProfile(TravelProfile.Driving)},label={Text("Car")})
+                                    }
+                                    Text(if(ui.travelProfile==TravelProfile.Driving)"Car route · estimated time without live traffic"else"Walking route · estimated time")
+                                    val entrances=if(ui.travelProfile==TravelProfile.Walking)(details?.availability?.entranceIds ?: backend.destinationAvailability[ui.selectedDestination?.id]?.entranceIds.orEmpty())else emptyList()
                                     if(entrances.isNotEmpty()){
                                         Text("Reviewed entrances",fontWeight=FontWeight.Bold)
                                         entrances.forEach{id->FilterChip(selected=ui.selectedEntranceId==id,onClick={vm.selectEntrance(id)},label={Text(details?.entranceLabels?.get(id) ?: id)})}
                                         if(ui.selectedEntranceId!=null)TextButton(onClick={vm.selectEntrance(null)}){Text("Use recommended entrance")}
                                     }
-                                    ui.selectedDestination?.let{Text(readinessLabel(details?.availability?.readiness ?: backend.destinationAvailability[it.id]?.readiness))}
+                                    ui.selectedDestination?.let{if(it.coordinate==null)Text("Choose a destination with coordinates")else Text("Route availability is checked when planning")}
                                     if(ui.isLoadingRoute)LinearProgressIndicator(Modifier.fillMaxWidth())
                                     ui.preview?.let{Text("${it.etaLabel} · ${it.distanceLabel}",style=MaterialTheme.typography.titleLarge);Text(it.firstInstruction)}
                                     ui.statusMessage?.let{Text(it,color=MaterialTheme.colorScheme.secondary)}
-                                    if(ui.routeFailure!=null){Text("A reviewed campus path is required before guidance can start.");TextButton(onClick={openUtility("Offline")}){Text("View region readiness")}}
-                                    Button(onClick=vm::replan,enabled=!ui.isLoadingRoute && ui.selectedDestination!=null && ui.selectedOrigin!=null,modifier=Modifier.fillMaxWidth()){Text("Preview walking route")}
+                                    if(ui.routeFailure!=null){Text("Check that both pins are near a mapped road or path, then retry. No route is substituted when planning fails.");TextButton(onClick={openUtility("Offline")}){Text("View installed data")}}
+                                    Button(onClick=vm::replan,enabled=!ui.isLoadingRoute && ui.selectedDestination!=null && ui.selectedOrigin!=null,modifier=Modifier.fillMaxWidth()){Text(if(ui.travelProfile==TravelProfile.Walking)"Preview walking route"else"Preview driving route")}
                                     if(ui.preview!=null&&!permission)TextButton(onClick={appSettings()}){Text("Enable location in app settings to start")}
-                                    if(ui.preview!=null){Button(onClick=vm::startNavigation,enabled=!ui.startPending&&permission,modifier=Modifier.fillMaxWidth()){Text("Start walking")};TextButton(onClick={screen="Steps"}){Text("All steps")};ui.selectedDestination?.let{place->TextButton(onClick={share(place)}){Text("Share destination")};OutlinedButton(onClick={vm.toggleSaved(place)}){Text(if(ui.savedPlaces.any{it.id==place.id})"Remove saved destination"else"Save destination")}}}
+                                    if(ui.preview!=null){Button(onClick=vm::startNavigation,enabled=!ui.startPending&&permission,modifier=Modifier.fillMaxWidth()){Text(if(driving)"Start driving"else"Start walking")};TextButton(onClick={screen="Steps"}){Text("All steps")};ui.selectedDestination?.let{place->TextButton(onClick={share(place)}){Text("Share destination")};OutlinedButton(onClick={vm.toggleSaved(place)}){Text(if(ui.savedPlaces.any{it.id==place.id})"Remove saved destination"else"Save destination")}}}
                                     }
                                 }
                                 "Navigation"->{
                                     Text("${backend.session.remainingSeconds.asEtaLabel()} · ${backend.session.remainingMeters.asDistanceLabel()}",style=MaterialTheme.typography.headlineSmall)
-                                    Text(ui.selectedDestination?.title ?: details?.title ?: backend.session.route?.destinationPlaceId.orEmpty())
+                                    Text(ui.selectedDestination?.title ?: details?.title ?: backend.session.route?.destinationTitle ?: backend.session.route?.destinationPlaceId.orEmpty())
                                     Row(Modifier.horizontalScroll(rememberScrollState())){TextButton(onClick={screen="Steps"}){Text("Steps")};TextButton(onClick={screen="Camera";vm.switchMode(PresentationMode.AR_ASSIST)}){Text("Camera")};TextButton(onClick={vm.updateFrontendPreferences(prefs.copy(voiceEnabled=!prefs.voiceEnabled))}){Text(if(prefs.voiceEnabled)"Mute" else "Sound")}}
                                     if(prefs.voiceEnabled&&voiceAvailability==VoiceAvailability.Unavailable)Text("Offline speech is unavailable. Follow the written directions.")
                                     Button(enabled=!ui.stopPending,onClick={vm.stopNavigation()},modifier=Modifier.fillMaxWidth()){Text("Stop navigation")}
                                 }
                                 "Steps"->{
                                     backend.session.route?.maneuvers?.forEachIndexed{index,step->TextButton(onClick={selectedManeuver=index;screen=if(active)"Navigation"else"Route"}){Text("${index+1}. ${step.instruction}",fontWeight=if(index==backend.session.maneuverIndex)FontWeight.Bold else FontWeight.Normal)}}
-                                    if(backend.session.route==null)Text("Plan a reviewed route to see its steps.")
-                                    if(!active&&backend.session.route!=null)Button(enabled=permission&&!ui.startPending,onClick=vm::startNavigation){Text("Start walking")}
+                                    if(backend.session.route==null)Text("Plan a route to see its steps.")
+                                    if(!active&&backend.session.route!=null)Button(enabled=permission&&!ui.startPending,onClick=vm::startNavigation){Text(if(driving)"Start driving"else"Start walking")}
                                     Button(onClick={screen=if(active)"Navigation" else "Route"}){Text("Return to map")}
                                 }
-                                "Arrival"->{Text("Your walking guidance is complete.");OutlinedButton(enabled=ui.selectedDestination!=null||details?.place!=null,onClick={vm.finishArrival(keepDestinationContext=true,destinationContext=details?.place);screen="Explore"}){Text("Explore nearby")};Text(ui.selectedDestination?.title ?: details?.title ?: backend.session.route?.destinationPlaceId.orEmpty());(ui.selectedDestination ?: details?.place)?.let{place->OutlinedButton(onClick={vm.toggleSaved(place)}){Text(if(ui.savedPlaces.any{it.id==place.id})"Remove from saved"else"Save destination")}};Button(onClick={vm.finishArrival();screen="Explore"}){Text("Done")}}
+                                "Arrival"->{Text(if(driving)"Your driving guidance is complete."else"Your walking guidance is complete.");OutlinedButton(enabled=ui.selectedDestination!=null||details?.place!=null,onClick={vm.finishArrival(keepDestinationContext=true,destinationContext=details?.place);screen="Explore"}){Text("Explore nearby")};Text(ui.selectedDestination?.title ?: details?.title ?: backend.session.route?.destinationTitle ?: backend.session.route?.destinationPlaceId.orEmpty());(ui.selectedDestination ?: details?.place)?.let{place->OutlinedButton(onClick={vm.toggleSaved(place)}){Text(if(ui.savedPlaces.any{it.id==place.id})"Remove from saved"else"Save destination")}};Button(onClick={vm.finishArrival();screen="Explore"}){Text("Done")}}
                                 "Saved","Recents"->{
                                     if(screen=="Saved"){OutlinedButton(onClick={search("saved")}){Text("Search saved places")};FilterChip(savedSort,{savedSort=!savedSort},{Text(if(savedSort)"Sorted A–Z"else"Sort A–Z")})}
                                     if(screen=="Recents")Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
@@ -375,7 +405,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                                     val updateEnabled=services.regionDocuments.enabled&&!active&&!importing
                                     Button(enabled=updateEnabled,onClick={importRegion=ui.cityMode.regionId;packLauncher.launch(arrayOf("application/json","application/octet-stream","*/*"))}){Text("Install signed region files")}
                                     if(!services.regionDocuments.enabled)Text("External region updates are not enabled in this build. Your installed data remains available.")
-                                    if(active)Text("Stop this walk before installing another region.")
+                                    if(active)Text("Stop this trip before installing another region.")
                                     if(importing){LinearProgressIndicator(Modifier.fillMaxWidth());Text(if(importState==ImportState.Verifying)"Verifying signature and routing data…" else "Reading selected documents…");TextButton(onClick={importJob?.cancel()}){Text("Cancel import")}}
                                     OutlinedButton(onClick=vm::refreshRegionStatus){Text("Refresh status")}
                                 }
@@ -388,9 +418,13 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                                     Button(onClick={vm.switchMode(PresentationMode.MAP);screen="Navigation"}){Text("Return to map")}
                                 }
                             }
+                            if(screen in listOf("Directions","Route","Navigation","Steps"))backend.session.route?.takeIf{it.external}?.let{route->
+                                route.warnings.forEach{Text(it,style=MaterialTheme.typography.bodySmall)}
+                                if(route.fromCache)Text("Cached directions · ${route.fetchedAtEpochMillis?.let{java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(java.util.Date(it))}}",style=MaterialTheme.typography.bodySmall)
+                            }
                             if(detailId!=null&&details==null&&screen in listOf("Place","Arrival"))TextButton(onClick={detailRetry++}){Text("Reload place details")}
                             if(selectedManeuver!=null&&screen in listOf("Route","Navigation"))TextButton(onClick={selectedManeuver=null}){Text("Clear maneuver inspection")}
-                            if(ui.canResume){Text("A previous walk is available. A fresh location is required to resume.");Button(enabled=permission&&!ui.startPending,onClick=vm::startNavigation){Text("Resume walk")};TextButton(onClick=vm::stopNavigation){Text("Discard previous walk")}}
+                            if(ui.canResume){Text("A previous trip is available. A fresh location is required to resume.");Button(enabled=permission&&!ui.startPending,onClick=vm::startNavigation){Text("Resume trip")};TextButton(onClick=vm::stopNavigation){Text("Discard previous trip")}}
                             if(!ui.showOnboarding && screen !in listOf("Directions","Route"))ui.statusMessage?.let{Text(it,style=MaterialTheme.typography.bodySmall)}
                             if(backend.storageError!=null)TextButton(onClick=vm::retryInitialization){Text("Retry local data")}
                         }
@@ -403,7 +437,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                 }
             }
         }
-        if(stopDialog)AlertDialog(onDismissRequest={stopDialog=false},title={Text("Stop this walk?")},text={Text("You can plan another route after stopping.")},confirmButton={TextButton(enabled=!ui.stopPending,onClick={vm.stopNavigation();stopDialog=false}){Text("Stop")}},dismissButton={TextButton(onClick={stopDialog=false}){Text("Keep walking")}})
+        if(stopDialog)AlertDialog(onDismissRequest={stopDialog=false},title={Text("Stop this trip?")},text={Text("You can plan another route after stopping.")},confirmButton={TextButton(enabled=!ui.stopPending,onClick={vm.stopNavigation();stopDialog=false}){Text("Stop")}},dismissButton={TextButton(onClick={stopDialog=false}){Text("Keep navigating")}})
         feedback?.let{message->AlertDialog(onDismissRequest={feedback=null},title={Text("NavGate")},text={Text(message)},confirmButton={TextButton(onClick={feedback=null}){Text("OK")}})}
         if(clearHistoryDialog)AlertDialog(onDismissRequest={clearHistoryDialog=false},title={Text("Clear trip history?")},text={Text("Saved places, recent places and an active trip are retained.")},confirmButton={TextButton(onClick={vm.clearRouteHistory();clearHistoryDialog=false}){Text("Clear")}},dismissButton={TextButton(onClick={clearHistoryDialog=false}){Text("Cancel")}})
         if(clearDialog)AlertDialog(onDismissRequest={clearDialog=false},title={Text("Clear recent places?")},text={Text("Your saved places will remain available.")},confirmButton={TextButton(onClick={vm.clearRecents();clearDialog=false}){Text("Clear")}},dismissButton={TextButton(onClick={clearDialog=false}){Text("Cancel")}})
@@ -434,7 +468,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
 }
 @Composable private fun PreferenceRow(label:String,checked:Boolean,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(label,Modifier.weight(1f));Switch(checked,onChange)}}
 
-@Composable private fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onPlace:(PlaceSearchResult)->Unit){
+@Composable private fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,onPlace:(PlaceSearchResult)->Unit){
     val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
@@ -476,9 +510,11 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)){
         key(retry){MaplibreMap(modifier=Modifier.fillMaxSize(),baseStyle=style,options=options,cameraState=camera,onMapClick={position,_->
+            if(onPin!=null){onPin(GeoPoint(position.latitude,position.longitude));ClickResult.Consume}else {
             val nearest=ui.places.filter{it.coordinate!=null}.minByOrNull{val c=it.coordinate!!;hypot((c.latitude-position.latitude)*111000,(c.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))}
             val c=nearest?.coordinate;val radius=(camera.metersPerDpAtTarget*24).takeIf{it.isFinite()}?.coerceIn(8.0,100.0) ?: 40.0
             if(c!=null&&hypot((c.latitude-position.latitude)*111000,(c.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))<radius){onPlace(nearest);ClickResult.Consume}else ClickResult.Pass
+            }
         },onMapLoadFailed={failed=true;loading=false},onMapLoadFinished={failed=false;loading=false}){
             val points=ui.places.mapNotNull{it.coordinate}.joinToString(","){"""{"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[${it.longitude},${it.latitude}]}}"""}
             val places=rememberGeoJsonSource(GeoJsonData.JsonString("""{"type":"FeatureCollection","features":[$points]}"""))
@@ -486,6 +522,15 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             val route=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.lineString(ui.snapshot.route)))
             LineLayer(id="walking-route-glow",source=route,color=const(NavPrimary.copy(alpha=.25f)),width=const(12.dp))
             LineLayer(id="walking-route",source=route,color=const(NavPrimary),width=const(6.dp))
+            val customPoints=manualPins.map{Coordinate(it.point.latitude,it.point.longitude)}
+            val customLine=if(customPoints.size>=2)"""{"type":"LineString","coordinates":[${customPoints.joinToString(","){"[${it.longitude},${it.latitude}]"}}]}"""else """{"type":"FeatureCollection","features":[]}"""
+            val manualLine=rememberGeoJsonSource(GeoJsonData.JsonString(customLine))
+            LineLayer(id="manual-itinerary-line",source=manualLine,color=const(NavTertiary.copy(alpha=.6f)),width=const(3.dp))
+            val manualDots=rememberGeoJsonSource(GeoJsonData.JsonString(ManualRouteGeoJson.points(manualPins)))
+            CircleLayer(id="manual-itinerary-pins",source=manualDots,radius=const(8.dp),color=const(NavTertiary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
+            SymbolLayer(id="manual-itinerary-labels",source=manualDots,textField=format(span(feature.get("label").asString())),
+                textFont=const(listOf("Noto Sans Regular")),textSize=const(14.sp),textColor=const(NavTertiary),
+                textHaloColor=const(if(dark)Color.Black else Color.White),textHaloWidth=const(1.dp),textRadialOffset=const(16.sp),textAnchor=const(org.maplibre.compose.expressions.value.SymbolAnchor.Bottom))
             val endpoints=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(ui.selectedOrigin?.coordinate,ui.selectedDestination?.coordinate)))
             CircleLayer(id="trip-endpoints",source=endpoints,radius=const(8.dp),color=const(NavPrimary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
             val inspection=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(inspectPoint,null)))

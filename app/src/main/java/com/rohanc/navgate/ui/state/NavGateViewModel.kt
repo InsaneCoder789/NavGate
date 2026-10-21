@@ -39,6 +39,7 @@ class NavGateViewModel(
     private val userPlacesStore: UserPlacesStore,
     private val appPreferencesStore: AppPreferencesStore,
     private val clock: BackendClock = AndroidBackendClock,
+    private val onSearchLocation:(LocationFix)->Unit = {},
 ) : ViewModel() {
     private val backend = backendFactory(viewModelScope)
     /** Primary frontend integration contract. New Stitch screens can consume this directly. */
@@ -65,6 +66,7 @@ class NavGateViewModel(
                         RoutePreview.from(current.selectedOrigin,current.selectedDestination,route.toAppRoute())
                     } else null
                     current.copy(
+                        travelProfile = route?.let{if(it.profile=="driving")TravelProfile.Driving else TravelProfile.Walking} ?: current.travelProfile,
                         places = state.places.map { it.toAppPlace() }, searchNotice=state.searchNotice, isLoadingPlaces = state.searching || state.initializing,
                         isLoadingRoute = state.planning, preview = preview, isPreviewVisible = preview != null,
                         snapshot = state.session.toLegacySnapshot(heading),
@@ -159,7 +161,7 @@ class NavGateViewModel(
 
     fun setTravelProfile(profile: TravelProfile) {
         if (!canEditTrip()) return
-        mutable.update { it.copy(travelProfile=profile) }
+        mutable.update { it.copy(travelProfile=profile,selectedEntranceId=null) }
         recomputePreview()
     }
 
@@ -168,7 +170,7 @@ class NavGateViewModel(
         val origin = state.selectedOrigin?.coordinate
         val destination = state.selectedDestination
         val request = if (origin != null && destination != null) PlanRequest(++requestId,state.cityMode.regionId,
-            GeoPoint(origin.latitude,origin.longitude),destination.id,state.selectedEntranceId,state.travelProfile.name.lowercase()) else null
+            GeoPoint(origin.latitude,origin.longitude),destination.id,state.selectedEntranceId,state.travelProfile.name.lowercase(),destination.coordinate?.let{GeoPoint(it.latitude,it.longitude)},destination.title) else null
         viewModelScope.launch {
             if (request == null) {
                 backend.clear()
@@ -200,6 +202,7 @@ class NavGateViewModel(
     }
 
     fun onLocationFix(fix: LocationFix) {
+        onSearchLocation(fix)
         heading=fix.heading?.takeIf { it.isFinite() }
         if (latestLocationSample?.let { fix.elapsedMillis > it.elapsedMillis } != false) latestLocationSample=fix
         viewModelScope.launch { backend.location(fix) }
@@ -306,7 +309,7 @@ class NavGateViewModel(
         fun factory(application: Application): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val services=NavGateServices.get(application)
-                NavGateViewModel(services::backend,services.users,services.preferences)
+                NavGateViewModel(services::backend,services.users,services.preferences,onSearchLocation=services::updateSearchLocation)
             }
         }
         private fun livePlace(point: GeoPoint)=PlaceSearchResult(LIVE_LOCATION_ID,"Your location","Last accepted GPS position",point.latitude,point.longitude,PlaceType.Transit)

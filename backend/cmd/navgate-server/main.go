@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/InsaneCoder789/NavGate/backend/internal/campus"
 )
@@ -16,7 +17,17 @@ func main() {
 		addr = ":8080"
 	}
 	log.Printf("NavGate backend listening on %s", addr)
-	if err := http.ListenAndServe(addr, server.Routes()); err != nil {
+	// Explicit timeouts stop slow clients from holding connections open indefinitely.
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           server.Routes(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    16 << 10,
+	}
+	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }

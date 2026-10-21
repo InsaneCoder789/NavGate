@@ -73,6 +73,24 @@ Baseline: `7ddd187`, main tracking origin/main at `https://github.com/InsaneCode
 
 Pending frontend/design/session artifacts are intentionally outside these backend commits.
 
+## Frontend integration — 19 October 2026
+
+The native Compose frontend is connected to the local Kotlin backend, Room and DataStore. The 138-action wireframe audit records real callbacks and explicit capability limits. Latest checks: 38 app JVM tests, three rendered Compose journeys and ten Room/import-adapter instrumentation tests passed; debug APKs assembled. The existing core suite has 34 passing results. Production catalogue-only routing limits remain unchanged. See [FRONTEND_IMPLEMENTATION.md](FRONTEND_IMPLEMENTATION.md) and [FRONTEND_ACTION_AUDIT.md](FRONTEND_ACTION_AUDIT.md) for coverage, evidence and visual/physical acceptance limits. No commit or push is part of this frontend workstream.
+
 ## Worldwide search expansion
 
 The production service now uses Photon-backed worldwide search in addition to installed local records; selected offline regions no longer bound online search. Search labels and initial camera behavior reflect the new scope. See [WORLDWIDE_SEARCH.md](WORLDWIDE_SEARCH.md). Host live checks found Paris, Sydney and New York. Job `job-mvgrbq9f-ba8048af` passed the build, lint, 34 core tests and 45 app unit tests, then failed while installing the Android test APK on Pixel_9_Pro with a package-service Broken pipe error. Native/live Android tests did not run in that job. Worldwide routing remains a separate provider boundary.
+
+## India search and manual itinerary follow-up
+
+The national GeoNames index contains 660,027 source records. A multiword FTS4 query bug was reproduced on API37 and fixed by moving the prefix marker inside each quoted token; final device rerun is recorded in the current QA report. Search cache TTL regression coverage was added.
+
+Manual itineraries now have ordered labelled pins, on-map selection, map labels, walking/driving intent, transactional Room persistence, edit/reorder/delete and malformed-record recovery. Their distance is explicitly straight-line; no road route or ETA is inferred.
+
+Nationwide/Mumbai walking and driving directions remain unsupported by the active campus-only route planner. Driving cannot be claimed working, and the offline gazetteer is not a routing graph. The existing API37 GPS test passed on a synthetic 104.49 m path with signal loss/recovery and persisted arrival. Physical GNSS and city road guidance are not validated by that test.
+
+## Road navigation essentials — 21 October 2026
+
+The previous nationwide-routing gap above is superseded in source: production services now inject Valhalla pedestrian/auto routing, with source-separated campus routing, validated metrics and timed geometry, persistent mode-specific route caching, external checkpoint/history support and native mode labels. Driving-aware GPS plausibility, provider-based remaining ETA, moving-user reroute joining and sticky provider/mode/destination metadata are implemented. Search now ranks aliases, categories and fresh local proximity and conservatively merges cross-source duplicates while preserving Indic marks. See [ROAD_NAVIGATION.md](ROAD_NAVIGATION.md).
+
+The fresh QA run is `.qa/runs/20261020T195021Z-road-navigation-essentials-88566a52/`. Live Kotlin HTTP requests returned real Mumbai walking and driving routes and the production core reached arrival on simulated fixes along both returned geometries. Native API37 acceptance is separate: emulator storage was reclaimed without deleting user data, an ARM64 build installed, but later ADB updates stalled and the framework returned a null IActivityManager during instrumentation. Device checks must not be reported as passed from these host results.

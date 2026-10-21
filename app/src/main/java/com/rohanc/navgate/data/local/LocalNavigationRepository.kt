@@ -3,6 +3,7 @@ package com.rohanc.navgate.data.local
 import android.content.Context
 import com.rohanc.navgate.core.*
 import com.rohanc.navgate.data.NavigationRepository
+import com.rohanc.navgate.data.search.PlaceSearchRanking
 import com.rohanc.navgate.model.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -57,23 +58,37 @@ class LocalNavigationRepository(
     }
 }
 
-fun CampusPlace.toAppPlace(): PlaceSearchResult = PlaceSearchResult(id,title,subtitle,point?.latitude,point?.longitude,
-    when(category.lowercase()) {
-        "boys hostel","girls hostel","residential" -> PlaceType.Residential
-        "kiit","kiss","academic" -> PlaceType.Academic
-        "sports" -> PlaceType.Sports
-        "cafeteria","cafe","food" -> PlaceType.Food
-        "guest house","hospitality" -> PlaceType.Hospitality
-        "kims","medical" -> PlaceType.Medical
-        "commercial" -> PlaceType.Commercial
-        else -> PlaceType.Landmark
-    },city,campus,category)
+fun CampusPlace.toAppPlace(): PlaceSearchResult {
+    val group=PlaceSearchRanking.category(category)
+    val type=when(category.lowercase()) {
+        "boys hostel","girls hostel","residential"->PlaceType.Residential
+        "kiit","kiss","academic"->PlaceType.Academic
+        "sports"->PlaceType.Sports
+        "cafeteria","cafe","food"->PlaceType.Food
+        "guest house","hospitality"->PlaceType.Hospitality
+        "kims","medical"->PlaceType.Medical
+        "commercial"->PlaceType.Commercial
+        else->when(group){"health"->PlaceType.Medical;"education"->PlaceType.Academic;"food"->PlaceType.Food;"lodging"->PlaceType.Hospitality;"rail","airport"->PlaceType.Transit;else->PlaceType.Landmark}
+    }
+    val label=if(id.startsWith("geonames:"))when(group){
+        "health"->"Hospital or clinic";"education"->"School or university";"food"->"Restaurant";"lodging"->"Hotel";
+        "rail"->"Railway station";"airport"->"Airport";"worship"->"Place of worship";"settlement"->"City or locality";
+        else->if(category.startsWith("ADM"))"Administrative area"else"Place"
+    }else category
+    return PlaceSearchResult(id,title,subtitle,point?.latitude,point?.longitude,type,city,campus,label)
+}
+
+internal fun maneuverTypeForKind(kind:String):ManeuverType=when(kind){
+    "Start"->ManeuverType.Start;"SlightLeft"->ManeuverType.SlightLeft;"Left"->ManeuverType.Left
+    "SlightRight"->ManeuverType.SlightRight;"Right"->ManeuverType.Right;"UTurn"->ManeuverType.UTurn
+    "Roundabout"->ManeuverType.Roundabout;"Arrive"->ManeuverType.Arrive;else->ManeuverType.Straight
+}
 
 fun CampusRoute.toAppRoute(): RouteResponse = RouteResponse(distanceMeters,estimatedSeconds,
     geometry.map { Coordinate(it.latitude,it.longitude) },
     maneuvers.mapIndexed { index, maneuver ->
         RouteStep(maneuver.instruction,(maneuver.alongMeters-(maneuvers.getOrNull(index-1)?.alongMeters ?: 0.0)).coerceAtLeast(0.0),
             maneuver.target.latitude,maneuver.target.longitude,
-            when(maneuver.kind) { "Left" -> ManeuverType.Left; "Right" -> ManeuverType.Right; "Arrive" -> ManeuverType.Arrive; else -> ManeuverType.Straight })
-    },travelMode="walking",routeSource=source,routeConfidence="reviewed_graph",supportsAr=false,
-    warnings=listOf("Campus paths reviewed $reviewedAt; no live closure information"))
+            maneuverTypeForKind(maneuver.kind))
+    },travelMode=profile,routeSource=source,routeConfidence=if(external)"provider_estimate"else"reviewed_graph",supportsAr=false,
+    warnings=if(external)warnings+if(fromCache)listOf("Cached route; fetched at $fetchedAtEpochMillis")else emptyList() else listOf("Campus paths reviewed $reviewedAt; no live closure information"))
