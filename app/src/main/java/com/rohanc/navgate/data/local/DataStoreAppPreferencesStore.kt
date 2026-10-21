@@ -20,10 +20,10 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
     private val data = context.applicationContext.navGatePreferences
     override suspend fun frontendPreferences(): FrontendPreferences {
         val p = data.data.first()
-        return FrontendPreferences(p[APPEARANCE] ?: "system",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true)
+        return FrontendPreferences(p[APPEARANCE] ?: "system",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true,p[BUILDINGS] ?: true)
     }
     override suspend fun setFrontendPreferences(value: FrontendPreferences) { data.edit {
-        it[APPEARANCE]=value.appearance;it[SOLID]=value.reduceTransparency;it[MOTION]=value.reduceMotion;it[VOICE]=value.voiceEnabled
+        it[APPEARANCE]=value.appearance;it[SOLID]=value.reduceTransparency;it[MOTION]=value.reduceMotion;it[VOICE]=value.voiceEnabled;it[BUILDINGS]=value.buildings3d
     } }
     override suspend fun isOnboardingSeen(): Boolean = data.data.first()[ONBOARDING] ?: false
     override suspend fun markOnboardingSeen() { data.edit { it[ONBOARDING] = true } }
@@ -34,6 +34,7 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
 
     companion object {
         private val APPEARANCE=stringPreferencesKey("frontend_appearance")
+        private val BUILDINGS=booleanPreferencesKey("frontend_buildings_3d")
         private val SOLID=booleanPreferencesKey("frontend_reduce_transparency")
         private val MOTION=booleanPreferencesKey("frontend_reduce_motion")
         private val VOICE=booleanPreferencesKey("frontend_voice")

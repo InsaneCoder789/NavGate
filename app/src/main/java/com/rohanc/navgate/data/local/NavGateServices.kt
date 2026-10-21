@@ -37,8 +37,9 @@ class NavGateServices private constructor(context: Context) {
     fun updateSearchLocation(fix:LocationFix){if(latestSearchFix?.let{fix.elapsedMillis>it.elapsedMillis}!=false)latestSearchFix=fix}
     private val searchLocation:()->SearchLocation?={latestSearchFix?.let{SearchLocation(it.point,AndroidBackendClock.elapsedMillis()-it.elapsedMillis,it.accuracyMeters)}}
     private val indiaIndex = IndiaPlaceIndex(context,location=searchLocation)
-    val searchData = WorldwideSearchData(repository,PhotonPlaceSearch(),india=indiaIndex,location=searchLocation)
-    init { CoroutineScope(SupervisorJob()+Dispatchers.IO).launch { runCatching { indiaIndex.warmUp() } } }
+    private val poiIndex = com.rohanc.navgate.data.search.PoiIndex(context)
+    val searchData = WorldwideSearchData(repository,PhotonPlaceSearch(),india=indiaIndex,location=searchLocation,pois=poiIndex)
+    init { CoroutineScope(SupervisorJob()+Dispatchers.IO).launch { runCatching { indiaIndex.warmUp() };runCatching { poiIndex.warmUp() } } }
     val roadRouting = ValhallaRoutingProvider(cache=RoomRoadRouteCache(database))
     val routing = HybridRoutingProvider(regions,roadRouting)
     val checkpoints = RoomSessionStore(database,regions)

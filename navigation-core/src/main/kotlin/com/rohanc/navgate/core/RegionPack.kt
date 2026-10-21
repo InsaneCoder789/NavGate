@@ -43,6 +43,11 @@ data class CampusPlace(
     val reviewed: Boolean = false,
     val sourceRow: Int? = null,
     val sourceUrl: String? = null,
+    /** Optional details for points of interest. */
+    val phone: String? = null,
+    val website: String? = null,
+    val hours: String? = null,
+    val detail: String? = null,
 )
 
 @Serializable

@@ -28,12 +28,15 @@ private val GuidanceTeal = Color(0xFF265E66)
 
 /** Turn-by-turn guidance: next manoeuvre on top, trip summary and exit at the bottom. */
 @Composable
-fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
+fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
     LaunchedEffect(topPx, bottomPx) { with(density) { onInsets(topPx.toDp().value, bottomPx.toDp().value) } }
     val current = steps.getOrNull(session.maneuverIndex)
+    var showSensors by remember { mutableStateOf(false) }
+    var hint by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(6_000); hint = false }
     val next = steps.getOrNull(session.maneuverIndex + 1)
     Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged { topPx = it.height }.statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         NavGlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), baseColor = GuidanceTeal, contentColor = Color.White, dense = true, shadowElevation = 6.dp) {
@@ -52,6 +55,9 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
                 }
             }
         }
+        if (hint && driving) GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false) {
+            Text("Mount your phone safely. Spoken directions are on.", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium)
+        }
         val status = session.status
         if (status == SessionStatus.SignalLimited || status == SessionStatus.GuidanceUnavailable || status == SessionStatus.Rerouting || session.offRoute) {
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.errorContainerFallback(), shadowElevation = 4.dp) {
@@ -62,9 +68,12 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
             }
         }
     }
+    if (motion != null && showSensors) SensorHud(motion, Modifier.align(Alignment.CenterStart).padding(start = 12.dp))
+    if (motion != null && driving && !showSensors) SpeedBubble(motion, { showSensors = true }, Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = with(density) { bottomPx.toDp() } + 14.dp))
     Column(Modifier.align(Alignment.CenterEnd).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         GmMapButton(if (voiceOn) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff, if (voiceOn) "Mute spoken directions" else "Turn on spoken directions", a.toggleVoice)
         GmMapButton(Icons.Rounded.CameraAlt, "Camera guidance", a.openCamera)
+        if (motion != null) GmMapButton(Icons.Rounded.Sensors, if (showSensors) "Hide sensor readings" else "Show sensor readings", { showSensors = !showSensors })
     }
     GmSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { bottomPx = it.height }) {
         Row(Modifier.navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

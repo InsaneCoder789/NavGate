@@ -38,6 +38,16 @@ class RoadNavigationTest {
         assertEquals(0.0,session.state.value.alongMeters,0.0)
     }
 
+    @Test fun `vehicle is snapped onto the road with the road direction while following the route`() = runTest {
+        val session=started(route())
+        // 6 m south of the road: the raw GPS is off the carriageway, the displayed vehicle should sit on it.
+        val off=GeoPoint(18.99994,72.0005)
+        val snap=session.location(LocationFix(off,6_000,5.0),6_000).snapshot
+        val snapped=requireNotNull(snap.snappedLocation)
+        assertEquals(19.0,snapped.latitude,0.00001)
+        assertEquals(90.0,requireNotNull(snap.routeBearing),1.0)
+    }
+
     @Test fun `walker recovers after a signal outage longer than thirty seconds`() = runTest {
         val session=started(route("walking"))
         assertEquals(SessionStatus.SignalLimited,session.tick(20_000).snapshot.status)

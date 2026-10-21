@@ -62,7 +62,7 @@ class JourneyScreenshotTest {
                 // Waiting for live map tiles takes longer than a screen timeout.
                 val activity=androidx.compose.ui.platform.LocalContext.current as android.app.Activity
                 androidx.compose.runtime.SideEffect{activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)}
-                NavGateFrontend(vm,renderMap=true,trackLocation=false)
+                NavGateFrontend(vm,renderMap=true,trackLocation=false,showMotion=true)
             }
             compose.waitUntil(10_000){vm.uiState.value.preferencesLoaded&&!vm.backendState.value.initializing}
             compose.runOnUiThread{vm.onLocationFix(LocationFix(start.point!!,AndroidBackendClock.elapsedMillis(),6.0))}
@@ -92,7 +92,21 @@ class JourneyScreenshotTest {
             compose.runOnUiThread{vm.onLocationFix(LocationFix(vm.backendState.value.session.route!!.geometry.first(),AndroidBackendClock.elapsedMillis(),4.0))}
             compose.onNodeWithText("Start driving").performClick()
             compose.waitUntil(8_000){vm.backendState.value.session.status==SessionStatus.Navigating}
+            // Feed a plausible fused estimate (heading along the road, mild acceleration) so the car marker and sensor panel render.
+            val route=vm.backendState.value.session.route!!
+            val at=route.geometry[minOf(3,route.geometry.lastIndex)]
+            compose.runOnUiThread{vm.onMotion(MotionEstimate(at,13.9,route.geometry[0].bearingTo(route.geometry[1]),0.9,-0.6,5.0,CalibrationState.Good,false,false,AndroidBackendClock.elapsedMillis()))}
             shot("7-navigation")
+            compose.onNodeWithContentDescription("Stop navigation").performClick()
+            compose.onNodeWithText("Stop",substring=false).performClick()
+            compose.waitUntil(8_000){vm.backendState.value.session.status==SessionStatus.Stopped}
+            compose.onNodeWithText("Saved").performClick()
+            shot("8-saved")
+            compose.onNodeWithText("Recents").performClick()
+            shot("9-recents")
+            compose.onNodeWithText("Explore").performClick()
+            compose.onNodeWithContentDescription("Settings").performClick()
+            shot("10-settings")
         }finally{compose.runOnUiThread{stores.clear()};db.close()}
     }
 }

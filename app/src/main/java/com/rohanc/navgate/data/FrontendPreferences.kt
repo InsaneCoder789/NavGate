@@ -5,4 +5,5 @@ data class FrontendPreferences(
     val reduceTransparency: Boolean = false,
     val reduceMotion: Boolean = false,
     val voiceEnabled: Boolean = true,
+    val buildings3d: Boolean = true,
 )

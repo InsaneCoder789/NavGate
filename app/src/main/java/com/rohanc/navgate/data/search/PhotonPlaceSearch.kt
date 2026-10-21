@@ -16,6 +16,9 @@ import java.util.concurrent.TimeUnit
 
 fun interface WorldwidePlaceSearch { suspend fun search(query:String):List<CampusPlace> }
 
+/** Category search near a position, for places outside the offline region. */
+interface NearbyPlaceSearch { suspend fun nearby(osmTag:String,word:String,latitude:Double,longitude:Double):List<CampusPlace> }
+
 /** Public Photon geocoding: no bounding box/country filters, no keys, no automatic retries. */
 class PhotonPlaceSearch(
     private val client:OkHttpClient=OkHttpClient.Builder().connectTimeout(8,TimeUnit.SECONDS)
@@ -23,7 +26,7 @@ class PhotonPlaceSearch(
     private val endpoint:HttpUrl="https://photon.komoot.io/api/".toHttpUrl(),
     private val minimumIntervalMillis:Long=1_000,
     private val nowMillis:()->Long={System.nanoTime()/1_000_000},
-):WorldwidePlaceSearch {
+):WorldwidePlaceSearch,NearbyPlaceSearch {
     private data class Cached(val results:List<CampusPlace>,val expires:Long)
     private val lock=Mutex()
     private val cache=LinkedHashMap<String,Cached>(64,0.75f,true)
@@ -46,6 +49,28 @@ class PhotonPlaceSearch(
                 .header("Accept","application/geo+json, application/json").build()
             val result=fetch(request)
             cache[key]=Cached(result,nowMillis()+if(result.isEmpty())60_000 else 15*60_000)
+            while(cache.size>64) cache.remove(cache.keys.first())
+            result
+        }
+    }
+
+    /**
+     * Places of one OpenStreetMap tag near a position. The position is rounded to about 10 km before it leaves the phone,
+     * which is enough to rank nearby results without telling the geocoder where the user is.
+     */
+    override suspend fun nearby(osmTag:String,word:String,latitude:Double,longitude:Double):List<CampusPlace> {
+        val lat=Math.round(latitude*10)/10.0;val lon=Math.round(longitude*10)/10.0
+        return lock.withLock {
+            val key="nearby|$osmTag|$lat|$lon"
+            cache[key]?.takeIf{nowMillis()<it.expires}?.let{return@withLock it.results}
+            if(nowMillis()<retryAfter) throw IOException("Worldwide search is temporarily rate limited")
+            lastRequest?.let{delay((minimumIntervalMillis-(nowMillis()-it)).coerceAtLeast(0))}
+            lastRequest=nowMillis()
+            val request=Request.Builder().url(endpoint.newBuilder().addQueryParameter("q",word).addQueryParameter("osm_tag",osmTag)
+                .addQueryParameter("lat",lat.toString()).addQueryParameter("lon",lon.toString()).addQueryParameter("limit","30").addQueryParameter("lang","en").build())
+                .header("User-Agent","NavGate/1.0 (https://github.com/InsaneCoder789/NavGate)").header("Accept","application/geo+json, application/json").build()
+            val result=fetch(request)
+            cache[key]=Cached(result,nowMillis()+15*60_000)
             while(cache.size>64) cache.remove(cache.keys.first())
             result
         }

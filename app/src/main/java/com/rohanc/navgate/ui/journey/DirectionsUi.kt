@@ -124,7 +124,9 @@ private fun Summary(ui: NavGateUiState, driving: Boolean, permission: Boolean, w
         ui.isLoadingRoute && preview == null -> Text("Finding the best ${if (driving) "driving" else "walking"} route…", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         preview != null -> {
             Text("${preview.etaLabel} (${preview.distanceLabel})", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(preview.firstInstruction, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val seconds = ui.snapshot.route?.durationSeconds
+            val arrive = seconds?.let { java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(System.currentTimeMillis() + (it * 1000).toLong())) }
+            Text(listOfNotNull(arrive?.let { "Arrive $it" }, preview.firstInstruction).joinToString(" · "), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (!permission) Banner("Turn on location to start guidance.", "Turn on", a.requestLocation)
         }
         ui.routeFailure != null -> {
@@ -154,7 +156,7 @@ private fun Banner(text: String, action: String, onAction: () -> Unit) {
 }
 
 @Composable
-private fun StepsList(steps: List<RouteStep>, originLabel: String) {
+fun StepsList(steps: List<RouteStep>, originLabel: String, currentIndex: Int = -1) {
     Text("Steps", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
     Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Icon(Icons.Rounded.RadioButtonChecked, null, tint = MaterialTheme.colorScheme.secondary); Text(originLabel, style = MaterialTheme.typography.titleMedium)
@@ -164,7 +166,7 @@ private fun StepsList(steps: List<RouteStep>, originLabel: String) {
         Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Icon(maneuverIcon(step.maneuverType), null, Modifier.size(24.dp))
             Column {
-                Text(step.instruction, style = MaterialTheme.typography.bodyLarge)
+                Text(step.instruction, style = MaterialTheme.typography.bodyLarge, fontWeight = if (index == currentIndex) FontWeight.Bold else FontWeight.Normal)
                 // A step's length is the distance to the next manoeuvre, shown under its instruction like a maps app.
                 val length = steps.getOrNull(index + 1)?.distanceMeters ?: 0.0
                 if (length > 0) Text(length.asMetersLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

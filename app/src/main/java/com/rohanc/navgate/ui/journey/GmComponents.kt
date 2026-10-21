@@ -38,7 +38,7 @@ import kotlin.math.roundToInt
 @Composable
 fun GmSearchPill(text: String, placeholder: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
     leading: @Composable () -> Unit, trailing: @Composable () -> Unit = {}) {
-    NavGlassSurface(onClick = onClick, modifier = modifier.fillMaxWidth(), shape = CircleShape, shadowElevation = 4.dp) {
+    GlassPanel(modifier.fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Regular, onClick = onClick) {
         Row(Modifier.heightIn(min = 56.dp).padding(start = 18.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             leading()
@@ -58,11 +58,11 @@ fun GmRoundButton(icon: ImageVector, description: String, onClick: () -> Unit, m
     }
 }
 
-/** White map control such as recenter or compass. */
+/** Frosted round map control such as recenter or compass. */
 @Composable
 fun GmMapButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    NavGlassSurface(modifier, shape = CircleShape, shadowElevation = 3.dp) {
-        IconButton(onClick = onClick, modifier = Modifier.size(52.dp)) { Icon(icon, description, tint = MaterialTheme.colorScheme.onSurface) }
+    GlassPanel(modifier, shape = CircleShape, weight = GlassWeight.Thin, onClick = onClick) {
+        Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) { Icon(icon, description, tint = MaterialTheme.colorScheme.onSurface) }
     }
 }
 
@@ -77,7 +77,7 @@ fun GmDirectionsFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 fun GmChip(label: String, icon: ImageVector?, onClick: () -> Unit) {
-    NavGlassSurface(onClick = onClick, shape = CircleShape, shadowElevation = 2.dp) {
+    GlassPanel(shape = CircleShape, weight = GlassWeight.Thin, onClick = onClick) {
         Row(Modifier.heightIn(min = 44.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
             Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -90,13 +90,13 @@ fun GmChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() ->
     Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, content = content)
 }
 
-/** Bottom sheet surface with the grabber used by every sheet in the app. */
+/** Frosted bottom sheet with the grabber used by every sheet in the app. */
 @Composable
 fun GmSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
-    NavGlassSurface(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), dense = true, shadowElevation = 8.dp) {
+    GlassPanel(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), weight = GlassWeight.Thick) {
         Column {
             Box(Modifier.fillMaxWidth().height(24.dp).let { if (onGrabber != null) it.clickable(onClickLabel = "Resize panel", onClick = onGrabber) else it }, contentAlignment = Alignment.Center) {
-                Box(Modifier.width(36.dp).height(4.dp).background(MaterialTheme.colorScheme.outlineVariant, CircleShape))
+                Box(Modifier.width(36.dp).height(4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape))
             }
             content()
         }
@@ -121,16 +121,16 @@ fun GmTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifi
     }
 }
 
-/** Bottom navigation bar, full width like the Android system pattern. */
+/** Frosted bottom navigation bar, full width like the Android system pattern. */
 @Composable
 fun GmBottomBar(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
-    NavGlassSurface(modifier.fillMaxWidth(), shape = androidx.compose.ui.graphics.RectangleShape, baseColor = MaterialTheme.colorScheme.surfaceVariant, dense = true, shadowElevation = 0.dp) {
+    GlassPanel(modifier.fillMaxWidth(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false) {
         Row(Modifier.navigationBarsPadding().selectableGroup().padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf(Triple("Explore", Icons.Rounded.Place, "Explore"), Triple("Saved", Icons.Rounded.BookmarkBorder, "Saved"), Triple("Recents", Icons.Rounded.History, "Recents")).forEach { (key, icon, label) ->
                 val chosen = key == selected
                 Column(Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).selectable(chosen, role = Role.Tab, onClick = { onSelect(key) }).padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Box(Modifier.clip(CircleShape).background(if (chosen) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent).padding(horizontal = 22.dp, vertical = 4.dp)) {
+                    Box(Modifier.clip(CircleShape).background(if (chosen) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f) else androidx.compose.ui.graphics.Color.Transparent).padding(horizontal = 22.dp, vertical = 4.dp)) {
                         Icon(icon, null, Modifier.size(24.dp), tint = if (chosen) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Medium,

@@ -34,15 +34,12 @@ class NativeFrontendFlowTest {
     /** The welcome sheet offers "Get started" when location is already allowed and "Continue to map" otherwise. */
     private fun dismissOnboarding(){
         val started=compose.onAllNodesWithText("Get started").fetchSemanticsNodes().isNotEmpty()
-        compose.onNodeWithText(if(started)"Get started" else "Continue to map").performScrollTo().performClick()
+        compose.onNodeWithText(if(started)"Get started" else "Continue to map").performClick()
     }
 
     private fun typeInSearch(text:String){compose.onNode(hasSetTextAction()).performTextInput(text)}
 
     @Test fun searchSavePlaceAndPlanDirectionsUsingTheMapsStyleScreens(){
-        compose.onNodeWithText("Worldwide",useUnmergedTree=true).performClick()
-        compose.onNodeWithText("Offline & region data").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Back").performClick()
         dismissOnboarding()
         compose.onNodeWithText("Search here").performClick()
         typeInSearch("Place")
@@ -69,9 +66,9 @@ class NativeFrontendFlowTest {
     @Test fun bottomBarNavigatesAllDestinations(){
         dismissOnboarding()
         compose.onNodeWithText("Saved",substring=false).performClick()
-        compose.onNodeWithText("Search saved places",substring=false).performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Search saved places").performClick()
         compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithText("Search saved places",substring=false).assertExists()
+        compose.onNodeWithContentDescription("Search saved places").assertExists()
         compose.onNodeWithText("Recents",substring=false).performClick()
         compose.onNodeWithText("Explore",substring=false).performClick()
         compose.onNodeWithText("Search here").assertExists()
@@ -107,7 +104,8 @@ class NativeFrontendFlowTest {
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.SignalLimited}
         compose.onNodeWithText("Location fix is stale",substring=true).assertIsDisplayed()
         compose.onNodeWithContentDescription("Steps").performClick()
-        compose.onNodeWithText("Return to map").performScrollTo().performClick()
+        assertTrue(compose.onAllNodesWithText("Steps").fetchSemanticsNodes().isNotEmpty())
+        compose.onNodeWithContentDescription("Back").performClick()
         assertEquals(trip,vm.backendState.value.session.sessionId)
         compose.onNodeWithContentDescription("Stop navigation").performClick()
         compose.onNodeWithText("Stop",substring=false).performClick()

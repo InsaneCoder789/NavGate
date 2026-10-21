@@ -33,9 +33,9 @@ fun SearchPage(query: String, searchFor: String, results: List<PlaceSearchResult
     notice: String?, hasLocationPermission: Boolean, userLocation: Coordinate?, a: JourneyActions) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    GlassPanel(Modifier.fillMaxSize(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
-            Surface(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(), shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
+            GlassPanel(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Thin, shadow = false) {
                 Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = a.back) { Icon(Icons.Rounded.ArrowBack, "Back") }
                     Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
@@ -91,7 +91,10 @@ private fun ActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
 }
 
 @Composable
-private fun SearchRow(place: PlaceSearchResult, userLocation: Coordinate?, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, onFill: (() -> Unit)?) {
+private fun SearchRow(place: PlaceSearchResult, userLocation: Coordinate?, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, onFill: (() -> Unit)?) = PlaceListRow(place, userLocation, icon, onClick) { if (onFill != null) IconButton(onClick = onFill) { Icon(Icons.Rounded.NorthWest, "Use this name in the search box", tint = MaterialTheme.colorScheme.onSurfaceVariant) } }
+
+@Composable
+fun PlaceListRow(place: PlaceSearchResult, userLocation: Coordinate?, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, trailing: @Composable RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.width(60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -101,7 +104,7 @@ private fun SearchRow(place: PlaceSearchResult, userLocation: Coordinate?, icon:
             Text(place.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(place.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (onFill != null) IconButton(onClick = onFill) { Icon(Icons.Rounded.NorthWest, "Use this name in the search box", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        trailing()
     }
     HorizontalDivider(Modifier.padding(start = 84.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f))
 }

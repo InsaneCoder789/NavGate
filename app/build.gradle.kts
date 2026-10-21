@@ -91,6 +91,9 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.5.0")
     implementation("androidx.camera:camera-view:1.5.0")
 
+    // Real backdrop blur for the frosted-glass panels.
+    implementation("dev.chrisbanes.haze:haze:1.6.10")
+
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("junit:junit:4.13.2")

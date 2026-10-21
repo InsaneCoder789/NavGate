@@ -32,7 +32,7 @@ fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a:
         GmSearchPill("Search here", true, { a.openSearch("place") }, leading = { Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary) },
             trailing = { GmRoundButton(Icons.Rounded.AccountCircle, "Settings", a.openSettings, container = androidx.compose.ui.graphics.Color.Transparent, tint = MaterialTheme.colorScheme.primary, size = 48.dp) })
         GmChipRow {
-            Categories.forEach { (label, icon, query) -> GmChip(label, icon) { a.openSearch("place"); a.query(query); a.submitSearch() } }
+            com.rohanc.navgate.data.search.PoiCategory.entries.forEach { c -> GmChip(c.label, categoryIcon(c)) { a.openCategory(c) } }
             GmChip("My routes", Icons.Rounded.Route) { a.openMyRoutes() }
         }
     }

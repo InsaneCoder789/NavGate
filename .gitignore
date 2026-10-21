@@ -72,3 +72,7 @@ __pycache__/
 /app/src/main/assets/search/*.sqlite
 /app/src/main/assets/search/*.building
 /app/src/main/assets/search/*.json
+
+# Raw Overpass responses used to resume a point-of-interest build.
+/data/poi-cache/
+/data/osm-extract/

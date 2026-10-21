@@ -16,7 +16,7 @@ enum class SessionStatus { Idle, Preview, Navigating, SignalLimited, Rerouting, 
 enum class Presentation { Map, CameraAssist }
 
 @Serializable
-data class LocationFix(val point: GeoPoint, val elapsedMillis: Long, val accuracyMeters: Double, val heading: Double? = null)
+data class LocationFix(val point: GeoPoint, val elapsedMillis: Long, val accuracyMeters: Double, val heading: Double? = null, val speedMps: Double? = null)
 
 @Serializable
 data class SessionSnapshot(
@@ -34,6 +34,9 @@ data class SessionSnapshot(
     val instruction: String = "Choose a destination",
     val signalReason: String? = null,
     val offRoute: Boolean = false,
+    /** Position projected onto the route while on it, and the road direction there: what a maps app draws the vehicle at. */
+    val snappedLocation: GeoPoint? = null,
+    val routeBearing: Double? = null,
 )
 
 @Serializable
@@ -200,7 +203,9 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
             remainingMeters = if (arrived) 0.0 else remaining, remainingSeconds = if (arrived) 0.0 else route.remainingSecondsAt(progress),
             distanceToManeuver = if (arrived) 0.0 else max(0.0, (maneuver?.alongMeters ?: route.distanceMeters) - progress),
             instruction = if (arrived) if (route.external) "You have arrived at your destination" else "You have arrived at the selected entrance" else maneuver?.instruction ?: "Follow the mapped path",
-            signalReason = if (offRoute) "Route deviation detected" else null, offRoute = offRoute)
+            signalReason = if (offRoute) "Route deviation detected" else null, offRoute = offRoute,
+            snappedLocation = if (offRoute) null else projection.point,
+            routeBearing = if (offRoute) null else route.geometry.getOrNull(projection.segment)?.let { a -> route.geometry.getOrNull(projection.segment + 1)?.let { b -> a.bearingTo(b) } })
         if (arrived) pendingReroute = null
         publish(next, if (arrived || step != current.maneuverIndex) next.instruction else null, reroute)
     }

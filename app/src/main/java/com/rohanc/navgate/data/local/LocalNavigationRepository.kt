@@ -75,7 +75,7 @@ fun CampusPlace.toAppPlace(): PlaceSearchResult {
         "rail"->"Railway station";"airport"->"Airport";"worship"->"Place of worship";"settlement"->"City or locality";
         else->if(category.startsWith("ADM"))"Administrative area"else"Place"
     }else category
-    return PlaceSearchResult(id,title,subtitle,point?.latitude,point?.longitude,type,city,campus,label)
+    return PlaceSearchResult(id,title,subtitle,point?.latitude,point?.longitude,type,city,campus,label,phone,website,hours,detail,sourceUrl)
 }
 
 internal fun maneuverTypeForKind(kind:String):ManeuverType=when(kind){

@@ -1,7 +1,9 @@
 package com.rohanc.navgate.ui.journey
 
+import com.rohanc.navgate.data.FrontendPreferences
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.TravelProfile
+import com.rohanc.navgate.ui.state.CityMode
 
 /** Everything the journey screens can ask the app to do. Screens never reach into the view model or navigation state directly. */
 data class JourneyActions(
@@ -33,4 +35,21 @@ data class JourneyActions(
     val toggleVoice: () -> Unit,
     val finishArrival: () -> Unit,
     val openOfflineData: () -> Unit,
+    val openPlace: (PlaceSearchResult) -> Unit,
+    val planAgain: (String) -> Unit,
+    val clearHistory: () -> Unit,
+    val setPrefs: (FrontendPreferences) -> Unit,
+    val setCity: (CityMode) -> Unit,
+    val reviewSetup: () -> Unit,
+    val closeCamera: () -> Unit,
+    val requestCamera: () -> Unit,
+    val dismissOnboarding: () -> Unit,
+    val refreshRegion: () -> Unit,
+    val installRegion: () -> Unit,
+    val cancelImport: () -> Unit,
+    val cancelPick: () -> Unit,
+    val openCategory: (com.rohanc.navgate.data.search.PoiCategory) -> Unit,
+    val closeResults: () -> Unit,
+    val call: (String) -> Unit,
+    val openWebsite: (String) -> Unit,
 )

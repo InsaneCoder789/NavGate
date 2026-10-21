@@ -36,7 +36,7 @@ fun BindLocationTracking(enabled: Boolean,onLocationSample: (LocationFix) -> Uni
             override fun onLocationChanged(location:Location) {
                 callback(LocationFix(GeoPoint(location.latitude,location.longitude),location.elapsedRealtimeNanos/1_000_000,
                     if(location.hasAccuracy()) location.accuracy.toDouble() else Double.POSITIVE_INFINITY,
-                    if(location.hasBearing()) location.bearing.toDouble() else null))
+                    if(location.hasBearing()) location.bearing.toDouble() else null,if(location.hasSpeed()) location.speed.toDouble() else null))
             }
             override fun onProviderEnabled(provider:String) = Unit
             override fun onProviderDisabled(provider:String) { tick() }

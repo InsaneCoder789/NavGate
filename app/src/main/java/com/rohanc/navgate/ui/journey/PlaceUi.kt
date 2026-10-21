@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.core.DestinationAvailability
+import com.rohanc.navgate.core.OpeningHours
 import com.rohanc.navgate.data.search.PlaceSearchRanking
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.PlaceSearchResult
@@ -44,10 +45,18 @@ fun BoxScope.PlaceUi(place: PlaceSearchResult, saved: Boolean, userLocation: Coo
             val away = distanceFrom(userLocation, place)
             Text(listOfNotNull(kind, away?.let { "$it away" }).joinToString(" · "), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (place.subtitle.isNotBlank()) Text(place.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val status = remember(place.hours) { OpeningHours.status(place.hours, java.time.LocalDateTime.now()) }
+            if (status != null) Text(status.label, style = MaterialTheme.typography.titleSmall, color = if (status.open) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error)
+            else place.hours?.let { Text("Hours: $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 GmPrimaryButton("Directions", Icons.Rounded.Directions, { a.directions(place) }, enabled = !tripActive && place.coordinate != null)
                 GmTonalButton(if (saved) "Saved" else "Save", if (saved) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, { a.toggleSaved(place) })
             }
+            if (place.phone != null || place.website != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                place.phone?.let { phone -> GmTonalButton("Call", Icons.Rounded.Call, { a.call(phone) }) }
+                place.website?.let { site -> GmTonalButton("Website", Icons.Rounded.Language, { a.openWebsite(site) }) }
+            }
+            place.detail?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (place.coordinate == null) Text("This result has no usable map coordinates.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             availability?.let { Text(readinessLabel(it.readiness), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (availability?.entranceIds?.isNotEmpty() == true) {
@@ -55,6 +64,7 @@ fun BoxScope.PlaceUi(place: PlaceSearchResult, saved: Boolean, userLocation: Coo
                 availability.entranceIds.forEach { id -> GmTonalButton("Use entrance: ${entranceLabels[id] ?: id}", Icons.Rounded.MeetingRoom, { a.directionsWithEntrance(place, id) }, Modifier.fillMaxWidth(), enabled = !tripActive) }
             }
             place.coordinate?.let { Text("%.5f, %.5f".format(it.latitude, it.longitude), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (place.id.startsWith("poi:")) Text("Place data © OpenStreetMap contributors", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

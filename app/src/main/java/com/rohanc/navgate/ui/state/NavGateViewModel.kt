@@ -253,6 +253,17 @@ class NavGateViewModel(
         viewModelScope.launch { backend.presentation(if(mode==PresentationMode.MAP) Presentation.Map else Presentation.CameraAssist) }
     }
 
+    private val motionMutable = MutableStateFlow<MotionEstimate?>(null)
+    /** Sensor-fused position, speed and heading at sensor rate. Collected only by the marker and sensor panel so the rest of the screen is not redrawn. */
+    val motionState: StateFlow<MotionEstimate?> = motionMutable.asStateFlow()
+    fun onMotion(estimate: MotionEstimate?) { motionMutable.value = estimate }
+
+    /** A raw receiver fix: used to show where the user is and to rank nearby search results; guidance only consumes fused fixes. */
+    fun onRawFix(fix: LocationFix) {
+        onSearchLocation(fix)
+        if (fix.point.valid && fix.accuracyMeters.isFinite()) mutable.update { it.copy(displayLocation=Coordinate(fix.point.latitude,fix.point.longitude),displayAccuracy=fix.accuracyMeters) }
+    }
+
     fun onLocationFix(fix: LocationFix) {
         onSearchLocation(fix)
         if (fix.point.valid && fix.accuracyMeters.isFinite()) mutable.update { it.copy(displayLocation=Coordinate(fix.point.latitude,fix.point.longitude),displayAccuracy=fix.accuracyMeters) }
