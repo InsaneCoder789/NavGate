@@ -91,6 +91,8 @@ import org.maplibre.compose.map.RenderOptions
 import org.maplibre.compose.map.OrnamentOptions
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.sources.rememberRasterSource
+import org.maplibre.compose.layers.RasterLayer
 import org.maplibre.compose.style.BaseStyle
 import io.github.dellisd.spatialk.geojson.Position
 import com.rohanc.navgate.ui.journey.JourneyActions
@@ -98,7 +100,7 @@ import com.rohanc.navgate.ui.journey.JourneyScreens
 import com.rohanc.navgate.ui.journey.JourneyUi
 
 /** The MapLibre map with route, markers, vehicle and map controls. */
-@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit={},motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,onPlace:(PlaceSearchResult)->Unit){
+@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit={},motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,trafficTiles:String?=null,onPlace:(PlaceSearchResult)->Unit){
     val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
@@ -160,6 +162,10 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             if(c!=null&&hypot((c.latitude-position.latitude)*111000,(c.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))<radius){onPlace(nearest);ClickResult.Consume}else ClickResult.Pass
             }
         },onMapLoadFailed={failed=true;loading=false},onMapLoadFinished={failed=false;loading=false}){
+            if(trafficTiles!=null){
+                val flow=rememberRasterSource(tiles=listOf(trafficTiles),tileSize=512)
+                RasterLayer(id="live-traffic",source=flow)
+            }
             val points=(if(showPins)ui.places else emptyList()).mapNotNull{it.coordinate}.joinToString(","){"""{"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[${it.longitude},${it.latitude}]}}"""}
             val places=rememberGeoJsonSource(GeoJsonData.JsonString("""{"type":"FeatureCollection","features":[$points]}"""))
             CircleLayer(id="campus-places",source=places,radius=const(9.dp),color=const(Color(0xFFD93025)),strokeColor=const(Color.White),strokeWidth=const(2.5.dp))
