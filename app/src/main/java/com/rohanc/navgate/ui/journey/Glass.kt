@@ -31,8 +31,8 @@ val LocalGlassOpacity = compositionLocalOf { 0.15f }
 enum class GlassWeight { Thin, Regular, Thick }
 
 /**
- * Liquid glass: the map behind the panel is strongly blurred, lifted toward white, and edged with a bright rim and a soft
- * top-left sheen, so every surface in the app looks like the round map buttons. How see-through it is comes from the
+ * Liquid glass: a clear, lightly tinted pane edged with a bright rim and a soft top-left sheen, with the map showing straight through,
+ * exactly like the round map buttons. Higher slider settings add frosting. How see-through it is comes from the
  * Settings slider. Without a blur source (older phones, tests) it falls back to a flat tint of the same strength.
  */
 @Composable
@@ -48,10 +48,13 @@ fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(
     val raw = tint ?: scheme.surface
     val base = androidx.compose.ui.graphics.lerp(raw, Color.White, if (dark) 0.10f else 0.0f)
     val onBase = contentColor ?: scheme.onSurface
-    val blur = (30 - 12 * opacity).dp
-    val effect = if (haze != null && !solid) Modifier.hazeEffect(haze, HazeStyle(
-        backgroundColor = base, tints = listOf(HazeTint(base.copy(alpha = tintAlpha))), blurRadius = blur, noiseFactor = 0.03f)) else Modifier
-    val fallbackAlpha = if (solid) 1f else if (haze == null) (tintAlpha + 0.30f).coerceAtMost(0.98f) else 0f
+    // Clear glass like the map buttons: no frosting at low and middle settings, so the map stays crisp behind every panel.
+    // Only the upper end of the slider blurs the map, on the way to solid.
+    val blur = ((opacity - 0.5f) * 44f).dp
+    val frosted = haze != null && !solid && blur > 2.dp
+    val effect = if (frosted) Modifier.hazeEffect(haze!!, HazeStyle(
+        backgroundColor = base, tints = listOf(HazeTint(base.copy(alpha = tintAlpha))), blurRadius = blur, noiseFactor = 0.02f)) else Modifier
+    val fallbackAlpha = if (solid) 1f else if (frosted) 0f else tintAlpha
     val rim = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.55f else 0.95f), Color.White.copy(alpha = if (dark) 0.10f else 0.25f), Color.White.copy(alpha = if (dark) 0.32f else 0.7f)))
     val sheen = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.16f else 0.35f), Color.Transparent, Color.White.copy(alpha = if (dark) 0.05f else 0.12f)))
     val shadowDp = if (shadow) (8f * (0.4f + opacity)).dp else 0.dp
