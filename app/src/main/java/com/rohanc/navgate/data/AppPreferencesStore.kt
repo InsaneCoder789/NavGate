@@ -31,7 +31,7 @@ class SharedPrefsAppPreferencesStore(
         reduceMotion=prefs.getBoolean("frontend_motion",false),
         voiceEnabled=prefs.getBoolean("frontend_voice",true),
         buildings3d=prefs.getBoolean("frontend_buildings",true),
-        glassOpacity=prefs.getFloat("frontend_glass",0.4f).coerceIn(0f,1f),
+        glassOpacity=prefs.getFloat("frontend_glass",0.15f).coerceIn(0f,1f),
     )
     override suspend fun setFrontendPreferences(value:FrontendPreferences) {
         check(prefs.edit().putString("frontend_appearance",value.appearance)
