@@ -26,7 +26,7 @@ class SharedPrefsAppPreferencesStore(
     private val prefs = context.getSharedPreferences("navgate_app_preferences", Context.MODE_PRIVATE)
 
     override suspend fun frontendPreferences() = FrontendPreferences(
-        appearance=prefs.getString("frontend_appearance","dark") ?: "dark",
+        appearance=prefs.getString("frontend_appearance","system") ?: "system",
         reduceTransparency=prefs.getBoolean("frontend_solid",false),
         reduceMotion=prefs.getBoolean("frontend_motion",false),
         voiceEnabled=prefs.getBoolean("frontend_voice",true),

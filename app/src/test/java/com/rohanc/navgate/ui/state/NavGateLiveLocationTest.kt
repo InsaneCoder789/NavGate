@@ -41,4 +41,18 @@ class NavGateLiveLocationTest {
             assertEquals(0.0,vm.backendState.value.session.alongMeters,0.0)
         }finally{h.backend.close()}
     }
+    @Test fun `start explains a weak GPS signal instead of silently doing nothing`()=runTest {
+        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
+        try {
+            advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
+            vm.onLocationFix(LocationFix(h.a,h.time,60.0));advanceUntilIdle();vm.startNavigation();advanceUntilIdle()
+            assertEquals(SessionStatus.Preview,vm.backendState.value.session.status)
+            val notice=vm.uiState.value.startNotice
+            assertTrue("notice=$notice",notice!=null && notice.contains("60 m"))
+            // A good fix clears the notice and begins guidance.
+            h.time+=1_000;vm.onLocationFix(LocationFix(h.a,h.time,4.0));advanceUntilIdle();vm.startNavigation();advanceUntilIdle()
+            assertEquals(SessionStatus.Navigating,vm.backendState.value.session.status)
+            assertNull(vm.uiState.value.startNotice)
+        }finally{h.backend.close()}
+    }
 }

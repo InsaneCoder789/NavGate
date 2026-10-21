@@ -28,6 +28,7 @@ fun BindLocationTracking(enabled: Boolean,onLocationSample: (LocationFix) -> Uni
     val owner=LocalLifecycleOwner.current
     val callback by rememberUpdatedState(onLocationSample)
     val tick by rememberUpdatedState(onSignalTick)
+    val enabledOnce = remember { mutableStateOf(false) }
     DisposableEffect(context,owner,enabled) {
         val manager=context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         var registered=false
@@ -48,6 +49,10 @@ fun BindLocationTracking(enabled: Boolean,onLocationSample: (LocationFix) -> Uni
             val fine=ContextCompat.checkSelfPermission(context,Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED
             val providers=if(fine) listOf(LocationManager.GPS_PROVIDER,LocationManager.NETWORK_PROVIDER) else listOf(LocationManager.NETWORK_PROVIDER)
             try {
+                // Show a position immediately from the last known fix instead of waiting for a fresh one.
+                if(!enabledOnce.value) { enabledOnce.value=true
+                    providers.mapNotNull{ if(manager.allProviders.contains(it)) manager.getLastKnownLocation(it) else null }
+                        .maxByOrNull{it.elapsedRealtimeNanos}?.let{listener.onLocationChanged(it)} }
                 for(provider in providers) if(manager.allProviders.contains(provider) && manager.isProviderEnabled(provider)) {
                     manager.requestLocationUpdates(provider,1000L,1f,listener,Looper.getMainLooper());registered=true
                 }

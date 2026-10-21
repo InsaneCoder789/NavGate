@@ -20,7 +20,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RoadRouteUiTest {
+    // The Start button is disabled without location permission; a fresh phone has not granted it.
     @get:Rule val compose=createComposeRule()
+    @org.junit.Before fun grantLocation(){InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(
+        ApplicationProvider.getApplicationContext<Context>().packageName,android.Manifest.permission.ACCESS_FINE_LOCATION)}
     @Test fun nativeEndpointButtonsPreviewRealWalkingThenCarAndKeepCarWhenStarting() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("liveRoadRoutes")=="true")
         val context=ApplicationProvider.getApplicationContext<Context>()
@@ -43,29 +46,33 @@ class RoadRouteUiTest {
             }
             compose.setContent{NavGateFrontend(vm,renderMap=false,trackLocation=false)}
             compose.waitUntil(10_000){vm.uiState.value.preferencesLoaded && !vm.backendState.value.initializing}
-            fun click(text:String)=compose.onNodeWithText(text,substring=false).performScrollTo().performClick()
-            compose.onNodeWithText("Go",substring=false).performClick();click("From: Choose start")
-            compose.waitUntil(5000){vm.uiState.value.places.size==2}
-            click("Gateway area road")
-            click("To: Choose destination")
-            compose.waitUntil(5000){vm.uiState.value.places.size==2}
+            fun click(text:String)=compose.onNodeWithText(text,substring=false).performClick()
+            compose.onNodeWithContentDescription("Directions").performClick()
+            compose.onNode(hasSetTextAction()).performTextInput("Marine")
+            compose.waitUntil(5000){vm.uiState.value.places.any{it.id=="marine"}}
             click("Marine Drive")
+            click("Choose start")
+            compose.onNode(hasSetTextAction()).performTextInput("Gateway")
+            compose.waitUntil(5000){vm.uiState.value.places.any{it.id=="road-start"}}
+            click("Gateway area road")
             compose.waitUntil(35_000){vm.backendState.value.session.route!=null || vm.backendState.value.routeFailure!=null}
             assertNull(vm.backendState.value.routeFailure)
             assertEquals("walking",vm.backendState.value.session.route?.profile)
-            compose.onNodeWithText("Your walking route").assertExists()
-            click("Car")
+            compose.onNodeWithText("Walk",substring=false).assertExists()
+            compose.onNodeWithContentDescription("Car").performClick()
             compose.waitUntil(35_000){!vm.backendState.value.planning && vm.backendState.value.session.route?.profile=="driving" && vm.uiState.value.snapshot.route?.travelMode=="driving"}
             assertEquals("driving",vm.uiState.value.snapshot.route?.travelMode)
-            compose.onNodeWithText("Your driving route").assertExists()
+            compose.onNodeWithText("Drive",substring=false).assertExists()
             val route=vm.backendState.value.session.route!!
             compose.runOnUiThread{vm.onLocationFix(LocationFix(route.geometry.first(),AndroidBackendClock.elapsedMillis(),4.0))}
             compose.waitUntil(5000){vm.uiState.value.currentLocationUsable}
             click("Start driving")
-            compose.waitUntil(5000){vm.backendState.value.session.status==SessionStatus.Navigating}
+            try{compose.waitUntil(5000){vm.backendState.value.session.status==SessionStatus.Navigating}}
+            catch(e:Throwable){val s=vm.backendState.value.session;throw AssertionError("Start did not navigate: status=${s.status} reason=${s.signalReason} failure=${vm.backendState.value.routeFailure}",e)}
             assertEquals("driving",vm.backendState.value.session.route?.profile)
             assertTrue(vm.backendState.value.session.remainingSeconds<1000)
-            click("Stop navigation")
+            compose.onNodeWithContentDescription("Stop navigation").performClick()
+            compose.onNodeWithText("Stop",substring=false).performClick()
             compose.waitUntil(5000){vm.backendState.value.session.status==SessionStatus.Stopped}
         }finally{compose.runOnUiThread{stores.clear()};db.close()}
     }

@@ -28,7 +28,7 @@ class NavGateFrontendIntegrationTest {
             // before closing the backend, matching the ViewModel lifecycle ordering.
             advanceUntilIdle()
             assertEquals(h.a.latitude,vm.uiState.value.selectedOrigin!!.latitude)
-            h.time+=9_000
+            h.time+=700_000 // older than ten minutes is too stale to plan from
             assertFalse(vm.useCurrentOrigin())
         } finally { h.backend.close() }
     }

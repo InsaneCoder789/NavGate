@@ -31,79 +31,88 @@ class NativeFrontendFlowTest {
     }
     @After fun teardown(){compose.runOnUiThread{store.clear()}}
 
-    @Test fun actualButtonsOpenOnboardingUtilitiesPersistBookmarkAndPlanSelectedEndpoints(){
+    /** The welcome sheet offers "Get started" when location is already allowed and "Continue to map" otherwise. */
+    private fun dismissOnboarding(){
+        val started=compose.onAllNodesWithText("Get started").fetchSemanticsNodes().isNotEmpty()
+        compose.onNodeWithText(if(started)"Get started" else "Continue to map").performScrollTo().performClick()
+    }
+
+    private fun typeInSearch(text:String){compose.onNode(hasSetTextAction()).performTextInput(text)}
+
+    @Test fun searchSavePlaceAndPlanDirectionsUsingTheMapsStyleScreens(){
         compose.onNodeWithText("Worldwide",useUnmergedTree=true).performClick()
         compose.onNodeWithText("Offline & region data").assertIsDisplayed()
         compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithText("Continue to map").performScrollTo().performClick()
-        compose.onNodeWithText("Search anywhere").performClick()
+        dismissOnboarding()
+        compose.onNodeWithText("Search here").performClick()
+        typeInSearch("Place")
         compose.waitUntil(5_000){vm.uiState.value.places.size==3}
-        compose.onNodeWithText("Destination Place").performScrollTo().performClick()
-        compose.onNodeWithText("Save place").performScrollTo().performClick()
+        compose.onNodeWithText("Destination Place").performClick()
+        compose.onNodeWithContentDescription("Save place").performClick()
         compose.waitUntil(5_000){vm.uiState.value.savedPlaces.any{it.id=="b"}}
         assertEquals("b",runBlocking{fixture.users.savedPlaces()}.single().id)
-        compose.onNodeWithText("Directions",substring=false).performScrollTo().performClick()
-        compose.onNodeWithText("From: Choose start").performScrollTo().performClick()
-        compose.waitUntil(5_000){vm.uiState.value.places.size==3}
-        compose.onNodeWithText("Origin Place").performScrollTo().performClick()
+        compose.onNodeWithText("Directions",substring=false).performClick()
+        compose.onNodeWithText("Choose start").performClick()
+        typeInSearch("Origin")
+        compose.waitUntil(5_000){vm.uiState.value.places.any{it.id=="a"}}
+        compose.onNodeWithText("Origin Place").performClick()
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.Preview}
         assertEquals("a",vm.uiState.value.selectedOrigin?.id)
         assertEquals("b",vm.uiState.value.selectedDestination?.id)
-        compose.onNodeWithText("All steps").performScrollTo().performClick()
-        compose.onNodeWithText("Return to map").performScrollTo().performClick()
-        compose.onNodeWithText("Your walking route").assertIsDisplayed()
+        compose.onNodeWithText("Walk",substring=false).assertExists()
+        compose.onNodeWithText("Steps",substring=false).performClick()
+        assertTrue(compose.onAllNodesWithText("Origin Place").fetchSemanticsNodes().isNotEmpty())
         compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithText("Directions",substring=false).assertIsDisplayed()
+        compose.onNodeWithText("Destination Place").assertExists()
     }
 
-    @Test fun floatingDockNavigatesAllDestinationsAndRetainsSavedSearchCaller(){
-        compose.onNodeWithText("Continue to map").performScrollTo().performClick()
-        compose.onNodeWithContentDescription("Expand panel").performScrollTo().performClick()
-        compose.onNodeWithContentDescription("Collapse panel").performScrollTo().performClick()
-        compose.onNodeWithText("Go",substring=false).performClick()
-        compose.onNodeWithText("From: Choose start").assertExists()
+    @Test fun bottomBarNavigatesAllDestinations(){
+        dismissOnboarding()
         compose.onNodeWithText("Saved",substring=false).performClick()
         compose.onNodeWithText("Search saved places",substring=false).performScrollTo().performClick()
         compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithText("Search saved places",substring=false).assertExists()
         compose.onNodeWithText("Recents",substring=false).performClick()
         compose.onNodeWithText("Explore",substring=false).performClick()
-        compose.onNodeWithText("Search anywhere").assertExists()
+        compose.onNodeWithText("Search here").assertExists()
+        compose.onNodeWithContentDescription("Directions").performClick()
+        compose.onNodeWithText("Choose destination").assertExists()
     }
 
     @Test fun missingStartCoordinateDoesNotSilentlyLeaveSelection(){
-        compose.onNodeWithText("Continue to map").performScrollTo().performClick()
-        compose.onNodeWithText("Go",substring=false).performClick()
-        compose.onNodeWithText("From: Choose start").performScrollTo().performClick()
-        compose.waitUntil(5_000){vm.uiState.value.places.size==3}
-        compose.onNodeWithText("Unlocated Place").performScrollTo().performClick()
+        dismissOnboarding()
+        compose.onNodeWithContentDescription("Directions").performClick()
+        typeInSearch("Destination")
+        compose.waitUntil(5_000){vm.uiState.value.places.any{it.id=="b"}}
+        compose.onNodeWithText("Destination Place").performClick()
+        compose.waitUntil(5_000){vm.uiState.value.selectedDestination?.id=="b"}
+        compose.onNodeWithText("Choose start").performClick()
+        typeInSearch("Unlocated")
+        compose.waitUntil(5_000){vm.uiState.value.places.any{it.id=="unknown"}}
+        compose.onNodeWithText("Unlocated Place").performClick()
         compose.onNodeWithText("This place has no reviewed starting coordinate. Choose another start.").assertIsDisplayed()
         compose.onNodeWithText("OK",substring=false).performClick()
         assertNull(vm.uiState.value.selectedOrigin)
-        compose.onNodeWithText("Choose start",substring=false).assertExists()
     }
 
-    @Test fun activeTripKeepsUtilitiesAndWarningThenExplicitStopEndsSharedSession(){
-        compose.onNodeWithText("Continue to map").performScrollTo().performClick()
+    @Test fun activeTripShowsGuidanceWarnsOnWeakSignalThenExplicitStopEndsSharedSession(){
+        dismissOnboarding()
         compose.runOnUiThread{vm.selectOrigin(fixture.places[0].toAppPlace());vm.selectDestination(fixture.places[1].toAppPlace());vm.onLocationFix(LocationFix(fixture.a,fixture.time,4.0))}
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.Preview&&vm.uiState.value.currentLocationUsable}
         compose.runOnUiThread{vm.startNavigation()}
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.Navigating}
         val trip=vm.backendState.value.session.sessionId
-        compose.onNodeWithContentDescription("Settings").performClick()
-        compose.onNodeWithText("Appearance").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Stop navigation").assertExists()
         compose.runOnUiThread{fixture.time+=9000;vm.checkSignal()}
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.SignalLimited}
-        compose.onNodeWithText("Appearance").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithText("Location needs attention").assertIsDisplayed()
-        compose.onNodeWithText("Steps",substring=false).performScrollTo().performClick()
+        compose.onNodeWithText("Location fix is stale",substring=true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Steps").performClick()
         compose.onNodeWithText("Return to map").performScrollTo().performClick()
-        compose.onNodeWithText("Location needs attention").assertIsDisplayed()
         assertEquals(trip,vm.backendState.value.session.sessionId)
-        compose.onNodeWithText("Stop navigation").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Stop navigation").performClick()
+        compose.onNodeWithText("Stop",substring=false).performClick()
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.Stopped}
-        compose.onNodeWithText("Where would you like to go?").assertIsDisplayed()
+        compose.onNodeWithText("Search here").assertIsDisplayed()
     }
 
     private class Fixture:BackendClock,RegionStore,BackendData {

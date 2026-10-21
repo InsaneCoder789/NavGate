@@ -20,7 +20,7 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
     private val data = context.applicationContext.navGatePreferences
     override suspend fun frontendPreferences(): FrontendPreferences {
         val p = data.data.first()
-        return FrontendPreferences(p[APPEARANCE] ?: "dark",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true)
+        return FrontendPreferences(p[APPEARANCE] ?: "system",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true)
     }
     override suspend fun setFrontendPreferences(value: FrontendPreferences) { data.edit {
         it[APPEARANCE]=value.appearance;it[SOLID]=value.reduceTransparency;it[MOTION]=value.reduceMotion;it[VOICE]=value.voiceEnabled

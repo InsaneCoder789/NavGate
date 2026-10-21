@@ -52,9 +52,8 @@ fun NavGateDock(selected:String,onSelect:(String)->Unit,modifier:Modifier=Modifi
 
 @Composable
 fun MapControlButton(onClick:()->Unit,enabled:Boolean=true,content:@Composable ()->Unit) {
-    Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=if(LocalSolidGlass.current)1f else .97f),
-        border=BorderStroke(1.dp,MaterialTheme.colorScheme.onSurface.copy(alpha=.08f)),shadowElevation=3.dp) {
-        IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(48.dp),content=content)
+    NavGlassSurface(shape=androidx.compose.foundation.shape.CircleShape,shadowElevation=3.dp) {
+        IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(52.dp),content=content)
     }
 }
 

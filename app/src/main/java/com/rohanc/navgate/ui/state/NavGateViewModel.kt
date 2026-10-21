@@ -40,7 +40,12 @@ class NavGateViewModel(
     private val appPreferencesStore: AppPreferencesStore,
     private val clock: BackendClock = AndroidBackendClock,
     private val onSearchLocation:(LocationFix)->Unit = {},
+    /** Optional road router used only to show every travel mode's time beside the selected route. */
+    private val estimator: RoutingProvider? = null,
 ) : ViewModel() {
+    private var estimateJob: kotlinx.coroutines.Job? = null
+    /** Until the user picks a mode, long trips default to driving and short ones to walking. */
+    private var modeChosenByUser = false
     private val backend = backendFactory(viewModelScope)
     /** Primary frontend integration contract. New Stitch screens can consume this directly. */
     val backendState: StateFlow<BackendSnapshot> = backend.state
@@ -73,6 +78,7 @@ class NavGateViewModel(
                         statusMessage = state.storageError ?: state.routeFailure?.detail ?: state.session.signalReason,
                         routeFailure = state.routeFailure?.reason,
                         canResume = state.session.status == SessionStatus.ResumeAvailable,
+                        startNotice = if (state.session.status in NavigationSession.ACTIVE) null else current.startNotice,
                         currentLocationUsable = freshCurrentLocation() != null,
                         selectedOrigin = if (current.selectedOrigin?.id == LIVE_LOCATION_ID && state.session.signalReason == null) state.session.location?.let(::livePlace) ?: current.selectedOrigin else current.selectedOrigin,
                     )
@@ -146,8 +152,10 @@ class NavGateViewModel(
 
     fun selectDestination(place: PlaceSearchResult) {
         if (!canEditTrip()) return
-        val live = freshCurrentLocation()
-        mutable.update { it.copy(selectedOrigin=it.selectedOrigin ?: live?.let(::livePlace),selectedDestination=place,
+        val live = planningLocation()
+        val from = mutable.value.selectedOrigin?.coordinate ?: live?.let { Coordinate(it.latitude,it.longitude) }
+        val suggested = if (modeChosenByUser || from == null || place.coordinate == null) null else if (from.distanceTo(place.coordinate!!) > 3_000) TravelProfile.Driving else TravelProfile.Walking
+        mutable.update { it.copy(travelProfile=suggested ?: it.travelProfile,selectedOrigin=it.selectedOrigin ?: live?.let(::livePlace),selectedDestination=place,
             selectedEntranceId=null,focusedPlace=null,activeTab=AppTab.Go,searchQuery="") }
         recordRecent(place)
         recomputePreview()
@@ -161,6 +169,7 @@ class NavGateViewModel(
 
     fun setTravelProfile(profile: TravelProfile) {
         if (!canEditTrip()) return
+        modeChosenByUser = true
         mutable.update { it.copy(travelProfile=profile,selectedEntranceId=null) }
         recomputePreview()
     }
@@ -171,6 +180,15 @@ class NavGateViewModel(
         val destination = state.selectedDestination
         val request = if (origin != null && destination != null) PlanRequest(++requestId,state.cityMode.regionId,
             GeoPoint(origin.latitude,origin.longitude),destination.id,state.selectedEntranceId,state.travelProfile.name.lowercase(),destination.coordinate?.let{GeoPoint(it.latitude,it.longitude)},destination.title) else null
+        estimateJob?.cancel()
+        mutable.update { it.copy(modeEstimates=emptyMap()) }
+        if (request != null && estimator != null) estimateJob = viewModelScope.launch {
+            for (profile in listOf(TravelProfile.Driving,TravelProfile.Walking)) {
+                val result = try { estimator.plan(request.copy(requestId=-1,profile=profile.name.lowercase(),entranceId=null,routingSource="valhalla"),null) }
+                    catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+                if (result is RouteResult.Ready) mutable.update { it.copy(modeEstimates=it.modeEstimates + (profile to ModeEstimate(result.route.estimatedSeconds.asEtaLabel(),result.route.distanceMeters.asDistanceLabel()))) }
+            }
+        }
         viewModelScope.launch {
             if (request == null) {
                 backend.clear()
@@ -181,10 +199,44 @@ class NavGateViewModel(
 
     fun startNavigation() {
         if (mutable.value.startPending) return
-        mutable.update { it.copy(startPending=true) }
+        mutable.update { it.copy(startPending=true,startNotice=null) }
         viewModelScope.launch {
-            try { backend.start() }
-            finally { mutable.update { it.copy(startPending=false) } }
+            try {
+                refreshLiveRouteBeforeStart()
+                backend.start()
+                val session = backend.state.value.session
+                if (session.status !in NavigationSession.ACTIVE) mutable.update { it.copy(startNotice=startBlockedReason(session.signalReason)) }
+            } finally { mutable.update { it.copy(startPending=false) } }
+        }
+    }
+
+    /** A route planned from "Your location" may be minutes old; plan again from where the user is now before starting. */
+    private suspend fun refreshLiveRouteBeforeStart() {
+        val state = mutable.value
+        val route = backend.state.value.session.route ?: return
+        val fresh = freshCurrentLocation() ?: return
+        if (state.selectedOrigin?.id != LIVE_LOCATION_ID) return
+        val routeStart = route.geometry.firstOrNull() ?: return
+        if (routeStart.distanceTo(fresh) <= 15.0) return
+        val previous = route.id
+        mutable.update { it.copy(selectedOrigin=livePlace(fresh)) }
+        recomputePreview()
+        kotlinx.coroutines.withTimeoutOrNull(25_000) {
+            backend.state.first { !it.planning && it.session.route?.id != previous && it.session.status == SessionStatus.Preview }
+        }
+    }
+
+    /** Say what is actually wrong instead of leaving the Start button silent. */
+    private fun startBlockedReason(sessionReason: String?): String {
+        val sample = latestLocationSample
+        val age = sample?.let { clock.elapsedMillis() - it.elapsedMillis }
+        val limit = guidancePolicy.maxAccuracyMeters.toInt()
+        return when {
+            sample == null -> "Waiting for your location. Make sure location is on and try again in a moment."
+            sample.accuracyMeters.isFinite() && sample.accuracyMeters > guidancePolicy.maxAccuracyMeters ->
+                "GPS is only accurate to about ${sample.accuracyMeters.toInt()} m. Step outside or wait for a stronger signal (needs ${limit} m or better), then tap Start again."
+            age != null && age > guidancePolicy.maxFixAgeMillis -> "Your location is out of date. Waiting for a fresh position, then tap Start again."
+            else -> sessionReason ?: "Guidance could not start. Try again."
         }
     }
 
@@ -203,6 +255,7 @@ class NavGateViewModel(
 
     fun onLocationFix(fix: LocationFix) {
         onSearchLocation(fix)
+        if (fix.point.valid && fix.accuracyMeters.isFinite()) mutable.update { it.copy(displayLocation=Coordinate(fix.point.latitude,fix.point.longitude),displayAccuracy=fix.accuracyMeters) }
         heading=fix.heading?.takeIf { it.isFinite() }
         if (latestLocationSample?.let { fix.elapsedMillis > it.elapsedMillis } != false) latestLocationSample=fix
         viewModelScope.launch { backend.location(fix) }
@@ -234,10 +287,17 @@ class NavGateViewModel(
     fun useCurrentOrigin(): Boolean {
         if (!canEditTrip()) return false
         val session=backend.state.value.session
-        val fix=freshCurrentLocation()
-        if(fix==null || session.signalReason!=null) { mutable.update { it.copy(statusMessage="Waiting for a fresh accurate location; choose a start manually") };return false }
+        val fix=planningLocation()
+        if(fix==null) { mutable.update { it.copy(statusMessage="Looking for your location… choose a start manually if it takes long") };return false }
         selectOrigin(livePlace(fix))
         return true
+    }
+    /** Any recent device position is good enough to plan from; starting guidance still needs an accurate fix. */
+    private fun planningLocation(): GeoPoint? {
+        freshCurrentLocation()?.let { return it }
+        val sample = latestLocationSample ?: return null
+        val age = clock.elapsedMillis() - sample.elapsedMillis
+        return sample.point.takeIf { it.valid && sample.accuracyMeters.isFinite() && sample.accuracyMeters <= 2_000 && age in 0..600_000 }
     }
     private fun freshCurrentLocation(): GeoPoint? {
         val sample=latestLocationSample ?: return null
@@ -309,7 +369,7 @@ class NavGateViewModel(
         fun factory(application: Application): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val services=NavGateServices.get(application)
-                NavGateViewModel(services::backend,services.users,services.preferences,onSearchLocation=services::updateSearchLocation)
+                NavGateViewModel(services::backend,services.users,services.preferences,onSearchLocation=services::updateSearchLocation,estimator=services.roadRouting)
             }
         }
         private fun livePlace(point: GeoPoint)=PlaceSearchResult(LIVE_LOCATION_ID,"Your location","Last accepted GPS position",point.latitude,point.longitude,PlaceType.Transit)
@@ -345,7 +405,17 @@ data class NavGateUiState(
     val voiceAnnouncement:String?=null,val voiceSequence:Long=0,
     val frontendPreferences:FrontendPreferences=FrontendPreferences(),val regionStatus:RegionStatus?=null,
     val preferencesLoaded:Boolean=false,val stopPending:Boolean=false,val currentLocationUsable:Boolean=false,
+    /** Latest device fix of any quality, for the position dot and map centering; guidance still requires an accurate fix. */
+    val displayLocation:Coordinate?=null,val displayAccuracy:Double?=null,
+    /** Time and distance per travel mode for the current endpoints, filled in as each road route arrives. */
+    val modeEstimates:Map<TravelProfile,ModeEstimate> = emptyMap(),
+    /** Name of the area around the user, for the home sheet title. */
+    val areaName:String?=null,
+    /** Why the last Start tap did not begin guidance, shown beside the Start button. */
+    val startNotice:String?=null,
 )
+
+data class ModeEstimate(val etaLabel:String,val distanceLabel:String)
 
 data class RoutePreview(val originTitle:String,val destinationTitle:String,val distanceLabel:String,val etaLabel:String,val firstInstruction:String) {
     companion object {

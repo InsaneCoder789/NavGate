@@ -89,6 +89,9 @@ import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
 import io.github.dellisd.spatialk.geojson.Position
+import com.rohanc.navgate.ui.journey.JourneyActions
+import com.rohanc.navgate.ui.journey.JourneyScreens
+import com.rohanc.navgate.ui.journey.JourneyUi
 
 /** Native UI: all place, route and progress values come from the local backend. */
 @Composable
@@ -160,7 +163,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     var selectedManeuver by rememberSaveable { mutableStateOf<Int?>(null) }
     var permission by remember { mutableStateOf(hasLocationPermission(context)) }
     var cameraPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED) }
-    val locationLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){permission=it.values.any{granted->granted}}
+    val locationLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){permission=it.values.any{granted->granted};if(permission&&vm.uiState.value.showOnboarding)vm.dismissOnboarding()}
     val cameraLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){cameraPermission=it}
     val lifecycleOwner=LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner){
@@ -229,11 +232,23 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     }
     var sheetExpanded by rememberSaveable(screen){mutableStateOf(screen in listOf("My routes","Search","Results","Settings","Offline","Steps","Saved","Recents"))}
     BackHandler(enabled=screen!="Explore"){back()}
+    val journey=ui.preferencesLoaded && !ui.showOnboarding && screen in JourneyScreens
+    var insetTop by remember{mutableFloatStateOf(0f)}
+    var insetBottom by remember{mutableFloatStateOf(0f)}
+    val actions=JourneyActions(
+        back={back()},openSearch={type->search(type)},query=vm::updateSearch,submitSearch={keyboard?.hide();screen="Results"},choose={choose(it)},
+        directions={directions(it)},directionsWithEntrance={place,id->directions(place);vm.selectEntrance(id)},share={share(it)},toggleSaved={vm.toggleSaved(it)},
+        openSettings={openUtility("Settings")},openTab={name->utilityStack=emptyList();if(name=="Directions")directionCaller="Explore";screen=name},openMyRoutes={screen="My routes"},
+        clearRecents={clearDialog=true},useCurrentLocation={currentOrigin()},chooseOnMap={type->searchFor=type;vm.updateSearch("");screen="MapPick"},
+        swap=vm::swapEndpoints,clearPlan={vm.clearPlan();selectedManeuver=null;screen="Explore"},setProfile={vm.setTravelProfile(it)},replan=vm::replan,start=vm::startNavigation,
+        requestStop={stopDialog=true},requestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},
+        openAppSettings={appSettings()},showSteps={screen="Steps"},openCamera={screen="Camera";vm.switchMode(PresentationMode.AR_ASSIST)},
+        toggleVoice={vm.updateFrontendPreferences(prefs.copy(voiceEnabled=!prefs.voiceEnabled))},finishArrival={vm.finishArrival();screen="Explore"},openOfflineData={openUtility("Offline")})
     NavGateTheme(dark=dark){CompositionLocalProvider(LocalSolidGlass provides prefs.reduceTransparency){
         Surface(Modifier.fillMaxSize()){
             Box(Modifier.fillMaxSize()){
                 val mapUi=if(screen in listOf("Search","Results")&&searchFor=="saved")ui.copy(places=vm.searchSaved(ui.searchQuery))else ui
-                if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),onPin=when(screen){
+                if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journey)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journey)insetTop else 80f,controlsBottomDp=if(journey)insetBottom+12f else null,screenIsExplore=screen=="Explore",onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),onPin=when(screen){
                     "ManualPin"->({point->manualPointJson=Json.encodeToString(point);inspectManualPoint=Coordinate(point.latitude,point.longitude);screen="My routes"})
                     "MapPick"->({point->choose(PlaceSearchResult("pin:${java.util.UUID.randomUUID()}","Dropped pin","Selected on map",point.latitude,point.longitude,com.rohanc.navgate.model.PlaceType.Landmark))})
                     else->null
@@ -242,7 +257,9 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                     else if(!active){placeCaller=screen;vm.focusPlace(place);screen="Place"}
                 }
                 if(screen=="Camera" && cameraPermission)CameraPreview(Modifier.fillMaxSize())
-                Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+                if(journey)JourneyUi(screen,searchFor,ui,backend.session,ui.snapshot.route?.steps.orEmpty(),backend.session.route?.takeIf{it.external}?.warnings.orEmpty(),permission,prefs.voiceEnabled,ui.areaName,
+                    if(searchFor=="saved")vm.searchSaved(ui.searchQuery)else ui.places,details?.availability,details?.entranceLabels.orEmpty(),active,{top,bottom->insetTop=top;insetBottom=bottom},actions)
+                if(!journey)Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
                     Row(verticalAlignment=Alignment.CenterVertically){
                         if(screen!="Explore" && ui.preferencesLoaded)MapControlButton(onClick={back()}){Icon(Icons.Rounded.ArrowBack,"Back")}
                         if(screen!="Explore")Spacer(Modifier.width(10.dp))
@@ -268,8 +285,8 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                             if(!ui.preferencesLoaded){CircularProgressIndicator();Text("Loading your region and saved settings…")}else if((ui.showOnboarding && screen=="Explore")||screen=="Setup"){
                                 Text("Search cities, addresses and landmarks around the world.")
                                 Text("Location helps position you. You can also choose a start manually.")
-                                Button(onClick={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},modifier=Modifier.fillMaxWidth()){Text("Enable location")}
-                                TextButton(onClick={vm.dismissOnboarding();screen="Explore"}){Text("Continue to map")}
+                                if(!permission)Button(onClick={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},modifier=Modifier.fillMaxWidth()){Text("Enable location")}
+                                if(permission)Button(onClick={vm.dismissOnboarding();screen="Explore"},modifier=Modifier.fillMaxWidth()){Text("Get started")} else TextButton(onClick={vm.dismissOnboarding();screen="Explore"}){Text("Continue to map")}
                                 Text("Camera assistance is optional and asks for permission only when you choose it during a walk.")
                             }else when(screen){
                                 "Explore"->{
@@ -468,7 +485,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
 }
 @Composable private fun PreferenceRow(label:String,checked:Boolean,onChange:(Boolean)->Unit){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(label,Modifier.weight(1f));Switch(checked,onChange)}}
 
-@Composable private fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,onPlace:(PlaceSearchResult)->Unit){
+@Composable private fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,onPlace:(PlaceSearchResult)->Unit){
     val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
@@ -481,12 +498,12 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     var failed by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     val style=remember(dark){BaseStyle.Uri(if(dark)"asset://navgate-map-dark.json" else "asset://navgate-map-daylight.json")}
-    val options=remember{MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(padding=PaddingValues(top=100.dp,start=12.dp,end=12.dp),logoAlignment=Alignment.TopStart,attributionAlignment=Alignment.TopEnd,isScaleBarEnabled=false))}
+    val options=remember(topInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(padding=PaddingValues(top=(topInsetDp+20f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.TopStart,attributionAlignment=Alignment.TopEnd,isScaleBarEnabled=false))}
     suspend fun move(next:CameraPosition){if(ui.frontendPreferences.reduceMotion)camera.position=next else camera.animateTo(next,400.milliseconds)}
     fun fitRoute(){val points=ui.snapshot.route?.pathCoordinates.orEmpty();if(points.isEmpty())return
         val south=points.minOf{it.latitude};val north=points.maxOf{it.latitude};val west=points.minOf{it.longitude};val east=points.maxOf{it.longitude}
         following=false
-        scope.launch{camera.animateTo(BoundingBox(Position(latitude=south,longitude=west),Position(latitude=north,longitude=east)),bearing=0.0,tilt=0.0,padding=PaddingValues(start=24.dp,end=72.dp,top=minOf(136,viewport.screenHeightDp/4).dp,bottom=(viewport.screenHeightDp*.45).dp),duration=if(ui.frontendPreferences.reduceMotion)0.milliseconds else 400.milliseconds)}
+        scope.launch{camera.animateTo(BoundingBox(Position(latitude=south,longitude=west),Position(latitude=north,longitude=east)),bearing=0.0,tilt=0.0,padding=PaddingValues(start=24.dp,end=72.dp,top=(topInsetDp+28f).dp,bottom=(bottomInsetDp+24f).dp),duration=if(ui.frontendPreferences.reduceMotion)0.milliseconds else 400.milliseconds)}
     }
     LaunchedEffect(inspectPoint){
         if(inspectPoint!=null){following=false;move(camera.position.copy(target=Position(latitude=inspectPoint.latitude,longitude=inspectPoint.longitude),zoom=18.0))}
@@ -494,17 +511,17 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     }
     LaunchedEffect(active,sessionId){if(active&&followingSession!=sessionId){followingSession=sessionId;following=true}}
     LaunchedEffect(camera.moveReason){if(camera.moveReason==CameraMoveReason.GESTURE)following=false}
-    LaunchedEffect(ui.focusedPlace?.id,ui.cityMode){val target=ui.focusedPlace?.coordinate
-        if(target!=null){following=false;move(camera.position.copy(target=Position(latitude=target.latitude,longitude=target.longitude),zoom=17.0))}
-        else if(!active&&ui.snapshot.route==null && !centeredOnLocation){
-            val fix=ui.snapshot.userLocation?.takeIf{ui.currentLocationUsable}
-            if(fix!=null){centeredOnLocation=true;move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=15.5))}
-        }
+    LaunchedEffect(ui.focusedPlace?.id,ui.cityMode,(bottomInsetDp/40f).toInt()){val target=ui.focusedPlace?.coordinate
+        if(target!=null){following=false;move(camera.position.copy(target=Position(latitude=target.latitude,longitude=target.longitude),zoom=16.5,padding=PaddingValues(top=topInsetDp.dp,bottom=bottomInsetDp.dp)))}
     }
-    LaunchedEffect(ui.snapshot.route){if(!active)fitRoute()}
-    LaunchedEffect(ui.snapshot.userLocation,following,active,permission){val fix=ui.snapshot.userLocation
-        if(!active && !centeredOnLocation && ui.focusedPlace==null && ui.snapshot.route==null && permission && ui.currentLocationUsable && fix!=null){
-            centeredOnLocation=true;move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=15.5))
+    // Like any maps app, jump to the user as soon as there is a position (and again when permission is first granted).
+    LaunchedEffect(permission){if(permission)centeredOnLocation=false}
+    LaunchedEffect(ui.snapshot.route,(bottomInsetDp/60f).toInt()){if(!active)fitRoute()}
+    LaunchedEffect(ui.snapshot.userLocation,ui.displayLocation,following,active,permission,loading){val fix=ui.snapshot.userLocation
+        val shown=ui.displayLocation ?: fix
+        if(!active && !loading && !centeredOnLocation && ui.focusedPlace==null && ui.snapshot.route==null && permission && shown!=null){
+            centeredOnLocation=true;val accuracy=ui.displayAccuracy ?: 50.0
+            move(camera.position.copy(target=Position(latitude=shown.latitude,longitude=shown.longitude),zoom=if(accuracy<=150)16.0 else if(accuracy<=2_000)14.0 else 11.0,bearing=0.0,tilt=0.0))
         }
         if(active&&following&&permission&&ui.currentLocationUsable&&fix!=null&&ui.snapshot.locationConfidence.label!=com.rohanc.navgate.navigation.GuidanceConfidence.Low)move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=17.5))
     }
@@ -520,8 +537,9 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             val places=rememberGeoJsonSource(GeoJsonData.JsonString("""{"type":"FeatureCollection","features":[$points]}"""))
             CircleLayer(id="campus-places",source=places,radius=const(5.dp),color=const(NavSecondary),strokeColor=const(Color.White),strokeWidth=const(1.dp))
             val route=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.lineString(ui.snapshot.route)))
-            LineLayer(id="walking-route-glow",source=route,color=const(NavPrimary.copy(alpha=.25f)),width=const(12.dp))
-            LineLayer(id="walking-route",source=route,color=const(NavPrimary),width=const(6.dp))
+            val routeColor=if(dark)Color(0xFF8AB4F8) else Color(0xFF3B47E8)
+            LineLayer(id="walking-route-casing",source=route,color=const(if(dark)Color(0xFF0B1B33) else Color.White),width=const(11.dp))
+            LineLayer(id="walking-route",source=route,color=const(routeColor),width=const(7.dp))
             val customPoints=manualPins.map{Coordinate(it.point.latitude,it.point.longitude)}
             val customLine=if(customPoints.size>=2)"""{"type":"LineString","coordinates":[${customPoints.joinToString(","){"[${it.longitude},${it.latitude}]"}}]}"""else """{"type":"FeatureCollection","features":[]}"""
             val manualLine=rememberGeoJsonSource(GeoJsonData.JsonString(customLine))
@@ -531,19 +549,25 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             SymbolLayer(id="manual-itinerary-labels",source=manualDots,textField=format(span(feature.get("label").asString())),
                 textFont=const(listOf("Noto Sans Regular")),textSize=const(14.sp),textColor=const(NavTertiary),
                 textHaloColor=const(if(dark)Color.Black else Color.White),textHaloWidth=const(1.dp),textRadialOffset=const(16.sp),textAnchor=const(org.maplibre.compose.expressions.value.SymbolAnchor.Bottom))
-            val endpoints=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(ui.selectedOrigin?.coordinate,ui.selectedDestination?.coordinate)))
-            CircleLayer(id="trip-endpoints",source=endpoints,radius=const(8.dp),color=const(NavPrimary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
+            val tripOrigin=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(ui.selectedOrigin?.coordinate,null)))
+            CircleLayer(id="trip-origin",source=tripOrigin,radius=const(8.dp),color=const(Color(0xFF1A73E8)),strokeColor=const(Color.White),strokeWidth=const(3.dp))
+            // Destination and the place being looked at share the red marker used by maps apps.
+            val pinned=ui.selectedDestination?.coordinate ?: ui.focusedPlace?.coordinate
+            val destination=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(null,pinned)))
+            CircleLayer(id="trip-destination",source=destination,radius=const(11.dp),color=const(Color(0xFFD93025)),strokeColor=const(Color.White),strokeWidth=const(3.dp))
+            CircleLayer(id="trip-destination-dot",source=destination,radius=const(4.dp),color=const(Color.White))
             val inspection=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(inspectPoint,null)))
             CircleLayer(id="inspected-maneuver",source=inspection,radius=const(10.dp),color=const(NavTertiary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
-            val location=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(permission)ui.snapshot.userLocation else null,null)))
-            val radius=(accuracyMeters?.div(camera.metersPerDpAtTarget))?.takeIf{it.isFinite()}?.coerceIn(7.0,120.0) ?: 7.0
+            val shownLocation=ui.displayLocation ?: ui.snapshot.userLocation
+            val location=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(permission)shownLocation else null,null)))
+            val radius=((ui.displayAccuracy ?: accuracyMeters)?.div(camera.metersPerDpAtTarget))?.takeIf{it.isFinite()}?.coerceIn(7.0,120.0) ?: 7.0
             CircleLayer(id="location-uncertainty",source=location,radius=const(radius.dp),color=const(NavSecondary.copy(alpha=.15f)))
-            CircleLayer(id="current-position",source=location,radius=const(7.dp),color=const(if(!ui.currentLocationUsable)Color.Gray else NavSecondary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
+            CircleLayer(id="current-position",source=location,radius=const(7.dp),color=const(NavSecondary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
         }}
-        Column(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top=80.dp,end=16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-            MapControlButton(onClick={val fix=ui.snapshot.userLocation;if(!permission)onFeedback("Enable location access in Android settings to center the map.")else if(fix==null||!ui.currentLocationUsable)onFeedback("Waiting for a fresh location. You can choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=17.5))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
+        if(controlsBottomDp==null || controlsBottomDp<viewport.screenHeightDp*0.6f)Column(Modifier.align(if(controlsBottomDp!=null)Alignment.BottomEnd else Alignment.TopEnd).let{if(controlsBottomDp!=null)it.navigationBarsPadding().padding(bottom=controlsBottomDp.dp+if(screenIsExplore)72.dp else 0.dp,end=16.dp) else it.statusBarsPadding().padding(top=topInsetDp.dp,end=16.dp)},verticalArrangement=Arrangement.spacedBy(8.dp)){
+            MapControlButton(onClick={val fix=ui.displayLocation ?: ui.snapshot.userLocation;if(!permission)onRequestLocation()else if(fix==null)onFeedback("Looking for your location… You can also choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=maxOf(camera.position.zoom,16.0),bearing=0.0))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
             MapControlButton(enabled=!loading&&!failed,onClick={following=false;scope.launch{move(camera.position.copy(bearing=0.0))}}){Icon(Icons.Rounded.Explore,"Orient map north")}
-            MapControlButton(enabled=!loading&&!failed,onClick={perspective=!perspective;scope.launch{move(camera.position.copy(tilt=if(perspective)35.0 else 0.0))}}){Text(if(perspective)"2D"else"3D")}
+            // (3D toggle removed: guidance tilts the map itself)
             if(ui.snapshot.route!=null)MapControlButton(enabled=!loading&&!failed,onClick={fitRoute()}){Icon(Icons.Rounded.ZoomOutMap,"Fit route")}
         }
         if(!connection&&!loading&&!failed)Text("No map connection. Cached tiles may remain visible; local places are still available.",Modifier.align(Alignment.TopStart).padding(top=132.dp,start=16.dp,end=80.dp).background(MaterialTheme.colorScheme.surface).padding(12.dp))
