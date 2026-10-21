@@ -142,19 +142,23 @@ import com.rohanc.navgate.ui.journey.JourneyUi
     // Like any maps app, jump to the user as soon as there is a position (and again when permission is first granted).
     LaunchedEffect(permission){if(permission)centeredOnLocation=false}
     // Back on the home map after cancelling a route or stopping a trip: go back to where you are instead of staying on the old route.
-    // Trip ended or route cancelled: fly straight back to where you are, flat and north-up. This does not depend on any other
-    // map state (focused place, old route), which is what kept the camera stuck on the old route before.
+    // Trip ended or route cancelled: fly straight back to where you are, flat and north-up. The request is remembered until it
+    // has actually run, so other map changes at the same moment (the screen switching, the old route clearing) cannot cancel
+    // it half-way and leave the camera on the old route.
     var wasActive by remember{mutableStateOf(false)}
+    var goHome by remember{mutableStateOf(false)}
     val homeFix=ui.displayLocation ?: ui.snapshot.userLocation
-    LaunchedEffect(active,screenIsExplore,ui.snapshot.route==null,homeFix==null){
-        val ended=wasActive&&!active
-        wasActive=active
-        if(!(ended||(screenIsExplore&&!active&&ui.snapshot.route==null))||!permission)return@LaunchedEffect
+    LaunchedEffect(active){if(wasActive&&!active)goHome=true;wasActive=active}
+    LaunchedEffect(screenIsExplore,ui.snapshot.route==null){if(screenIsExplore&&!active&&ui.snapshot.route==null)goHome=true}
+    LaunchedEffect(goHome,homeFix==null,active,permission){
+        if(!goHome||active||!permission)return@LaunchedEffect
         val here=homeFix ?: return@LaunchedEffect
         centeredOnLocation=true;following=true
         move(camera.position.copy(target=Position(latitude=here.latitude,longitude=here.longitude),zoom=16.0,bearing=0.0,tilt=0.0,padding=PaddingValues(top=topInsetDp.dp,bottom=bottomInsetDp.dp)))
+        goHome=false
     }
-    LaunchedEffect(ui.snapshot.route,(bottomInsetDp/60f).toInt()){if(!active)fitRoute()}
+    // The route overview belongs to the directions screens; on the home map it would pull the camera back to a finished route.
+    LaunchedEffect(ui.snapshot.route,(bottomInsetDp/60f).toInt()){if(!active&&!screenIsExplore&&!goHome)fitRoute()}
     LaunchedEffect(ui.snapshot.userLocation,ui.displayLocation,following,active,permission,loading,centeredOnLocation){val fix=ui.snapshot.userLocation
         val shown=ui.displayLocation ?: fix
         if(!active && !loading && !centeredOnLocation && ui.focusedPlace==null && (ui.snapshot.route==null||screenIsExplore) && permission && shown!=null){
@@ -175,7 +179,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             val places=rememberGeoJsonSource(GeoJsonData.JsonString("""{"type":"FeatureCollection","features":[$points]}"""))
             CircleLayer(id="campus-places",source=places,radius=const(9.dp),color=const(Color(0xFFD93025)),strokeColor=const(Color.White),strokeWidth=const(2.5.dp))
             CircleLayer(id="campus-places-dot",source=places,radius=const(3.5.dp),color=const(Color.White))
-            val route=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.lineString(ui.snapshot.route)))
+            val route=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.lineString(if(screenIsExplore)null else ui.snapshot.route)))
             val routeColor=if(dark)Color(0xFF8AB4F8) else Color(0xFF3B47E8)
             LineLayer(id="walking-route-casing",source=route,color=const(if(dark)Color(0xFF0B1B33) else Color.White),width=const(11.dp))
             LineLayer(id="walking-route",source=route,color=const(routeColor),width=const(7.dp))

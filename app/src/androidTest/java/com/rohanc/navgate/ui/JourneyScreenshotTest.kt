@@ -100,6 +100,9 @@ class JourneyScreenshotTest {
             compose.onNodeWithContentDescription("Stop navigation").performClick()
             compose.onNodeWithText("Stop",substring=false).performClick()
             compose.waitUntil(8_000){vm.backendState.value.session.status==SessionStatus.Stopped}
+            // The camera must fly back to the user after a trip ends (it used to stay on the old route).
+            compose.waitForIdle();Thread.sleep(3_000);compose.waitForIdle()
+            shot("11-after-stop")
             compose.onNodeWithText("Saved").performClick()
             shot("8-saved")
             compose.onNodeWithText("Recents").performClick()

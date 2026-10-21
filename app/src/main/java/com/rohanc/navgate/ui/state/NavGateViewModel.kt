@@ -246,7 +246,12 @@ class NavGateViewModel(
         if (mutable.value.stopPending) return
         mutable.update { it.copy(stopPending=true) }
         viewModelScope.launch {
-            try { backend.stop(); mutable.update { it.copy(voiceAnnouncement=null) } }
+            try {
+                backend.stop()
+                // A cancelled trip leaves nothing behind: no old route on the map and no stale start/destination to come back to.
+                backend.clear()
+                mutable.update { it.copy(voiceAnnouncement=null,selectedOrigin=null,selectedDestination=null,focusedPlace=null,preview=null,isPreviewVisible=false,statusMessage=null) }
+            }
             finally { mutable.update { it.copy(stopPending=false) } }
         }
     }
