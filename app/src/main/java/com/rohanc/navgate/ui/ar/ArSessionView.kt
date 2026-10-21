@@ -64,6 +64,8 @@ private class ArSessionHolder(private val context: Context, private val onFrame:
     @Volatile private var viewport = intArrayOf(0, 0)
     private var groundHeight: Double? = null
     private var wasTracking = false
+    private var groundSamples = 0
+    private var planesOff = false
 
     init {
         surface.preserveEGLContextOnPause = true
@@ -89,10 +91,15 @@ private class ArSessionHolder(private val context: Context, private val onFrame:
                 val created = Session(context)
                 created.configure(created.config.apply {
                     planeFindingMode = Config.PlaneFindingMode.HORIZONTAL
-                    updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
+                    updateMode = Config.UpdateMode.BLOCKING   // frames arrive at the camera rate; no busy loop
                     focusMode = Config.FocusMode.AUTO
                     lightEstimationMode = Config.LightEstimationMode.DISABLED
                 })
+                // Battery: 30 fps is plenty for a line on a road; the default 60 fps roughly doubles camera and tracking work.
+                runCatching {
+                    val filter = CameraConfigFilter(created).setTargetFps(java.util.EnumSet.of(CameraConfig.TargetFps.TARGET_FPS_30))
+                    created.getSupportedCameraConfigs(filter).firstOrNull()?.let { created.cameraConfig = it }
+                }
                 session = created
                 created.setCameraTextureName(renderer.textureId)
                 if (viewport[0] > 0) {
@@ -137,8 +144,14 @@ private class ArSessionHolder(private val context: Context, private val onFrame:
                 it.trackingState == TrackingState.TRACKING && it.subsumedBy == null && it.type == Plane.Type.HORIZONTAL_UPWARD_FACING && t[1] - it.centerPose.ty() > 0.6f
             }.maxOfOrNull { it.centerPose.ty() }
             if (floor != null) {
+                groundSamples++
                 val measured = (t[1] - floor).toDouble().coerceIn(0.8, 2.4)
                 groundHeight = groundHeight?.let { it + (measured - it) * 0.05 } ?: measured
+            }
+            // Once the ground height has settled, stop plane detection: it is the most expensive part of tracking and no longer needed.
+            if (!planesOff && groundSamples > 90) {
+                planesOff = true
+                runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.DISABLED }) }
             }
             val matrix = FloatArray(16).also { camera.getProjectionMatrix(it, 0, 0.1f, 200f) }
             val state = ArFrameState(

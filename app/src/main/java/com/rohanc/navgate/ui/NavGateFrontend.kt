@@ -331,14 +331,29 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                             val compass=arBasis?.takeIf{kotlin.math.abs(it.pitchDegrees)<55}?.headingDegrees
                             aligner.update(f.reading,compass,gps,ui.displayAccuracy?.toDouble()?:20.0,motionNow?.headingDegrees,motionNow?.speedMps?:0.0)
                         }}
+                        val here=if(arStatus is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable)gps else (arCamera?.position?:gps)
+                        // Racing-game checkpoints: the track only keeps the road you are on (and the next) in memory.
+                        val track=remember(backend.session.route?.id){backend.session.route?.let{com.rohanc.navgate.ui.ar.CheckpointTrack(it)}}
+                        var gates by remember(track){mutableStateOf<List<com.rohanc.navgate.ui.ar.Gate>>(emptyList())}
+                        var burst by remember(track){mutableStateOf<com.rohanc.navgate.ui.ar.GateBurst?>(null)}
+                        var toNext by remember(track){mutableStateOf<Double?>(null)}
+                        val haptics=androidx.compose.ui.platform.LocalHapticFeedback.current
+                        val stepKey=here?.let{(it.latitude*1e5).toLong() to (it.longitude*1e5).toLong()}
+                        LaunchedEffect(track,stepKey){
+                            val position=here?:return@LaunchedEffect
+                            val t=track?:return@LaunchedEffect
+                            val result=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default){
+                                val passed=t.update(position);Triple(passed,t.upcoming(),t.metersToNextGate)
+                            }
+                            gates=result.second;toNext=result.third
+                            result.first.lastOrNull()?.let{burst=com.rohanc.navgate.ui.ar.GateBurst(it,System.currentTimeMillis());haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)}
+                        }
                         if(arStatus is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable){
                             CameraPreview(Modifier.fillMaxSize())
-                            val fallbackTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)
-                            com.rohanc.navgate.ui.ar.ArRoadOverlay(backend.session.route,gps,arBasis,fallbackTurn?.kind,fallbackTurn?.instruction,backend.session.distanceToManeuver.takeIf{fallbackTurn!=null},Modifier.fillMaxSize())
+                            com.rohanc.navgate.ui.ar.ArCheckpointOverlay(gates,gps,arBasis,burst,toNext,Modifier.fillMaxSize())
                         }else{
                             com.rohanc.navgate.ui.ar.ArSessionView({arFrame=it;arStatus=com.rohanc.navgate.ui.ar.ArSessionStatus.Running},{if(it is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable)arStatus=it},Modifier.fillMaxSize())
-                            val nextTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)
-                            com.rohanc.navgate.ui.ar.ArRoadOverlay(backend.session.route,arCamera?.position,arCamera?.basis,nextTurn?.kind,nextTurn?.instruction,backend.session.distanceToManeuver.takeIf{nextTurn!=null},Modifier.fillMaxSize(),arFrame)
+                            com.rohanc.navgate.ui.ar.ArCheckpointOverlay(gates,arCamera?.position,arCamera?.basis,burst,toNext,Modifier.fillMaxSize(),arFrame)
                         }
                     }
                 }
