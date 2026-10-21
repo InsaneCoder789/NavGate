@@ -101,14 +101,21 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         val resumed = current.status == SessionStatus.ResumeAvailable
         val expected = if (resumed) projectPath(fix.point, route.geometry) else null
         val near = if (resumed) expected?.distanceMeters ?: Double.POSITIVE_INFINITY else fix.point.distanceTo(route.geometry.first())
-        if (near > 20.0) return@withLock publish(current.copy(signalReason = "Move to the planned start or replan from your location"))
+        // A road router snaps the start pin to the nearest mapped road, which can be tens of metres from where a phone reports you.
+        val startTolerance = if (route.external) 60.0 else 20.0
+        if (near > startTolerance) return@withLock publish(current.copy(signalReason = "Move to the planned start or replan from your location"))
         if (resumed && abs(route.shapeToRouteMeters(expected?.alongMeters ?: 0.0) - current.alongMeters) > 40.0) {
             return@withLock publish(current.copy(signalReason = "Position changed since the checkpoint; replan before resuming"))
         }
         resetTracking()
         lastAccepted = fix
+        // Open on the first real turn, not on the "head southwest" start instruction at 0 m.
+        val upcoming = route.maneuvers.indexOfFirst { it.alongMeters > current.alongMeters + 2 }.let { if (it < 0) route.maneuvers.lastIndex.coerceAtLeast(0) else it }
+        val firstTurn = route.maneuvers.getOrNull(upcoming)
         publish(current.copy(sessionId = current.sessionId ?: UUID.randomUUID().toString(), status = SessionStatus.Navigating,
-            location = fix.point, accuracyMeters = fix.accuracyMeters, signalReason = null), current.instruction)
+            location = fix.point, accuracyMeters = fix.accuracyMeters, signalReason = null, maneuverIndex = upcoming,
+            instruction = firstTurn?.instruction ?: current.instruction,
+            distanceToManeuver = ((firstTurn?.alongMeters ?: route.distanceMeters) - current.alongMeters).coerceAtLeast(0.0)), current.instruction)
     }
 
     suspend fun stop(): SessionUpdate = mutex.withLock {
