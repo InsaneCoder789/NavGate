@@ -7,7 +7,8 @@ import java.util.Locale
 
 /** Only local ranking consumes this point; it is never included in a provider request. */
 data class SearchLocation(val point: GeoPoint, val ageMillis: Long, val accuracyMeters: Double) {
-    fun usable(): GeoPoint? = point.takeIf { it.valid && ageMillis in 0..30_000 && accuracyMeters.isFinite() && accuracyMeters > 0.0 && accuracyMeters <= 100.0 }
+    /** City-level accuracy is plenty for ranking nearby results; guidance applies its own, stricter limits. */
+    fun usable(): GeoPoint? = point.takeIf { it.valid && ageMillis in 0..600_000 && accuracyMeters.isFinite() && accuracyMeters > 0.0 && accuracyMeters <= 5_000.0 }
 }
 
 internal object PlaceSearchRanking {
@@ -29,6 +30,21 @@ internal object PlaceSearchRanking {
         "TMPL", "MSQE", "CH", "TEMPLE", "MOSQUE", "PLACE_OF_WORSHIP" -> "worship"
         "PPL", "PPLA", "PPLA2", "PPLA3", "PPLA4", "PPLC", "PPLX", "CITY", "TOWN", "VILLAGE", "SUBURB" -> "settlement"
         else -> normalize(value)
+    }
+    /** Readable name for a GeoNames feature code or OSM value; raw codes such as "RD" are never shown to people. */
+    fun featureLabel(value: String?): String {
+        val code = value?.trim().orEmpty()
+        if (code.isEmpty()) return "Place"
+        val known = mapOf("RD" to "Road", "RDJCT" to "Road junction", "ST" to "Street", "PPL" to "Populated place", "PPLA" to "City", "PPLA2" to "Town",
+            "PPLA3" to "Town", "PPLA4" to "Town", "PPLC" to "Capital", "PPLX" to "Neighbourhood", "PPLL" to "Locality", "HTL" to "Hotel", "REST" to "Restaurant",
+            "HSP" to "Hospital", "HSPC" to "Clinic", "CLIN" to "Clinic", "SCH" to "School", "SCHC" to "College", "UNIV" to "University", "AIRP" to "Airport",
+            "AIRF" to "Airfield", "RSTN" to "Railway station", "RSTP" to "Railway stop", "BUSTN" to "Bus station", "MNMT" to "Monument", "PRK" to "Park",
+            "BCH" to "Beach", "BLDG" to "Building", "MALL" to "Mall", "MKT" to "Market", "TMPL" to "Temple", "MSQE" to "Mosque", "CH" to "Church",
+            "BDG" to "Bridge", "LK" to "Lake", "MT" to "Mountain", "ISL" to "Island", "PT" to "Point", "HBR" to "Harbour", "PIER" to "Pier", "FT" to "Fort",
+            "PAL" to "Palace", "MUS" to "Museum", "STDM" to "Stadium", "STNB" to "Station", "PO" to "Post office", "BANK" to "Bank", "LDMK" to "Landmark")
+        known[code.uppercase(Locale.ROOT)]?.let { return it }
+        // Unknown all-caps short codes are not meaningful to read; lower-case OSM words are shown capitalised.
+        return if (code.length <= 5 && code == code.uppercase(Locale.ROOT)) "Place" else code.replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
     fun requestedCategory(query: String): String? = when(normalize(query)) {
         "hospital", "hospitals", "clinic", "clinics" -> "health"

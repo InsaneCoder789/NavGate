@@ -3,6 +3,7 @@ package com.rohanc.navgate.data.local
 import com.rohanc.navgate.core.*
 import com.rohanc.navgate.data.routing.ValhallaRoutingProvider
 import com.rohanc.navgate.data.search.declaredDigest
+import com.rohanc.navgate.data.search.ftsExpression
 import com.rohanc.navgate.model.ManeuverType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
@@ -55,5 +56,13 @@ class CheckpointCodecTest {
         assertEquals(digest,declaredDigest("{\"index_sha256\":\"$digest\",\"bytes\":1}"))
         assertNull(declaredDigest(null));assertNull(declaredDigest("not json"))
         assertNull(declaredDigest("{\"index_sha256\":\"short\"}"));assertNull(declaredDigest("{}"))
+    }
+
+    @Test fun `multiword search uses implicit AND because Android FTS treats the word AND as a term`() {
+        assertEquals("\"port*\" \"blair*\"",ftsExpression("Port Blair"))
+        assertEquals("\"gateway*\" \"of*\" \"india*\"",ftsExpression("  Gateway of India "))
+        assertFalse(ftsExpression("a b c")!!.contains("AND"))
+        assertEquals("\"mumbai*\"",ftsExpression("\" OR * --").let{ftsExpression("Mumbai")})
+        assertNull(ftsExpression(" ")); assertNull(ftsExpression("\" * --"))
     }
 }

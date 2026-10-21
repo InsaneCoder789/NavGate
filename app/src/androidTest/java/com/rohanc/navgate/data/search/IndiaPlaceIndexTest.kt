@@ -15,7 +15,7 @@ class IndiaPlaceIndexTest {
         val hospitals = near.search("hospitals")
         assertTrue("No nearby hospital source records", hospitals.any { PlaceSearchRanking.category(it.category)=="health" })
         assertTrue(hospitals.all { it.point?.valid==true })
-        val stale = IndiaPlaceIndex(context) { SearchLocation(com.rohanc.navgate.core.GeoPoint(19.07,72.88),60_000,10.0) }
+        val stale = IndiaPlaceIndex(context) { SearchLocation(com.rohanc.navgate.core.GeoPoint(19.07,72.88),600_001,10.0) }
         assertEquals(IndiaPlaceIndex(context).search("Mumbai"),stale.search("Mumbai"))
     }
 

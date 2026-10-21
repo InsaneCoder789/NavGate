@@ -33,10 +33,10 @@ class PlaceSearchRankingTest {
     }
     @Test fun `stale inaccurate future or invalid location cannot bias search`() {
         val point=GeoPoint(19.0,72.8)
-        assertEquals(point,SearchLocation(point,30_000,100.0).usable())
-        assertNull(SearchLocation(point,30_001,10.0).usable())
+        assertEquals(point,SearchLocation(point,600_000,5_000.0).usable())
+        assertNull(SearchLocation(point,600_001,10.0).usable())
         assertNull(SearchLocation(point,-1,10.0).usable())
-        assertNull(SearchLocation(point,0,100.1).usable())
+        assertNull(SearchLocation(point,0,5_000.1).usable())
         assertNull(SearchLocation(point,0,Double.NaN).usable())
         assertNull(SearchLocation(point,0,0.0).usable())
         assertNull(SearchLocation(GeoPoint(91.0,0.0),0,1.0).usable())

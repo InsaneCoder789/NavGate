@@ -23,7 +23,7 @@ class IndiaIndexTest(unittest.TestCase):
                 for query in ['Bombay*','मुंबई*','Mumbai*']:
                     self.assertEqual([(1275339,)],db.execute('SELECT docid FROM names WHERE names MATCH ?', (query,)).fetchall())
                 self.assertEqual((19.07283,72.88261),db.execute('SELECT latitude,longitude FROM places').fetchone())
-                self.assertEqual(1,db.execute('SELECT count(*) FROM coordinates WHERE min_lat<20 AND max_lat>19').fetchone()[0])
+                self.assertEqual(1,db.execute('SELECT count(*) FROM places WHERE latitude<20 AND latitude>19').fetchone()[0])
             before = output.read_bytes()
             with zipfile.ZipFile(archive,'w') as z:
                 z.writestr('IN.txt','malformed\n')

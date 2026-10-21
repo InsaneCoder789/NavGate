@@ -38,7 +38,6 @@ def build(archive, output):
             feature TEXT NOT NULL,admin1 TEXT NOT NULL,admin2 TEXT NOT NULL,
             population INTEGER NOT NULL,modified TEXT NOT NULL);
           CREATE VIRTUAL TABLE names USING fts4(name,aliases,tokenize=unicode61);
-          CREATE VIRTUAL TABLE coordinates USING rtree(id,min_lat,max_lat,min_lon,max_lon);
           PRAGMA user_version=1;
         ''')
         with zipfile.ZipFile(archive) as zipped:
@@ -63,8 +62,9 @@ def build(archive, output):
                     db.execute('INSERT INTO places VALUES(?,?,?,?,?,?,?,?,?,?,?)',
                                (gid, fields[1], fields[2], aliases, lat, lon, fields[7], fields[10], fields[11], population, fields[18]))
                     db.execute('INSERT INTO names(docid,name,aliases) VALUES(?,?,?)', (gid, fields[1], aliases))
-                    db.execute('INSERT INTO coordinates VALUES(?,?,?,?,?)', (gid, lat, lat, lon, lon))
                     count += 1
+        # Android's SQLite has no R-Tree module; a plain latitude index serves the nearby-search window.
+        db.execute('CREATE INDEX places_latitude ON places(latitude)')
         if not count:
             raise ValueError('No valid India records; retaining previous index')
         metadata = {'schema': '1', 'source': URL, 'license': LICENSE,

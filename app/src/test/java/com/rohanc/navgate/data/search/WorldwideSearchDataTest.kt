@@ -55,7 +55,7 @@ class WorldwideSearchDataTest {
         fix=SearchLocation(GeoPoint(19.07,72.88),0,10.0)
         assertEquals(near,data.searchPage("Central","kiit").places.first())
         assertEquals("Central",requested)
-        fix=SearchLocation(GeoPoint(19.07,72.88),30_001,10.0)
+        fix=SearchLocation(GeoPoint(19.07,72.88),600_001,10.0)
         assertEquals(far,data.searchPage("Central","kiit").places.first())
     }
     @Test fun `missing national data is visible while online results still work`()=runTest {

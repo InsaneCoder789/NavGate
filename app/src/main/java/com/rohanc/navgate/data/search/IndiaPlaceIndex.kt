@@ -8,6 +8,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+/**
+ * Prefix-matches every word. Words are separated by spaces rather than "AND": Android's SQLite uses the
+ * standard FTS syntax, where "AND" is just another search word and silently broke every multiword query.
+ */
+internal fun ftsExpression(query: String): String? =
+    Regex("[\\p{L}\\p{M}\\p{N}]+").findAll(PlaceSearchRanking.normalize(query.take(256)))
+        .take(12).map { "\"${it.value}*\"" }.toList().takeIf { it.isNotEmpty() }?.joinToString(" ")
+
 internal fun declaredDigest(manifest: String?): String? = runCatching {
     kotlinx.serialization.json.Json.parseToJsonElement(requireNotNull(manifest)).let { it as kotlinx.serialization.json.JsonObject }["index_sha256"]
         ?.let { (it as kotlinx.serialization.json.JsonPrimitive).content }
@@ -20,13 +28,13 @@ class IndiaPlaceIndex(private val context: Context, private val location: () -> 
 
     private fun open(): SQLiteDatabase = synchronized(lock) {
         database ?: run {
-            val file = File(context.noBackupFilesDir, "india-search-v1.sqlite")
+            val file = File(context.noBackupFilesDir, "india-search-v2.sqlite")
             // Compare shipped bytes so installing a newer APK cannot silently retain an old index.
             val expected = declaredDigest(runCatching { context.assets.open("search/india.json").use { it.readBytes().decodeToString() } }.getOrNull())
                 ?: hashAsset()
-            val stamp = File(context.noBackupFilesDir,"india-search-v1.sha256")
+            val stamp = File(context.noBackupFilesDir,"india-search-v2.sha256")
             if (!file.exists() || !stamp.exists() || stamp.readText() != expected) {
-                val temporary = File(context.noBackupFilesDir,"india-search-v1.tmp")
+                val temporary = File(context.noBackupFilesDir,"india-search-v2.tmp")
                 try {
                     context.assets.open("search/india.sqlite").use { source -> temporary.outputStream().use { target -> source.copyTo(target); target.fd.sync() } }
                     // Android FTS4 integrity validation needs a writable staging connection.
@@ -42,6 +50,8 @@ class IndiaPlaceIndex(private val context: Context, private val location: () -> 
                     stamp.writeText(expected)
                 } finally { temporary.delete() }
             }
+            // Earlier builds installed under v1 names; reclaim that storage.
+            listOf("india-search-v1.sqlite","india-search-v1.sha256","india-search-v1.tmp").forEach { File(context.noBackupFilesDir,it).delete() }
             SQLiteDatabase.openDatabase(file.path,null,SQLiteDatabase.OPEN_READONLY).also { database=it }
         }
     }
@@ -60,10 +70,7 @@ class IndiaPlaceIndex(private val context: Context, private val location: () -> 
     suspend fun warmUp() = withContext(Dispatchers.IO) { open(); Unit }
 
     override suspend fun search(query: String): List<CampusPlace> = withContext(Dispatchers.IO) {
-        val tokens = Regex("[\\p{L}\\p{M}\\p{N}]+").findAll(PlaceSearchRanking.normalize(query.take(256)))
-            .take(12).map { "\"${it.value}*\"" }.toList()
-        if (tokens.isEmpty()) return@withContext emptyList()
-        val expression = tokens.joinToString(" AND ")
+        val expression = ftsExpression(query) ?: return@withContext emptyList()
         val bias = location()?.usable()
         val columns = "p.id,p.name,p.latitude,p.longitude,p.feature,p.aliases"
         fun read(sql: String, args: Array<String>): List<CampusPlace> = open().rawQuery(sql,args).use { rows ->
@@ -72,7 +79,7 @@ class IndiaPlaceIndex(private val context: Context, private val location: () -> 
                     val id = rows.getLong(0)
                     val feature = rows.getString(4)
                     add(CampusPlace(id="geonames:$id",title=rows.getString(1),
-                        subtitle="India · $feature · GeoNames (CC BY 4.0)",
+                        subtitle="${PlaceSearchRanking.featureLabel(feature)} · India",
                         category=feature,city=rows.getString(1),
                         aliases=rows.getString(5).split(',').filter { it.isNotBlank() },
                         point=GeoPoint(rows.getDouble(2),rows.getDouble(3)),reviewed=false,
@@ -83,7 +90,7 @@ class IndiaPlaceIndex(private val context: Context, private val location: () -> 
         val national = read("SELECT $columns FROM names JOIN places p ON p.id=names.docid WHERE names MATCH ? " +
             "ORDER BY CASE WHEN lower(p.name)=lower(?) THEN 0 ELSE 1 END,p.population DESC,p.id LIMIT 120",
             arrayOf(expression,query.trim()))
-        // RTree restricts the near candidate set before filtering FTS/category; no gazetteer scan.
+        // A latitude/longitude window restricts the near candidate set before filtering FTS/category.
         val nearby = if (bias == null) emptyList() else {
             val category = PlaceSearchRanking.requestedCategory(query)
             val codes = category?.let(PlaceSearchRanking::featureCodes).orEmpty()
@@ -95,8 +102,9 @@ class IndiaPlaceIndex(private val context: Context, private val location: () -> 
             // A degree of longitude shrinks with latitude, so weight it by cos^2(latitude) for a fair distance order.
             val lonWeight = Math.cos(Math.toRadians(bias.latitude)).let { it * it }
             args += listOf(bias.latitude.toString(),bias.latitude.toString(),bias.longitude.toString(),bias.longitude.toString(),lonWeight.toString())
-            read("SELECT $columns FROM coordinates c JOIN places p ON p.id=c.id " +
-                "WHERE c.max_lat >= ? AND c.min_lat <= ? AND c.max_lon >= ? AND c.min_lon <= ? AND $condition " +
+            // Android's bundled SQLite has no R-Tree module, so use the latitude index built into the asset.
+            read("SELECT $columns FROM places p " +
+                "WHERE p.latitude >= ? AND p.latitude <= ? AND p.longitude >= ? AND p.longitude <= ? AND $condition " +
                 "ORDER BY ((p.latitude-?)*(p.latitude-?) + (p.longitude-?)*(p.longitude-?)*?),p.id LIMIT 120", args.toTypedArray())
         }
         PlaceSearchRanking.merge(query,national+nearby,bias)
