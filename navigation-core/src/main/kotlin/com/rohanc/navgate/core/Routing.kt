@@ -26,6 +26,8 @@ data class PlanRequest(
     val destinationPoint: GeoPoint? = null,
     val destinationTitle: String? = null,
     val routingSource: String? = null,
+    /** "fastest" (least time) or "shortest" (least distance). */
+    val preference: String = "fastest",
 )
 
 @Serializable
@@ -34,6 +36,9 @@ data class Maneuver(
     val target: GeoPoint,
     val alongMeters: Double,
     val kind: String,
+    /** Roundabouts: which exit to take, and how the route turns overall between the road you enter on and the road you leave on (positive = right). */
+    val exitNumber: Int? = null,
+    val bearingChange: Double? = null,
 )
 
 @Serializable
@@ -59,6 +64,8 @@ data class CampusRoute(
     /** Provider cumulative elapsed time at every geometry vertex, in seconds. */
     val shapeElapsedSeconds: List<Double> = emptyList(),
     val warnings: List<String> = emptyList(),
+    /** "Fastest", "Shortest" or "Alternative" when several routes were offered. */
+    val label: String? = null,
     val fromCache: Boolean = false,
 ) {
     val external: Boolean get() = source == "valhalla"

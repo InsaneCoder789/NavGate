@@ -37,7 +37,7 @@ fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, 
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(lime), contentAlignment = Alignment.Center) {
             Icon(when (turnKind) {
-                "Left" -> Icons.Rounded.TurnLeft; "SlightLeft" -> Icons.Rounded.TurnSlightLeft; "Right" -> Icons.Rounded.TurnRight; "SlightRight" -> Icons.Rounded.TurnSlightRight
+                "Left" -> Icons.Rounded.TurnLeft; "SharpLeft" -> Icons.Rounded.TurnSharpLeft; "SharpRight" -> Icons.Rounded.TurnSharpRight; "KeepLeft" -> Icons.Rounded.ForkLeft; "KeepRight" -> Icons.Rounded.ForkRight; "Merge" -> Icons.Rounded.Merge; "SlightLeft" -> Icons.Rounded.TurnSlightLeft; "Right" -> Icons.Rounded.TurnRight; "SlightRight" -> Icons.Rounded.TurnSlightRight
                 "UTurn" -> Icons.Rounded.UTurnLeft; "Roundabout" -> Icons.Rounded.RoundaboutRight; "Arrive" -> Icons.Rounded.Flag; else -> Icons.Rounded.Straight
             }, null, Modifier.size(42.dp), tint = ink)
         }

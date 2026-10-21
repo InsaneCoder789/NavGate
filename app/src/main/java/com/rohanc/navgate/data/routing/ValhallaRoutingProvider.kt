@@ -32,6 +32,7 @@ class ValhallaRoutingProvider(
     private val gate=Mutex()
     private var nextSlot:Long?=null
     @Volatile private var retryAt=0L
+    private val alternativesCache=object:LinkedHashMap<String,Pair<Long,List<CampusRoute>>>(8,0.75f,true){override fun removeEldestEntry(eldest:MutableMap.MutableEntry<String,Pair<Long,List<CampusRoute>>>?)=size>12}
     init { require(minimumIntervalMillis>=0) }
     override suspend fun plan(request:PlanRequest,pinnedVersion:String?):RouteResult {
         if(request.profile !in setOf("walking","driving"))return RouteResult.Unavailable(RouteFailure.UnsupportedProfile,"Choose walking or car")
@@ -72,18 +73,28 @@ class ValhallaRoutingProvider(
 
     private fun key(r:PlanRequest):String {
         val raw=listOf(endpoint.toString(),// Origin is bucketed to ~100 m: reads still require the cached route to start within 100 m of the pin.
-        Math.round(r.origin.latitude*1000),Math.round(r.origin.longitude*1000),r.destinationPoint?.latitude,r.destinationPoint?.longitude,r.profile,r.destinationPlaceId,r.regionId).joinToString("|")
+        Math.round(r.origin.latitude*1000),Math.round(r.origin.longitude*1000),r.destinationPoint?.latitude,r.destinationPoint?.longitude,r.profile,r.destinationPlaceId,r.regionId,r.preference).joinToString("|")
         return java.security.MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString(""){"%02x".format(it)}
     }
     /** Backup routes: the best route from where you are now plus up to two alternates, validated like any other route. */
     override suspend fun alternatives(request:PlanRequest):List<CampusRoute> {
         if(request.profile !in setOf("walking","driving") || !request.origin.valid || request.destinationPoint?.valid!=true)return emptyList()
+        val cacheKey=key(request)
+        synchronized(alternativesCache){alternativesCache[cacheKey]}?.takeIf{epochMillis()-it.first<10*60_000L}?.let{return it.second}
         return try {
-            delay(reserveSlot())
-            val http=Request.Builder().url(endpoint.newBuilder().addQueryParameter("json",payload(request,alternates=2)).build())
-                .header("User-Agent","NavGate/1.0 (https://github.com/InsaneCoder789/NavGate)")
-                .header("X-Client-Id","github.com/InsaneCoder789/NavGate").header("Accept","application/json").build()
-            parseWithAlternates(fetch(http),request,endpoint.host,epochMillis())
+            suspend fun call(variant:PlanRequest,alternates:Int):List<CampusRoute>{
+                delay(reserveSlot())
+                val http=Request.Builder().url(endpoint.newBuilder().addQueryParameter("json",payload(variant,alternates=alternates)).build())
+                    .header("User-Agent","NavGate/1.0 (https://github.com/InsaneCoder789/NavGate)")
+                    .header("X-Client-Id","github.com/InsaneCoder789/NavGate").header("Accept","application/json").build()
+                return parseWithAlternates(fetch(http),variant,endpoint.host,epochMillis())
+            }
+            // The quickest route with up to two alternates, then the route with the least distance (a different road, often).
+            val quick=call(request.copy(preference="fastest"),2)
+            val short=try{call(request.copy(preference="shortest"),0)}catch(c:CancellationException){throw c}catch(_:Exception){emptyList()}
+            val distinct=mutableListOf<CampusRoute>()
+            for(candidate in quick+short)if(distinct.none{RouteChoices.sameRoute(it,candidate)})distinct+=candidate
+            RouteChoices.labelled(distinct).also{result->synchronized(alternativesCache){alternativesCache[cacheKey]=epochMillis() to result}}
         }catch(cancelled:CancellationException){throw cancelled}
         catch(_:Exception){emptyList()}
     }
@@ -123,7 +134,7 @@ class ValhallaRoutingProvider(
             val costing=if(request.profile=="driving")"auto"else"pedestrian"
             put("costing",costing);put("units","kilometers");put("language","en-US")
             if(alternates>0)put("alternates",alternates)
-            putJsonObject("costing_options"){putJsonObject(costing){put("use_ferry",0)}}
+            putJsonObject("costing_options"){putJsonObject(costing){put("use_ferry",0);if(request.preference=="shortest")put("shortest",true)}}
             putJsonArray("locations") { for(point in listOf(request.origin,requireNotNull(request.destinationPoint))) add(buildJsonObject {
                 put("lat",point.latitude);put("lon",point.longitude);put("search_cutoff",100);put("radius",25)
                 // Do not snap a driver standing by a pier onto a ferry instead of a nearby road.
@@ -178,7 +189,16 @@ class ValhallaRoutingProvider(
                     val length=lengths[end]-lengths[start]
                     for(i in start..end)times[i]=elapsed+if(length>0)duration*(lengths[i]-lengths[start])/length else 0.0
                     elapsed+=duration
-                    Maneuver(instruction,shape[start],(lengths[start]/total*distance).coerceIn(0.0,distance),maneuverKind(type))
+                    val angle=ManeuverKinds.turnAngle(shape,start)
+                    val kind=ManeuverKinds.forValhalla(type,angle)
+                    // A roundabout is described by the road you enter on and the road you leave on: measure the change between them.
+                    val roundaboutChange=if(type==26){
+                        val exitStart=raw.drop(index+1).firstOrNull{it["type"]?.jsonPrimitive?.int==27}?.get("begin_shape_index")?.jsonPrimitive?.int
+                        val before=(start-1).coerceAtLeast(0);val after=exitStart?.let{(it+1).coerceAtMost(shape.lastIndex)}
+                        if(after!=null&&before<start)(((shape[exitStart].bearingTo(shape[after])-shape[before].bearingTo(shape[start]))+540.0)%360.0)-180.0 else null
+                    }else null
+                    Maneuver(instruction,shape[start],(lengths[start]/total*distance).coerceIn(0.0,distance),kind,
+                        exitNumber=if(type==26)m["roundabout_exit_count"]?.jsonPrimitive?.intOrNull else null,bearingChange=roundaboutChange ?: angle)
                 }
                 require(lastEnd==shape.lastIndex && elapsed>0 && abs(elapsed-seconds)<=maxOf(2.0,seconds*.01))
                 val normalized=times.map { require(it.isFinite());it/elapsed*seconds }
@@ -202,10 +222,7 @@ class ValhallaRoutingProvider(
         }
 
         /** Valhalla maneuver types: 1-3 start, 4-6 destination, 9-11 right, 12-13 U-turn, 14-16 left, 17-25 ramps/merges, 26-27 roundabout. */
-        internal fun maneuverKind(type:Int):String=when(type){
-            in 1..3->"Start";in 4..6->"Arrive";9->"SlightRight";10,11->"Right";12,13->"UTurn";14,15->"Left";16->"SlightLeft"
-            18,20,23->"SlightRight";19,21,24->"SlightLeft";26,27->"Roundabout";else->"Straight"
-        }
+        internal fun maneuverKind(type:Int):String=ManeuverKinds.forValhalla(type,null)
 
         internal fun decodePolyline6(encoded:String):List<GeoPoint> {
             require(encoded.length<=MAX_BYTES)

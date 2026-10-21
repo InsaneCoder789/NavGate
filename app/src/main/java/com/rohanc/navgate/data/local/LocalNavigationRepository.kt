@@ -81,7 +81,9 @@ fun CampusPlace.toAppPlace(): PlaceSearchResult {
 internal fun maneuverTypeForKind(kind:String):ManeuverType=when(kind){
     "Start"->ManeuverType.Start;"SlightLeft"->ManeuverType.SlightLeft;"Left"->ManeuverType.Left
     "SlightRight"->ManeuverType.SlightRight;"Right"->ManeuverType.Right;"UTurn"->ManeuverType.UTurn
-    "Roundabout"->ManeuverType.Roundabout;"Arrive"->ManeuverType.Arrive;else->ManeuverType.Straight
+    "Roundabout"->ManeuverType.Roundabout;"RoundaboutExit"->ManeuverType.RoundaboutExit;"SharpLeft"->ManeuverType.SharpLeft;"SharpRight"->ManeuverType.SharpRight
+    "KeepLeft"->ManeuverType.KeepLeft;"KeepRight"->ManeuverType.KeepRight;"Merge"->ManeuverType.Merge
+    "Arrive"->ManeuverType.Arrive;else->ManeuverType.Straight
 }
 
 fun CampusRoute.toAppRoute(): RouteResponse = RouteResponse(distanceMeters,estimatedSeconds,

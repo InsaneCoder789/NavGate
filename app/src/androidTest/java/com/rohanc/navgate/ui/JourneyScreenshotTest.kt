@@ -110,6 +110,20 @@ class JourneyScreenshotTest {
             compose.onNodeWithText("Explore").performClick()
             compose.onNodeWithContentDescription("Settings").performClick()
             shot("10-settings")
+            // The route editor and pin picker used to be a plain unstyled form; capture them in dark and light.
+            compose.onNodeWithContentDescription("Back").performClick()
+            compose.onNodeWithText("My routes").performScrollTo().performClick()
+            compose.waitForIdle();Thread.sleep(1_200);compose.waitForIdle()
+            shot("12-myroutes")
+            compose.onNodeWithText("Pin location on map").performClick()
+            compose.waitForIdle();Thread.sleep(1_200);compose.waitForIdle()
+            shot("13-pin-on-map")
+            compose.onNodeWithText("Cancel").performClick()
+            compose.waitForIdle();Thread.sleep(800);compose.waitForIdle()
+            compose.onNodeWithContentDescription("Back").performClick()
+            compose.runOnUiThread{vm.updateFrontendPreferences(vm.uiState.value.frontendPreferences.copy(appearance="light"))}
+            compose.waitForIdle();Thread.sleep(1_500);compose.waitForIdle()
+            shot("14-myroutes-light")
         }finally{compose.runOnUiThread{stores.clear()};db.close()}
     }
 }

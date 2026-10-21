@@ -1,5 +1,6 @@
 package com.rohanc.navgate.ui.journey
 
+import androidx.compose.foundation.horizontalScroll
 import com.rohanc.navgate.ui.components.NavGlassSurface
 
 import androidx.compose.foundation.background
@@ -127,6 +128,7 @@ private fun Summary(ui: NavGateUiState, driving: Boolean, permission: Boolean, w
             val seconds = ui.snapshot.route?.durationSeconds
             val arrive = seconds?.let { java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date(System.currentTimeMillis() + (it * 1000).toLong())) }
             Text(listOfNotNull(arrive?.let { "Arrive $it" }, preview.firstInstruction).joinToString(" · "), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (ui.routeChoices.size > 1) RouteChoices(ui.routeChoices, a.chooseRoute)
             if (!permission) Banner("Turn on location to start guidance.", "Turn on", a.requestLocation)
         }
         ui.routeFailure != null -> {
@@ -171,6 +173,18 @@ fun StepsList(steps: List<RouteStep>, originLabel: String, currentIndex: Int = -
                 val length = steps.getOrNull(index + 1)?.distanceMeters ?: 0.0
                 if (length > 0) Text(length.asMetersLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+    }
+}
+
+/** Fastest, shortest and alternative routes, loaded in the background; tap one to preview it. */
+@Composable
+private fun RouteChoices(choices: List<com.rohanc.navgate.ui.state.RouteChoice>, onChoose: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        choices.forEach { c ->
+            FilterChip(c.selected, { onChoose(c.id) }, label = {
+                Column { Text(c.label, style = MaterialTheme.typography.labelLarge); Text("${c.etaLabel} · ${c.distanceLabel}", style = MaterialTheme.typography.labelSmall) }
+            }, shape = RoundedCornerShape(16.dp))
         }
     }
 }

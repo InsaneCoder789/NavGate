@@ -109,6 +109,7 @@ class RouteTracker(private val route: RouteGeometry, private val walking: Boolea
             lastT = tMillis; started = true; locked = true
             return position(tMillis)
         }
+        val sBefore = s     // where the vehicle was at the last fix; a driving car never ends up behind this
         predictTo(tMillis)
         val sigma = sqrt(max(p00, 1.0))
         val from = (s - 25 - 3 * sigma).coerceAtLeast(0.0)
@@ -139,8 +140,9 @@ class RouteTracker(private val route: RouteGeometry, private val walking: Boolea
         } else {
             val sInv = 1.0 / (p00 + r); val k0 = p00 * sInv; val k1 = p01 * sInv
             val newS = s + k0 * y
-            if (newS < s - 1.0 && (measured ?: v) > 1.5 && backward < 5) { backward++ }   // hold: a driving car does not roll back
-            else { if (newS >= s - 1.0) { backward = 0; reversing = false } else { backward++; if (backward >= 5 && (measured ?: 0.0) > 2.0) reversing = true }; s = newS.coerceIn(0.0, route.length); v += k1 * y }
+            // Pulling back from a too-eager prediction is normal; ending up behind where the car already was is not.
+            if (newS < sBefore - 1.0 && (measured ?: v) > 1.5 && backward < 5) { backward++ }   // hold: a driving car does not roll back
+            else { if (newS >= sBefore - 1.0) { backward = 0; reversing = false } else { backward++; if (backward >= 5 && (measured ?: 0.0) > 2.0) reversing = true }; s = newS.coerceIn(0.0, route.length); v += k1 * y }
             val n00 = (1 - k0) * p00; val n01 = (1 - k0) * p01; val n11 = p11 - k1 * p01
             p00 = n00; p01 = n01; p11 = n11
         }

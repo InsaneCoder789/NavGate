@@ -34,6 +34,7 @@ data class JourneyActions(
     val openCamera: () -> Unit,
     val setViewMode: (String) -> Unit,
     val saveParking: () -> Unit,
+    val chooseRoute: (String) -> Unit,
     val toggleVoice: () -> Unit,
     val finishArrival: () -> Unit,
     val openOfflineData: () -> Unit,

@@ -43,11 +43,14 @@ class CheckpointCodecTest {
 
     @Test fun `valhalla maneuver types keep roundabouts u-turns and slight turns`() {
         val expected=mapOf(1 to "Start",4 to "Arrive",9 to "SlightRight",10 to "Right",12 to "UTurn",15 to "Left",16 to "SlightLeft",
-            20 to "SlightRight",21 to "SlightLeft",26 to "Roundabout",8 to "Straight",25 to "Straight")
+            20 to "KeepRight",21 to "KeepLeft",26 to "Roundabout",27 to "RoundaboutExit",11 to "SharpRight",14 to "SharpLeft",8 to "Straight",25 to "Merge")
         for((type,kind) in expected) assertEquals("type $type",kind,ValhallaRoutingProvider.maneuverKind(type))
         assertEquals(ManeuverType.Roundabout,maneuverTypeForKind("Roundabout"))
         assertEquals(ManeuverType.UTurn,maneuverTypeForKind("UTurn"))
         assertEquals(ManeuverType.SlightLeft,maneuverTypeForKind("SlightLeft"))
+        assertEquals(ManeuverType.RoundaboutExit,maneuverTypeForKind("RoundaboutExit"))
+        assertEquals(ManeuverType.SharpLeft,maneuverTypeForKind("SharpLeft"))
+        assertEquals(ManeuverType.Merge,maneuverTypeForKind("Merge"))
         assertEquals(ManeuverType.Straight,maneuverTypeForKind("anything-else"))
     }
 

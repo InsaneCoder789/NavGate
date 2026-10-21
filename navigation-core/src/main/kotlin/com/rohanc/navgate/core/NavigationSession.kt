@@ -172,7 +172,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
                 distanceToManeuver = max(0.0, (maneuver?.alongMeters ?: route.distanceMeters) - capped), instruction = maneuver?.instruction ?: state.instruction,
                 snappedLocation = p.point, routeBearing = p.bearingDegrees ?: state.routeBearing, speedAlongMps = p.speedMps, fixElapsedMillis = nowElapsedMillis,
                 signalReason = "No GPS signal: following the route")
-            val spoken = if (step != state.maneuverIndex) { announcedStep = step; announcedLevel = levelFor(next); next.instruction } else headsUp(next)
+            val spoken = if (step != state.maneuverIndex) onNewStep(next) else headsUp(next)
             return@withLock publish(next, spoken)
         }
         val reason = qualityReason(latestFix, nowElapsedMillis, state.status in ACTIVE)
@@ -294,8 +294,23 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
             routeBearing = if (offRoute) null else tracked.bearingDegrees ?: route.geometry.getOrNull(projection.segment)?.let { a -> route.geometry.getOrNull(projection.segment + 1)?.let { b -> a.bearingTo(b) } },
             speedAlongMps = if (offRoute) 0.0 else tracked.speedMps, fixElapsedMillis = fix.elapsedMillis, lockedToRoute = !offRoute && tracked.locked, backupRoutes = backups.size)
         if (arrived) pendingReroute = null
-        val spoken = if (arrived || step != current.maneuverIndex) { announcedStep = step; announcedLevel = levelFor(next); next.instruction } else headsUp(next)
+        val spoken = if (arrived) next.instruction else if (step != current.maneuverIndex) onNewStep(next) else headsUp(next)
         publish(next, spoken, reroute)
+    }
+
+    /**
+     * The vehicle has passed a turn and the next one is now ahead. Say it only if it is close enough to matter, in the same
+     * "In 300 metres, ..." form as the heads-up (so it is never said twice); leaving a roundabout is said as it happens;
+     * arrival is only ever said when it really happens.
+     */
+    private fun onNewStep(s: SessionSnapshot): String? {
+        val maneuver = s.route?.maneuvers?.getOrNull(s.maneuverIndex) ?: return null
+        announcedStep = s.maneuverIndex; announcedLevel = 0
+        return when (maneuver.kind) {
+            "Arrive" -> null
+            "RoundaboutExit" -> { announcedLevel = levelFor(s); maneuver.instruction }
+            else -> headsUp(s)
+        }
     }
 
     /** How many of the "get ready" distances the vehicle is already inside for the next turn (0, 1 or 2). */
@@ -308,7 +323,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
     private fun headsUp(s: SessionSnapshot): String? {
         if (s.status != SessionStatus.Navigating || s.offRoute) return null
         val maneuver = s.route?.maneuvers?.getOrNull(s.maneuverIndex) ?: return null
-        if (maneuver.kind == "Arrive" || maneuver.kind == "Start") return null
+        if (maneuver.kind == "Arrive" || maneuver.kind == "Start" || maneuver.kind == "RoundaboutExit") return null
         if (announcedStep != s.maneuverIndex) { announcedStep = s.maneuverIndex; announcedLevel = 0 }
         val level = levelFor(s)
         if (level <= announcedLevel) return null

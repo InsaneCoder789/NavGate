@@ -58,3 +58,8 @@ Written 21 October 2026 after the maps-style journey rebuild. Items are grouped 
 - Added: `RouteTracker` (route-locked position), session coasting for poor/odd fixes, relocation after long gaps, wrong-way detection, dead reckoning along the route during GPS loss, backup routes (Valhalla alternates) with instant switch, spoken heads-ups, raw GPS as the guidance input, GPS-only while navigating, 25 Hz batched sensors, 2 Hz idle ticker, foreground service, location-off notice.
 - Replayed in `DriveSimulationTest` and `SessionScenarioTest`; verify on a real drive: tunnel behaviour, backup switching at a junction, notification text, battery draw over a 30 minute trip.
 - Still open: a second routing provider for failover, crowd-sourced traffic, Play Store notification-permission wording, accessibility pass.
+
+## Status after the replay and routing round (2026-10-22)
+- Done and unit-tested: real Mumbai route replay (driving and walking), turn classification from geometry, roundabout enter/exit with exit number, fastest/shortest/alternative route choices, route cache warm-up on opening a place, restyled route editor, map info icon removed (credits moved to Settings).
+- Not yet run on a device after these changes: the full instrumented suite and screenshots (last full pass was before the replay round).
+- Left: drive test of tunnel, junction backup switch, notification and screen-off guidance; AR over a real road; battery measurement; second routing provider; own Valhalla server; accounts and sync if wanted; crowd-sourced traffic; accessibility pass; roundabout exit direction wording on the screen (data is parsed, display shows exit number only).

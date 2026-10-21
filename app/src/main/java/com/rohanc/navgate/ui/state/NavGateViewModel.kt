@@ -71,6 +71,7 @@ class NavGateViewModel(
                         RoutePreview.from(current.selectedOrigin,current.selectedDestination,route.toAppRoute())
                     } else null
                     current.copy(
+                        routeChoices = if (state.session.status == SessionStatus.Preview && state.routeChoices.size > 1) state.routeChoices.map { RouteChoice(it.id,it.label ?: "Alternative",it.estimatedSeconds.asEtaLabel(),it.distanceMeters.asDistanceLabel(),it.id == route?.id) } else emptyList(),
                         travelProfile = route?.let{if(it.profile=="driving")TravelProfile.Driving else TravelProfile.Walking} ?: current.travelProfile,
                         places = state.places.map { it.toAppPlace() }, searchNotice=state.searchNotice, isLoadingPlaces = state.searching || state.initializing,
                         isLoadingRoute = state.planning, preview = preview, isPreviewVisible = preview != null,
@@ -367,7 +368,34 @@ class NavGateViewModel(
     fun replan() { if(canEditTrip()) recomputePreview() }
 
     fun setCurrentLocationAsOrigin(location: Coordinate) = selectOrigin(livePlace(GeoPoint(location.latitude,location.longitude)))
-    fun focusPlace(place: PlaceSearchResult) { mutable.update { it.copy(focusedPlace=place,activeTab=AppTab.Explore) } }
+    fun focusPlace(place: PlaceSearchResult) {
+        mutable.update { it.copy(focusedPlace=place,activeTab=AppTab.Explore) }
+        warmRoutesTo(place)
+    }
+
+    /** Switch the previewed route to another choice (fastest, shortest, alternative). */
+    fun chooseRoute(routeId: String) { viewModelScope.launch { backend.chooseRoute(routeId) } }
+
+    private var warmJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * As soon as a place is opened, its routes are fetched in the background (both car and walking, plus alternatives and the
+     * shortest route). They land in the routing cache, so Directions opens instantly and a reroute has them ready.
+     */
+    private fun warmRoutesTo(place: PlaceSearchResult) {
+        val target = place.coordinate ?: return
+        val provider = estimator ?: return
+        warmJob?.cancel()
+        warmJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(700)   // let a quick scroll through results pass without a request per place
+            val from = freshCurrentLocation() ?: return@launch
+            val base = PlanRequest(-1,mutable.value.cityMode.regionId,from,place.id,null,"driving",GeoPoint(target.latitude,target.longitude),place.title,"valhalla")
+            for (profile in listOf("driving","walking")) {
+                try { provider.plan(base.copy(profile=profile),null) } catch (c: CancellationException) { throw c } catch (_: Exception) { return@launch }
+            }
+            try { provider.alternatives(base) } catch (c: CancellationException) { throw c } catch (_: Exception) { }
+        }
+    }
     fun dismissFocusedPlace() { mutable.update { it.copy(focusedPlace=null) } }
     fun searchSaved(query: String): List<PlaceSearchResult> {
         val term=query.trim()
@@ -431,6 +459,7 @@ private fun SessionSnapshot.toLegacySnapshot(heading: Double?): NavigationSnapsh
 }
 
 data class NavGateUiState(
+    val routeChoices:List<RouteChoice> = emptyList(),
     val searchNotice:String?=null,
     val searchQuery:String="",val places:List<PlaceSearchResult> = emptyList(),val isLoadingPlaces:Boolean=false,
     val focusedPlace:PlaceSearchResult?=null,val selectedOrigin:PlaceSearchResult?=null,val selectedDestination:PlaceSearchResult?=null,
@@ -454,6 +483,9 @@ data class NavGateUiState(
 )
 
 data class ModeEstimate(val etaLabel:String,val distanceLabel:String)
+
+/** One selectable route in the preview: its label and headline numbers. */
+data class RouteChoice(val id:String,val label:String,val etaLabel:String,val distanceLabel:String,val selected:Boolean)
 
 data class RoutePreview(val originTitle:String,val destinationTitle:String,val distanceLabel:String,val etaLabel:String,val firstInstruction:String) {
     companion object {

@@ -37,12 +37,13 @@ enum class GlassWeight { Thin, Regular, Thick }
  */
 @Composable
 fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(28.dp), weight: GlassWeight = GlassWeight.Regular,
-    shadow: Boolean = true, tint: Color? = null, contentColor: Color? = null, onClick: (() -> Unit)? = null, content: @Composable BoxScope.() -> Unit) {
+    shadow: Boolean = true, tint: Color? = null, contentColor: Color? = null, onClick: (() -> Unit)? = null, minOpacity: Float = 0f, content: @Composable BoxScope.() -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
     val solid = LocalSolidGlass.current
     val haze = LocalHazeState.current
-    val opacity = LocalGlassOpacity.current.coerceIn(0f, 1f)
+    // Full pages full of text keep a floor, so the map behind them never fights the words, whatever the slider says.
+    val opacity = maxOf(LocalGlassOpacity.current.coerceIn(0f, 1f), minOpacity)
     // Every panel, sheet and banner uses the same clear glass as the map buttons; weight no longer changes the strength.
     val tintAlpha = (0.10f + 0.86f * opacity).coerceIn(0.08f, 0.97f)
     val raw = tint ?: scheme.surface

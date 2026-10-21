@@ -17,6 +17,12 @@ enum class ManeuverType {
     Right,
     UTurn,
     Roundabout,
+    RoundaboutExit,
+    SharpLeft,
+    SharpRight,
+    KeepLeft,
+    KeepRight,
+    Merge,
     Arrive,
 }
 

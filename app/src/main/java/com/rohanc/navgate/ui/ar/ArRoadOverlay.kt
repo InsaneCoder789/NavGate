@@ -199,7 +199,14 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTurn(
     val top = g(turn.first, turn.second, lift = 3.2) ?: return
     drawLine(Brush.verticalGradient(listOf(Lime.copy(alpha = 0f), Lime), top.y, base.y), top, base, 5f * pulse)
     drawCircle(Lime.copy(alpha = 0.35f), 26f * pulse, base); drawCircle(Lime, 10f, base)
-    val head1 = if (arrives) "Arrive" else when (kind) { "Left" -> "Turn left"; "SlightLeft" -> "Bear left"; "Right" -> "Turn right"; "SlightRight" -> "Bear right"; "UTurn" -> "U-turn"; "Roundabout" -> "Roundabout"; else -> "Continue" }
+    val exit = label?.let { Regex("(\\d+(?:st|nd|rd|th)) exit").find(it)?.groupValues?.get(1) }
+    val head1 = if (arrives) "Arrive" else when (kind) {
+        "Left" -> "Turn left"; "SlightLeft" -> "Bear left"; "SharpLeft" -> "Sharp left"; "KeepLeft" -> "Keep left"
+        "Right" -> "Turn right"; "SlightRight" -> "Bear right"; "SharpRight" -> "Sharp right"; "KeepRight" -> "Keep right"
+        "UTurn" -> "U-turn"; "Merge" -> "Merge"; "RoundaboutExit" -> "Leave roundabout"
+        "Roundabout" -> if (exit != null) "Roundabout · $exit exit" else "Roundabout"
+        else -> "Continue"
+    }
     val sub = metres?.let { "${it.toInt().coerceAtLeast(0)} m" } ?: ""
     drawBeacon(measurer, head1, sub, label, top)
 }

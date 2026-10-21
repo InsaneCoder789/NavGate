@@ -47,6 +47,8 @@ data class BackendSnapshot(
     val destinationAvailability: Map<String,DestinationAvailability> = emptyMap(),
     val storageError: String? = null,
     val durableRevision: Long = 0,
+    /** Other ways to the same destination, loaded in the background while the preview is open (includes the previewed route). */
+    val routeChoices: List<CampusRoute> = emptyList(),
 )
 
 /**
@@ -102,6 +104,7 @@ class NavigationBackend(
     suspend fun start() = dispatch(Event.Start)
     suspend fun stop() = dispatch(Event.Stop)
     suspend fun clear() = dispatch(Event.Clear)
+    suspend fun chooseRoute(routeId: String) = dispatch(Event.ChooseRoute(routeId))
     suspend fun location(fix: LocationFix) = events.send(Event.Location(fix))
     suspend fun tick() = events.send(Event.Tick)
     suspend fun presentation(value: Presentation) = events.send(Event.PresentationChange(value))
@@ -168,7 +171,7 @@ class NavigationBackend(
                 }
                 planJob?.cancel(); rerouteJob?.cancel(); val generation = ++planGeneration
                 session.clear()
-                mutable.value = mutable.value.copy(planning = true, session = session.state.value, routeFailure = null)
+                mutable.value = mutable.value.copy(planning = true, session = session.state.value, routeFailure = null, routeChoices = emptyList())
                 pendingPlan = event.request.copy(requestId = generation)
                 planJob = scope.launch {
                     val result = try { withContext(compute) { routingProvider.plan(event.request.copy(requestId = generation)) } }
@@ -189,7 +192,11 @@ class NavigationBackend(
                     RouteResult.Unavailable(RouteFailure.InvalidGraph, "Routing provider returned an invalid or mismatched route")
                 } else candidate
                 pendingPlan = null
-                if (result is RouteResult.Ready) session.preview(result.route)
+                if (result is RouteResult.Ready) {
+                    session.preview(result.route)
+                    mutable.value = mutable.value.copy(routeChoices = listOf(result.route))
+                    loadChoices(result.route, requested)
+                }
                 mutable.value = mutable.value.copy(planning = false, session = session.state.value,
                     routeFailure = result as? RouteResult.Unavailable)
             }
@@ -202,13 +209,33 @@ class NavigationBackend(
                 invalidatePlans()
                 if (session.state.value.status in NavigationSession.ACTIVE || session.state.value.status == SessionStatus.ResumeAvailable) consume(session.stop())
                 consume(session.clear())
-                mutable.value = mutable.value.copy(routeFailure = null)
+                mutable.value = mutable.value.copy(routeFailure = null, routeChoices = emptyList())
             }
             is Event.Location -> consume(session.location(event.fix,clock.elapsedMillis()))
             Event.Tick -> consume(session.tick(clock.elapsedMillis()))
             is Event.PresentationChange -> consume(session.presentation(event.value))
             is Event.RerouteResult -> consume(session.replace(event.request,event.result,clock.elapsedMillis()))
+            is Event.PreviewChoices -> if (session.state.value.route?.id == event.forRouteId && session.state.value.status == SessionStatus.Preview) {
+                mutable.value = mutable.value.copy(routeChoices = event.routes)
+            }
+            is Event.ChooseRoute -> {
+                val chosen = mutable.value.routeChoices.firstOrNull { it.id == event.routeId }
+                if (chosen != null && session.state.value.status == SessionStatus.Preview) { session.preview(chosen); mutable.value = mutable.value.copy(session = session.state.value) }
+            }
             is Event.Backups -> if (session.state.value.route?.id == event.routeId) consume(session.setBackups(event.routes))
+        }
+    }
+
+    /** While the preview is open, fetch the fastest, shortest and alternative routes so the driver can pick, and so a reroute has them ready. */
+    private fun loadChoices(route: CampusRoute, requested: PlanRequest?) {
+        val destination = route.destinationPoint ?: return
+        val request = PlanRequest(0, route.regionId, route.geometry.first(), route.destinationPlaceId, route.entranceId, route.profile, destination, route.destinationTitle, route.source)
+        if (!route.external || requested == null) return
+        scope.launch {
+            val routes = try { withContext(compute) { routingProvider.alternatives(request) } }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { emptyList() }
+            if (routes.isNotEmpty()) events.send(Event.PreviewChoices(route.id, RouteChoices.labelled(listOf(route) + routes.filterNot { RouteChoices.sameRoute(it, route) })))
         }
     }
 
@@ -281,5 +308,7 @@ class NavigationBackend(
         data class PresentationChange(val value: Presentation) : Event
         data class RerouteResult(val request: RerouteRequest, val result: RouteResult) : Event
         data class Backups(val routeId: String, val routes: List<CampusRoute>) : Event
+        data class PreviewChoices(val forRouteId: String, val routes: List<CampusRoute>) : Event
+        data class ChooseRoute(val routeId: String) : Event
     }
 }

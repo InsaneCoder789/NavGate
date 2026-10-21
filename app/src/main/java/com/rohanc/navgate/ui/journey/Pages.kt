@@ -37,7 +37,7 @@ import java.util.Date
 /** Full-screen glass page: the map stays visible, blurred, behind a frosted sheet. */
 @Composable
 fun GlassPage(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier, actions: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
-    GlassPanel(modifier.fillMaxSize(), shape = RectangleShape, weight = GlassWeight.Thick, shadow = false) {
+    GlassPanel(modifier.fillMaxSize(), shape = RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.62f) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } else Spacer(Modifier.width(12.dp))
@@ -154,6 +154,10 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
                     VoiceAvailability.Unavailable -> "No offline voice installed. Written directions stay on screen." }, model.prefs.voiceEnabled) { a.setPrefs(model.prefs.copy(voiceEnabled = it)) }
                 if (!model.hasLocation) GmPrimaryButton("Turn on location", Icons.Rounded.MyLocation, a.requestLocation, Modifier.fillMaxWidth())
                 TextButton(onClick = a.openAppSettings) { Text("Permissions in Android settings") }
+            }
+            SettingsGroup("Map data") {
+                // The map's own info icon is gone; the required credits live here and on the directions screen.
+                Text("Map data © OpenStreetMap contributors (ODbL). Map tiles by OpenFreeMap. Routing by Valhalla. Places also from Photon.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsGroup("Region") {
                 CityMode.entries.forEach { city ->

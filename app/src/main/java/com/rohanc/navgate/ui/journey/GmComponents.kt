@@ -94,7 +94,8 @@ fun GmChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() ->
 /** Frosted bottom sheet with the grabber used by every sheet in the app. */
 @Composable
 fun GmSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
-    GlassPanel(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), weight = GlassWeight.Thick) {
+    // Sheets carry paragraphs and lists, so they keep a little body even at the clearest setting.
+    GlassPanel(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), weight = GlassWeight.Thick, minOpacity = 0.3f) {
         Column {
             Box(Modifier.fillMaxWidth().height(24.dp).let { if (onGrabber != null) it.clickable(onClickLabel = "Resize panel", onClick = onGrabber) else it }, contentAlignment = Alignment.Center) {
                 Box(Modifier.width(36.dp).height(4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape))
@@ -157,7 +158,12 @@ fun maneuverIcon(type: ManeuverType): ImageVector = when (type) {
     ManeuverType.SlightLeft -> Icons.Rounded.TurnSlightLeft
     ManeuverType.SlightRight -> Icons.Rounded.TurnSlightRight
     ManeuverType.UTurn -> Icons.Rounded.UTurnLeft
-    ManeuverType.Roundabout -> Icons.Rounded.RoundaboutRight
+    ManeuverType.Roundabout, ManeuverType.RoundaboutExit -> Icons.Rounded.RoundaboutRight
+    ManeuverType.SharpLeft -> Icons.Rounded.TurnSharpLeft
+    ManeuverType.SharpRight -> Icons.Rounded.TurnSharpRight
+    ManeuverType.KeepLeft -> Icons.Rounded.ForkLeft
+    ManeuverType.KeepRight -> Icons.Rounded.ForkRight
+    ManeuverType.Merge -> Icons.Rounded.Merge
     ManeuverType.Arrive -> Icons.Rounded.Flag
     ManeuverType.Start, ManeuverType.Straight -> Icons.Rounded.Straight
 }

@@ -20,8 +20,8 @@ object TurnHaptics {
             val strong = stage >= 2
             val tap = if (strong) 90L else 55L
             val pattern = when (kind) {
-                "Left", "SlightLeft" -> longArrayOf(0, tap, 90, tap)
-                "Right", "SlightRight" -> longArrayOf(0, if (strong) 420L else 260L)
+                "Left", "SlightLeft", "SharpLeft", "KeepLeft" -> longArrayOf(0, tap, 90, tap)
+                "Right", "SlightRight", "SharpRight", "KeepRight" -> longArrayOf(0, if (strong) 420L else 260L)
                 "UTurn" -> longArrayOf(0, tap, 80, tap, 80, tap)
                 else -> longArrayOf(0, tap)
             }

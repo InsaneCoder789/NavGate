@@ -99,7 +99,7 @@ import com.rohanc.navgate.ui.journey.JourneyScreens
 import com.rohanc.navgate.ui.journey.JourneyUi
 
 /** The MapLibre map with route, markers, vehicle and map controls. */
-@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit={},motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,routeGeometry:com.rohanc.navgate.core.RouteGeometry?=null,trackInput:TrackInput?=null,onPlace:(PlaceSearchResult)->Unit){
+@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit={},motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,showControls:Boolean=true,routeGeometry:com.rohanc.navgate.core.RouteGeometry?=null,trackInput:TrackInput?=null,onPlace:(PlaceSearchResult)->Unit){
     val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
@@ -113,7 +113,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
     var loading by remember { mutableStateOf(true) }
     val flat=!ui.frontendPreferences.buildings3d
     val style=remember(dark,flat){BaseStyle.Uri("asset://navgate-map-${if(dark)"dark" else "daylight"}${if(flat)"-flat" else ""}.json")}
-    val options=remember(bottomInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(isLogoEnabled=false,isAttributionEnabled=true,padding=PaddingValues(bottom=(bottomInsetDp+4f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.BottomStart,attributionAlignment=Alignment.BottomCenter,isScaleBarEnabled=false))}
+    val options=remember(bottomInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(isLogoEnabled=false,isAttributionEnabled=false,padding=PaddingValues(bottom=(bottomInsetDp+4f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.BottomStart,attributionAlignment=Alignment.BottomCenter,isScaleBarEnabled=false))}
     suspend fun move(next:CameraPosition){if(ui.frontendPreferences.reduceMotion)camera.position=next else camera.animateTo(next,400.milliseconds)}
     fun fitRoute(){val points=ui.snapshot.route?.pathCoordinates.orEmpty();if(points.isEmpty())return
         val south=points.minOf{it.latitude};val north=points.maxOf{it.latitude};val west=points.minOf{it.longitude};val east=points.maxOf{it.longitude}
@@ -213,7 +213,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
         if(active&&motion!=null){
             VehicleMarker(camera,motion,routeGeometry,trackInput,ui.travelProfile==TravelProfile.Driving,following,if(dark)Color(0xFF8AB4F8) else Color(0xFF1A73E8))
         }
-        if(controlsBottomDp==null || controlsBottomDp<viewport.screenHeightDp*0.6f)Column(Modifier.align(if(controlsBottomDp!=null)Alignment.BottomEnd else Alignment.TopEnd).let{if(controlsBottomDp!=null)it.navigationBarsPadding().padding(bottom=controlsBottomDp.dp+if(screenIsExplore)72.dp else 0.dp,end=16.dp) else it.statusBarsPadding().padding(top=topInsetDp.dp,end=16.dp)},verticalArrangement=Arrangement.spacedBy(8.dp)){
+        if(showControls&&(controlsBottomDp==null || controlsBottomDp<viewport.screenHeightDp*0.6f))Column(Modifier.align(if(controlsBottomDp!=null)Alignment.BottomEnd else Alignment.TopEnd).let{if(controlsBottomDp!=null)it.navigationBarsPadding().padding(bottom=controlsBottomDp.dp+if(screenIsExplore)72.dp else 0.dp,end=16.dp) else it.statusBarsPadding().padding(top=topInsetDp.dp,end=16.dp)},verticalArrangement=Arrangement.spacedBy(8.dp)){
             MapControlButton(onClick={val fix=ui.displayLocation ?: ui.snapshot.userLocation;if(!permission)onRequestLocation()else if(fix==null)onFeedback("Looking for your location… You can also choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=maxOf(camera.position.zoom,16.0),bearing=0.0))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
             MapControlButton(onClick=onOpenLayers){Icon(Icons.Rounded.Layers,"Map details")}
             MapControlButton(enabled=!loading&&!failed,onClick={following=false;scope.launch{move(camera.position.copy(bearing=0.0))}}){Icon(Icons.Rounded.Explore,"Orient map north")}
