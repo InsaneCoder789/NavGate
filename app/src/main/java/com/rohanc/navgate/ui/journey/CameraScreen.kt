@@ -11,7 +11,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.ui.ar.AlignmentLevel
 import com.rohanc.navgate.ui.ar.AlignmentStatus
@@ -19,7 +21,7 @@ import com.rohanc.navgate.ui.ar.AlignmentStatus
 /** Camera guidance: the live camera is drawn behind this by the app; this adds the direction cue and controls. */
 @Composable
 fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, alignment: AlignmentStatus, instruction: String, distanceLabel: String,
-    voiceOn: Boolean, a: JourneyActions) {
+    voiceOn: Boolean, turnKind: String?, a: JourneyActions) {
     if (!hasCameraPermission) {
         GlassPage("Camera guidance", a.closeCamera) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -30,10 +32,18 @@ fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, 
         }
         return
     }
-    GlassPanel(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp).fillMaxWidth(), shape = RoundedCornerShape(28.dp), weight = GlassWeight.Regular) {
-        Column(Modifier.padding(horizontal = 20.dp, vertical = 14.dp)) {
-            Text(distanceLabel, style = MaterialTheme.typography.headlineMedium)
-            Text(instruction, style = MaterialTheme.typography.titleMedium)
+    val ink = Color(0xFF0B1220); val lime = Color(0xFFC6FF00)
+    Row(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp).fillMaxWidth().clip(RoundedCornerShape(30.dp)).background(ink.copy(alpha = 0.88f)).padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(64.dp).clip(RoundedCornerShape(22.dp)).background(lime), contentAlignment = Alignment.Center) {
+            Icon(when (turnKind) {
+                "Left" -> Icons.Rounded.TurnLeft; "SlightLeft" -> Icons.Rounded.TurnSlightLeft; "Right" -> Icons.Rounded.TurnRight; "SlightRight" -> Icons.Rounded.TurnSlightRight
+                "UTurn" -> Icons.Rounded.UTurnLeft; "Roundabout" -> Icons.Rounded.RoundaboutRight; "Arrive" -> Icons.Rounded.Flag; else -> Icons.Rounded.Straight
+            }, null, Modifier.size(42.dp), tint = ink)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(distanceLabel, style = MaterialTheme.typography.headlineMedium, color = lime, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+            Text(instruction, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 2)
         }
     }
     Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -41,9 +51,6 @@ fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, 
             Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) {
                 Text(if (cuesAvailable) alignment.label else "Camera cues paused until location is accurate.", style = MaterialTheme.typography.titleMedium)
             }
-        }
-        if (cuesAvailable && alignment.level != AlignmentLevel.Recover) {
-            Icon(Icons.Rounded.Navigation, "Direction of route", Modifier.size(88.dp).rotate(alignment.deltaDegrees.toFloat()), tint = MaterialTheme.colorScheme.primary)
         }
         Text("Compass guidance only; it does not detect obstacles.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
     }

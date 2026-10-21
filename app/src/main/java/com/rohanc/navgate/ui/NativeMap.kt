@@ -112,7 +112,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
     var loading by remember { mutableStateOf(true) }
     val flat=!ui.frontendPreferences.buildings3d
     val style=remember(dark,flat){BaseStyle.Uri("asset://navgate-map-${if(dark)"dark" else "daylight"}${if(flat)"-flat" else ""}.json")}
-    val options=remember(topInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(padding=PaddingValues(top=(topInsetDp+20f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.TopStart,attributionAlignment=Alignment.TopEnd,isScaleBarEnabled=false))}
+    val options=remember(bottomInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(isLogoEnabled=false,isAttributionEnabled=true,padding=PaddingValues(bottom=(bottomInsetDp+4f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.BottomStart,attributionAlignment=Alignment.BottomCenter,isScaleBarEnabled=false))}
     suspend fun move(next:CameraPosition){if(ui.frontendPreferences.reduceMotion)camera.position=next else camera.animateTo(next,400.milliseconds)}
     fun fitRoute(){val points=ui.snapshot.route?.pathCoordinates.orEmpty();if(points.isEmpty())return
         val south=points.minOf{it.latitude};val north=points.maxOf{it.latitude};val west=points.minOf{it.longitude};val east=points.maxOf{it.longitude}

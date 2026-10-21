@@ -31,11 +31,12 @@ class SharedPrefsAppPreferencesStore(
         reduceMotion=prefs.getBoolean("frontend_motion",false),
         voiceEnabled=prefs.getBoolean("frontend_voice",true),
         buildings3d=prefs.getBoolean("frontend_buildings",true),
+        glassOpacity=prefs.getFloat("frontend_glass",0.4f).coerceIn(0f,1f),
     )
     override suspend fun setFrontendPreferences(value:FrontendPreferences) {
         check(prefs.edit().putString("frontend_appearance",value.appearance)
             .putBoolean("frontend_solid",value.reduceTransparency).putBoolean("frontend_motion",value.reduceMotion)
-            .putBoolean("frontend_voice",value.voiceEnabled).putBoolean("frontend_buildings",value.buildings3d).commit()) { "Preferences could not be saved" }
+            .putBoolean("frontend_voice",value.voiceEnabled).putBoolean("frontend_buildings",value.buildings3d).putFloat("frontend_glass",value.glassOpacity).commit()) { "Preferences could not be saved" }
     }
     override suspend fun isOnboardingSeen(): Boolean = prefs.getBoolean(KEY_ONBOARDING_SEEN, false)
 

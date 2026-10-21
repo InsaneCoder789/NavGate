@@ -278,6 +278,16 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         swap=vm::swapEndpoints,clearPlan={vm.clearPlan();selectedManeuver=null;screen="Explore"},setProfile={vm.setTravelProfile(it)},replan=vm::replan,start=vm::startNavigation,
         requestStop={stopDialog=true},requestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},
         openAppSettings={appSettings()},showSteps={screen="Steps"},openCamera={screen="Camera";vm.switchMode(PresentationMode.AR_ASSIST)},
+        setViewMode={mode->
+            if(mode=="AR"){
+                val blocked=com.rohanc.navgate.ui.ar.arBlockedReason(backend.session.route,ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)},ui.displayAccuracy?.toDouble())
+                if(blocked!=null)feedback=blocked else{screen="Camera";vm.switchMode(PresentationMode.AR_ASSIST)}
+            }
+            else{
+                if(screen=="Camera"){vm.switchMode(PresentationMode.MAP);screen=if(active)"Navigation" else "Directions"}
+                vm.updateFrontendPreferences(prefs.copy(buildings3d=mode=="3D"))
+            }
+        },
         toggleVoice={vm.updateFrontendPreferences(prefs.copy(voiceEnabled=!prefs.voiceEnabled))},finishArrival={vm.finishArrival();screen="Explore"},openOfflineData={openUtility("Offline")},
         openPlace={place->placeCaller=screen;vm.focusPlace(place);screen="Place"},planAgain={title->searchFor="to";vm.updateSearch(title);screen="Search"},
         clearHistory={clearHistoryDialog=true},setPrefs={vm.updateFrontendPreferences(it)},setCity={vm.setCityMode(it)},reviewSetup={screen="Setup"},
@@ -291,13 +301,13 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     val importing=importJob?.isActive==true
     val data=JourneyData(screen,searchFor,ui,backend.session,ui.snapshot.route?.steps.orEmpty(),backend.session.route?.takeIf{it.external}?.warnings.orEmpty(),permission,prefs.voiceEnabled,ui.areaName,
         if(searchFor=="saved")vm.searchSaved(ui.searchQuery)else ui.places,details?.availability,details?.entranceLabels.orEmpty(),active,if(showMotion)vm.motionState else null,
-        SettingsModel(prefs,ui.cityMode,active,voiceAvailability,permission),services.regionDocuments.enabled,importing,importState==ImportState.Verifying,cameraPermission,alignment,
+        SettingsModel(prefs,ui.cityMode,active,voiceAvailability,permission),if(screen=="Camera")"AR" else if(prefs.buildings3d)"3D" else "2D",services.regionDocuments.enabled,importing,importState==ImportState.Verifying,cameraPermission,alignment,
         permission&&ui.currentLocationUsable)
     var showLayers by remember{mutableStateOf(false)}
     var insetTop by remember{mutableFloatStateOf(0f)}
     var insetBottom by remember{mutableFloatStateOf(0f)}
     val journeyMap=screen in setOf("Explore","Place","Directions","Route","Navigation","Arrival","MapPick","ManualPin","My routes","Results")
-    NavGateTheme(dark=dark){CompositionLocalProvider(LocalSolidGlass provides prefs.reduceTransparency,LocalHazeState provides hazeState){
+    NavGateTheme(dark=dark){CompositionLocalProvider(LocalSolidGlass provides prefs.reduceTransparency,com.rohanc.navgate.ui.journey.LocalGlassOpacity provides prefs.glassOpacity,LocalHazeState provides hazeState){
         Surface(Modifier.fillMaxSize()){
             Box(Modifier.fillMaxSize()){
                 Box(Modifier.fillMaxSize().hazeSource(hazeState)){
@@ -310,7 +320,27 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                         if(screen in listOf("Search","Results","MapPick"))choose(place)
                         else if(!active){placeCaller=screen;vm.focusPlace(place);screen="Place"}
                     }
-                    if(screen=="Camera" && cameraPermission)CameraPreview(Modifier.fillMaxSize())
+                    if(screen=="Camera" && cameraPermission && backend.session.route!=null){
+                        var arFrame by remember{mutableStateOf<com.rohanc.navgate.ui.ar.ArFrameState?>(null)}
+                        var arStatus by remember{mutableStateOf<com.rohanc.navgate.ui.ar.ArSessionStatus>(com.rohanc.navgate.ui.ar.ArSessionStatus.Starting)}
+                        val aligner=remember{com.rohanc.navgate.ui.ar.ArGeoAligner()}
+                        val arBasis by com.rohanc.navgate.ui.ar.rememberCameraBasis(true){ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)}}
+                        val gps=ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)}
+                        val motionNow=vm.motionState.value
+                        val arCamera=remember(arFrame){arFrame?.let{f->
+                            val compass=arBasis?.takeIf{kotlin.math.abs(it.pitchDegrees)<55}?.headingDegrees
+                            aligner.update(f.reading,compass,gps,ui.displayAccuracy?.toDouble()?:20.0,motionNow?.headingDegrees,motionNow?.speedMps?:0.0)
+                        }}
+                        if(arStatus is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable){
+                            CameraPreview(Modifier.fillMaxSize())
+                            val fallbackTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)
+                            com.rohanc.navgate.ui.ar.ArRoadOverlay(backend.session.route,gps,arBasis,fallbackTurn?.kind,fallbackTurn?.instruction,backend.session.distanceToManeuver.takeIf{fallbackTurn!=null},Modifier.fillMaxSize())
+                        }else{
+                            com.rohanc.navgate.ui.ar.ArSessionView({arFrame=it;arStatus=com.rohanc.navgate.ui.ar.ArSessionStatus.Running},{if(it is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable)arStatus=it},Modifier.fillMaxSize())
+                            val nextTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)
+                            com.rohanc.navgate.ui.ar.ArRoadOverlay(backend.session.route,arCamera?.position,arCamera?.basis,nextTurn?.kind,nextTurn?.instruction,backend.session.distanceToManeuver.takeIf{nextTurn!=null},Modifier.fillMaxSize(),arFrame)
+                        }
+                    }
                 }
                 JourneyUi(data,{top,bottom->insetTop=top;insetBottom=bottom},actions){
                     if(screen=="My routes")GlassPage("My routes",actions.back){

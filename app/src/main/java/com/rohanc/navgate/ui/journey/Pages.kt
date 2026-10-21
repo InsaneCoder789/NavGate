@@ -1,5 +1,8 @@
 package com.rohanc.navgate.ui.journey
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -122,7 +125,9 @@ data class SettingsModel(val prefs: com.rohanc.navgate.data.FrontendPreferences,
 
 @Composable
 fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
-    GlassPage("Settings", a.back) {
+    var level by remember(model.prefs.glassOpacity) { mutableFloatStateOf(model.prefs.glassOpacity) }
+    // The page restyles live while the slider moves; the value is saved when the finger lifts.
+    CompositionLocalProvider(LocalGlassOpacity provides level) { GlassPage("Settings", a.back) {
         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SettingsGroup("Appearance") {
                 Row(Modifier.selectableGroup().fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -130,7 +135,17 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
                         FilterChip(model.prefs.appearance == key, { a.setPrefs(model.prefs.copy(appearance = key)) }, { Text(label) }, Modifier.weight(1f))
                     }
                 }
-                SwitchRow("Reduce transparency", "Use solid panels instead of frosted glass.", model.prefs.reduceTransparency) { a.setPrefs(model.prefs.copy(reduceTransparency = it)) }
+                Column(Modifier.fillMaxWidth()) {
+                    Text("Glass transparency", style = MaterialTheme.typography.bodyLarge)
+                    Text("From clear see-through glass to solid panels.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Slider(level, { level = it }, onValueChangeFinished = { a.setPrefs(model.prefs.copy(glassOpacity = level, reduceTransparency = false)) },
+                        modifier = Modifier.semantics { contentDescription = "Glass transparency" })
+                    Row(Modifier.fillMaxWidth()) {
+                        Text("Clear", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.weight(1f))
+                        Text("Solid", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 SwitchRow("Reduce motion", "Move the map without animation.", model.prefs.reduceMotion) { a.setPrefs(model.prefs.copy(reduceMotion = it)) }
             }
             SettingsGroup("Guidance") {
@@ -155,7 +170,7 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
                 NavRow(Icons.Rounded.Replay, "Show welcome again", a.reviewSetup)
             }
         }
-    }
+    } }
 }
 
 @Composable private fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
@@ -212,22 +227,6 @@ fun BoxScope.PickPrompt(text: String, a: JourneyActions) {
         Row(Modifier.padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge)
             TextButton(onClick = a.cancelPick) { Text("Cancel") }
-        }
-    }
-}
-
-/** First-run welcome, over the live map. */
-@Composable
-fun BoxScope.Onboarding(hasLocation: Boolean, a: JourneyActions) {
-    GmSheet(Modifier.align(Alignment.BottomCenter)) {
-        Column(Modifier.navigationBarsPadding().padding(horizontal = 24.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Welcome to NavGate", style = MaterialTheme.typography.headlineMedium)
-            Text("Search cities, addresses and landmarks around the world, and get walking and driving directions.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Location lets the map find you. You can always pick a start by hand.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (!hasLocation) GmPrimaryButton("Enable location", Icons.Rounded.MyLocation, a.requestLocation, Modifier.fillMaxWidth())
-            if (hasLocation) GmPrimaryButton("Get started", Icons.Rounded.Check, a.dismissOnboarding, Modifier.fillMaxWidth())
-            else TextButton(onClick = a.dismissOnboarding, modifier = Modifier.align(Alignment.CenterHorizontally)) { Text("Continue to map") }
-            Text("Camera guidance is optional and asks for permission only when you choose it during a trip.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

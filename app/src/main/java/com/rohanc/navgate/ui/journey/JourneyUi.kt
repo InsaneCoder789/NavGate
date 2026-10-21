@@ -1,5 +1,9 @@
 package com.rohanc.navgate.ui.journey
 
+import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,13 +31,15 @@ class JourneyData(
     val screen: String, val searchFor: String, val ui: NavGateUiState, val session: SessionSnapshot, val steps: List<RouteStep>, val routeWarnings: List<String>,
     val permission: Boolean, val voiceOn: Boolean, val areaName: String?, val searchResults: List<PlaceSearchResult>, val availability: DestinationAvailability?,
     val entranceLabels: Map<String, String>, val tripActive: Boolean, val motion: StateFlow<MotionEstimate?>?, val settings: SettingsModel,
-    val updatesEnabled: Boolean, val importing: Boolean, val importVerifying: Boolean, val hasCameraPermission: Boolean, val alignment: AlignmentStatus, val cuesAvailable: Boolean,
+    val viewMode: String, val updatesEnabled: Boolean, val importing: Boolean, val importVerifying: Boolean, val hasCameraPermission: Boolean, val alignment: AlignmentStatus, val cuesAvailable: Boolean,
 )
 
 /** [custom] draws the screens that own live app state (the manual route editor); everything else is drawn here. */
 @Composable
-fun BoxScope.JourneyUi(d: JourneyData, onInsets: (Float, Float) -> Unit, a: JourneyActions, custom: @Composable BoxScope.() -> Unit) {
+fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: JourneyActions, custom: @Composable BoxScope.() -> Unit) {
     val ui = d.ui
+    var sheetDp by remember { mutableFloatStateOf(0f) }
+    val onInsets: (Float, Float) -> Unit = { top, bottom -> sheetDp = bottom; reportInsets(top, bottom) }
     if (!ui.preferencesLoaded) { CircularProgressIndicator(Modifier.align(Alignment.Center)); return }
     val userLocation = ui.displayLocation ?: ui.snapshot.userLocation
     if (ui.showOnboarding && d.screen == "Explore") { Onboarding(d.permission, a); return }
@@ -50,10 +56,18 @@ fun BoxScope.JourneyUi(d: JourneyData, onInsets: (Float, Float) -> Unit, a: Jour
         "Settings" -> SettingsScreen(d.settings, a)
         "Offline" -> OfflineScreen(ui.regionStatus, d.updatesEnabled, d.tripActive, d.importing, d.importVerifying, a)
         "Steps" -> StepsScreen(d.steps, d.session.maneuverIndex, ui.selectedOrigin?.title ?: "Your location", a)
-        "Camera" -> CameraScreen(d.hasCameraPermission, d.cuesAvailable, d.alignment, d.session.instruction, d.session.distanceToManeuver.asMetersLabel(), d.voiceOn, a)
+        "Camera" -> CameraScreen(d.hasCameraPermission, d.cuesAvailable, d.alignment, d.session.instruction, d.session.distanceToManeuver.asMetersLabel(), d.voiceOn, d.session.route?.maneuvers?.getOrNull(d.session.maneuverIndex)?.kind, a)
         "MapPick" -> PickPrompt(if (d.searchFor == "from") "Tap the map to choose a start" else "Tap the map to choose a destination", a)
         "ManualPin" -> PickPrompt("Tap the map to drop a pin", a)
         "Setup" -> Onboarding(d.permission, a)
         else -> custom()
     }
+    val routed = d.session.route != null
+    val screenDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
+    if (routed && d.screen in setOf("Directions", "Route") && sheetDp in 1f..(screenDp * 0.5f)) {
+        ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = sheetDp.dp + 12.dp))
+    }
+    // While driving the vertical switch sits mid-left, clear of the car, the banner and the map buttons on the right.
+    if (routed && d.screen == "Navigation") ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterStart).offset(y = 6.dp).padding(start = 12.dp), vertical = true)
+    if (routed && d.screen == "Camera" && d.hasCameraPermission) ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterEnd).padding(end = 12.dp), vertical = true)
 }

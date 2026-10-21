@@ -31,13 +31,38 @@ class NativeFrontendFlowTest {
     }
     @After fun teardown(){compose.runOnUiThread{store.clear()}}
 
-    /** The welcome sheet offers "Get started" when location is already allowed and "Continue to map" otherwise. */
-    private fun dismissOnboarding(){
-        val started=compose.onAllNodesWithText("Get started").fetchSemanticsNodes().isNotEmpty()
-        compose.onNodeWithText(if(started)"Get started" else "Continue to map").performClick()
-    }
+    /** Brand onboarding retains the existing explicit skip action. */
+    private fun dismissOnboarding(){ compose.onNodeWithText("Skip").performClick() }
 
     private fun typeInSearch(text:String){compose.onNode(hasSetTextAction()).performTextInput(text)}
+
+    @Test fun brandedWelcomeHasThreePagesAndLocationRemainsOptional(){
+        fun screenshot(name:String){
+            if(androidx.test.platform.app.InstrumentationRegistry.getArguments().getString("brandingScreenshots")!="true")return
+            compose.waitForIdle()
+            val instrumentation=androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            val image=instrumentation.uiAutomation.takeScreenshot()
+            val file=java.io.File(instrumentation.targetContext.cacheDir,"branding-$name.png")
+            file.outputStream().use{image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)}
+            image.recycle()
+        }
+        compose.onNodeWithText("Find your place").assertIsDisplayed()
+        screenshot("discover")
+        compose.onNodeWithText("Continue").performClick()
+        compose.onNodeWithText("Choose your route").assertIsDisplayed()
+        screenshot("routes")
+        androidx.test.espresso.Espresso.pressBack()
+        compose.onNodeWithText("Find your place").assertIsDisplayed()
+        compose.onNodeWithText("Continue").performClick()
+        compose.onNodeWithText("Continue").performClick()
+        compose.onNodeWithText("Navigate with confidence").assertIsDisplayed()
+        screenshot("navigate")
+        compose.onNodeWithText("Explore first").performClick()
+        compose.onNodeWithText("Search here").assertExists()
+        assertFalse(vm.uiState.value.showOnboarding)
+        assertNull(vm.uiState.value.selectedDestination)
+        assertNull(vm.backendState.value.session.route)
+    }
 
     @Test fun searchSavePlaceAndPlanDirectionsUsingTheMapsStyleScreens(){
         dismissOnboarding()

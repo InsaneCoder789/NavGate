@@ -1,5 +1,6 @@
 package com.rohanc.navgate.ui.journey
 
+import androidx.compose.ui.graphics.Color
 import com.rohanc.navgate.ui.components.NavGlassSurface
 
 import androidx.compose.foundation.BorderStroke
@@ -53,7 +54,7 @@ fun GmSearchPill(text: String, placeholder: Boolean, onClick: () -> Unit, modifi
 fun GmRoundButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier,
     container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceVariant,
     tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface, size: Dp = 44.dp, enabled: Boolean = true) {
-    Surface(modifier, shape = CircleShape, color = container) {
+    GlassPanel(modifier, shape = CircleShape, weight = GlassWeight.Thin, shadow = false) {
         IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(size)) { Icon(icon, description, tint = tint) }
     }
 }
@@ -108,7 +109,7 @@ fun GmPrimaryButton(label: String, icon: ImageVector?, onClick: () -> Unit, modi
     Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 52.dp), shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
         if (icon != null) { Icon(icon, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
-        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 
@@ -117,7 +118,7 @@ fun GmTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifi
     Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 52.dp), shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
         if (icon != null) { Icon(icon, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
-        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 
@@ -166,4 +167,27 @@ fun distanceFrom(origin: Coordinate?, place: PlaceSearchResult): String? {
     val to = place.coordinate ?: return null
     val meters = origin?.distanceTo(to) ?: return null
     return if (meters >= 1000) (if (meters >= 10_000) "%,d km".format((meters / 1000).roundToInt()) else "%.1f km".format(meters / 1000)) else "${(meters / 10).roundToInt() * 10} m"
+}
+
+/** 2D map, 3D map with solid buildings, or AR camera: the three ways to follow a route. Only offered once a route exists. */
+@Composable
+fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier, vertical: Boolean = false) {
+    GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular) {
+        val items: @Composable () -> Unit = {
+            listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "AR" to Icons.Rounded.ViewInAr).forEach { (mode, icon) ->
+                val on = mode == selected
+                val tint = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                val shape = RoundedCornerShape(20.dp)
+                val cell = Modifier.clip(shape).background(if (on) MaterialTheme.colorScheme.primary else Color.Transparent)
+                    .selectable(on, role = Role.RadioButton, onClick = { onSelect(mode) }).semantics { contentDescription = "$mode navigation" }
+                if (vertical) Column(cell.size(56.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Icon(icon, null, Modifier.size(22.dp), tint = tint); Text(mode, style = MaterialTheme.typography.labelMedium, color = tint)
+                } else Row(cell.height(44.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(icon, null, Modifier.size(20.dp), tint = tint); Text(mode, style = MaterialTheme.typography.labelLarge, color = tint)
+                }
+            }
+        }
+        if (vertical) Column(Modifier.padding(4.dp).selectableGroup(), verticalArrangement = Arrangement.spacedBy(2.dp)) { items() }
+        else Row(Modifier.padding(4.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) { items() }
+    }
 }

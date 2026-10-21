@@ -25,11 +25,15 @@ import dev.chrisbanes.haze.hazeEffect
 /** The blurred-backdrop source shared by every glass panel; null when no map sits behind (tests, previews). */
 val LocalHazeState = compositionLocalOf<HazeState?> { null }
 
+/** 0 = nearly clear glass, 1 = solid. Set from Settings; every panel reads it. */
+val LocalGlassOpacity = compositionLocalOf { 0.4f }
+
 enum class GlassWeight { Thin, Regular, Thick }
 
 /**
- * Frosted glass over the map: the map behind the panel is genuinely blurred (Android 12+), then tinted, with a bright
- * edge and a faint sheen. Older phones and "reduce transparency" fall back to a nearly opaque tint, which keeps text legible.
+ * Liquid glass: the map behind the panel is strongly blurred, lifted toward white, and edged with a bright rim and a soft
+ * top-left sheen, so every surface in the app looks like the round map buttons. How see-through it is comes from the
+ * Settings slider. Without a blur source (older phones, tests) it falls back to a flat tint of the same strength.
  */
 @Composable
 fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(28.dp), weight: GlassWeight = GlassWeight.Regular,
@@ -38,15 +42,21 @@ fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(
     val dark = scheme.surface.luminance() < 0.5f
     val solid = LocalSolidGlass.current
     val haze = LocalHazeState.current
-    val tintAlpha = when (weight) { GlassWeight.Thin -> if (dark) 0.42f else 0.50f; GlassWeight.Regular -> if (dark) 0.58f else 0.66f; GlassWeight.Thick -> if (dark) 0.78f else 0.84f }
-    val base = tint ?: scheme.surface
+    val opacity = LocalGlassOpacity.current.coerceIn(0f, 1f)
+    // Same strength for every weight, so sheets and buttons match; weight only nudges it.
+    val nudge = when (weight) { GlassWeight.Thin -> -0.04f; GlassWeight.Regular -> 0f; GlassWeight.Thick -> 0.03f }
+    val tintAlpha = (0.06f + 0.92f * opacity + nudge).coerceIn(0.04f, 0.98f)
+    val raw = tint ?: scheme.surface
+    val base = androidx.compose.ui.graphics.lerp(raw, Color.White, if (dark) 0.10f else 0.0f)
     val onBase = contentColor ?: scheme.onSurface
+    val blur = (26 - 10 * opacity).dp
     val effect = if (haze != null && !solid) Modifier.hazeEffect(haze, HazeStyle(
-        backgroundColor = base, tints = listOf(HazeTint(base.copy(alpha = tintAlpha))), blurRadius = if (weight == GlassWeight.Thin) 14.dp else 22.dp, noiseFactor = 0.04f)) else Modifier
-    val fallbackAlpha = if (solid) 1f else if (haze == null) (tintAlpha + 0.22f).coerceAtMost(0.96f) else 0f
-    val edge = Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.28f else 0.85f), scheme.outlineVariant.copy(alpha = if (dark) 0.25f else 0.4f)))
-    val sheen = Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.07f else 0.28f), Color.Transparent, scheme.primary.copy(alpha = 0.025f)))
+        backgroundColor = base, tints = listOf(HazeTint(base.copy(alpha = tintAlpha))), blurRadius = blur, noiseFactor = 0.03f)) else Modifier
+    val fallbackAlpha = if (solid) 1f else if (haze == null) (tintAlpha + 0.15f).coerceAtMost(0.98f) else 0f
+    val rim = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.55f else 0.95f), Color.White.copy(alpha = if (dark) 0.10f else 0.25f), Color.White.copy(alpha = if (dark) 0.32f else 0.7f)))
+    val sheen = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.16f else 0.35f), Color.Transparent, Color.White.copy(alpha = if (dark) 0.05f else 0.12f)))
+    val shadowDp = if (shadow) (8f * (0.4f + opacity)).dp else 0.dp
     val body: @Composable () -> Unit = { Box(Modifier.clip(shape).then(effect).background(base.copy(alpha = fallbackAlpha)).background(sheen), content = content) }
-    if (onClick != null) Surface(onClick = onClick, modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.dp, edge), shadowElevation = if (shadow) 8.dp else 0.dp) { body() }
-    else Surface(modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.dp, edge), shadowElevation = if (shadow) 8.dp else 0.dp) { body() }
+    if (onClick != null) Surface(onClick = onClick, modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.2.dp, rim), shadowElevation = shadowDp) { body() }
+    else Surface(modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.2.dp, rim), shadowElevation = shadowDp) { body() }
 }

@@ -73,7 +73,7 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
                 if (ui.preview != null) Text("Routing by Valhalla · © OpenStreetMap contributors. Times are estimates without live traffic.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             ui.startNotice?.let {
-                Surface(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.errorContainer) {
+                GlassPanel(Modifier.padding(horizontal = 20.dp).padding(bottom = 8.dp), shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, tint = MaterialTheme.colorScheme.errorContainer) {
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Icon(Icons.Rounded.Warning, null, tint = MaterialTheme.colorScheme.onErrorContainer)
                         Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onErrorContainer)
@@ -81,8 +81,8 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
                 }
             }
             Row(Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (ui.preview != null) GmPrimaryButton(if (ui.startPending) "Starting…" else if (driving) "Start driving" else "Start walking", Icons.Rounded.Navigation, a.start, enabled = !ui.startPending && permission)
-                else GmPrimaryButton(if (driving) "Preview driving route" else "Preview walking route", Icons.Rounded.Directions, a.replan, enabled = !ui.isLoadingRoute && origin != null && destination != null)
+                if (ui.preview != null) GmPrimaryButton(if (ui.startPending) "Starting…" else if (driving) "Start driving" else "Start walking", Icons.Rounded.Navigation, a.start, Modifier.weight(1f), enabled = !ui.startPending && permission)
+                else GmPrimaryButton(if (driving) "Preview driving route" else "Preview walking route", Icons.Rounded.Directions, a.replan, Modifier.weight(1f), enabled = !ui.isLoadingRoute && origin != null && destination != null)
                 GmTonalButton("Steps", if (showSteps) Icons.Rounded.ExpandMore else Icons.Rounded.FormatListBulleted, { showSteps = !showSteps }, enabled = steps.isNotEmpty())
             }
         }
@@ -147,10 +147,10 @@ private fun failureText(reason: RouteFailure, detail: String?): String = detail?
 
 @Composable
 private fun Banner(text: String, action: String, onAction: () -> Unit) {
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+    GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, tint = MaterialTheme.colorScheme.secondaryContainer) {
         Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            TextButton(onClick = onAction) { Text(action) }
+            Text(text, Modifier.weight(1f).padding(vertical = 8.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            TextButton(onClick = onAction) { Text(action, maxLines = 1, softWrap = false) }
         }
     }
 }

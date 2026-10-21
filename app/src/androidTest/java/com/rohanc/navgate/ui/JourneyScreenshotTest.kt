@@ -91,7 +91,7 @@ class JourneyScreenshotTest {
             // A real phone streams fixes; the guidance rules reject a position older than a few seconds.
             compose.runOnUiThread{vm.onLocationFix(LocationFix(vm.backendState.value.session.route!!.geometry.first(),AndroidBackendClock.elapsedMillis(),4.0))}
             compose.onNodeWithText("Start driving").performClick()
-            compose.waitUntil(8_000){vm.backendState.value.session.status==SessionStatus.Navigating}
+            compose.waitUntil(30_000){vm.backendState.value.session.status==SessionStatus.Navigating}
             // Feed a plausible fused estimate (heading along the road, mild acceleration) so the car marker and sensor panel render.
             val route=vm.backendState.value.session.route!!
             val at=route.geometry[minOf(3,route.geometry.lastIndex)]

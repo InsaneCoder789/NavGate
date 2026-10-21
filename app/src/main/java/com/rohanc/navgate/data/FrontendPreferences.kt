@@ -6,4 +6,6 @@ data class FrontendPreferences(
     val reduceMotion: Boolean = false,
     val voiceEnabled: Boolean = true,
     val buildings3d: Boolean = true,
+    /** 0 = almost clear glass, 1 = solid panels. */
+    val glassOpacity: Float = 0.4f,
 )

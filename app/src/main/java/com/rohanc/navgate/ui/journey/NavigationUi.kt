@@ -60,7 +60,7 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
         }
         val status = session.status
         if (status == SessionStatus.SignalLimited || status == SessionStatus.GuidanceUnavailable || status == SessionStatus.Rerouting || session.offRoute) {
-            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.errorContainerFallback(), shadowElevation = 4.dp) {
+            GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, tint = Color(0xFFFFB74D)) {
                 Text(when {
                     status == SessionStatus.Rerouting -> "Finding a new route…"
                     else -> session.signalReason ?: "Waiting for a stronger location signal"
@@ -68,11 +68,10 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
             }
         }
     }
-    if (motion != null && showSensors) SensorHud(motion, Modifier.align(Alignment.CenterStart).padding(start = 12.dp))
+    if (motion != null && showSensors) SensorHud(motion, Modifier.align(Alignment.CenterStart).padding(start = 88.dp))
     if (motion != null && driving && !showSensors) SpeedBubble(motion, { showSensors = true }, Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = with(density) { bottomPx.toDp() } + 14.dp))
-    Column(Modifier.align(Alignment.CenterEnd).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.align(Alignment.CenterEnd).offset(y = (-46).dp).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         GmMapButton(if (voiceOn) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff, if (voiceOn) "Mute spoken directions" else "Turn on spoken directions", a.toggleVoice)
-        GmMapButton(Icons.Rounded.CameraAlt, "Camera guidance", a.openCamera)
         if (motion != null) GmMapButton(Icons.Rounded.Sensors, if (showSensors) "Hide sensor readings" else "Show sensor readings", { showSensors = !showSensors })
     }
     GmSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { bottomPx = it.height }) {
