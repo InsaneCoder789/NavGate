@@ -141,10 +141,12 @@ import com.rohanc.navgate.ui.journey.JourneyUi
     }
     // Like any maps app, jump to the user as soon as there is a position (and again when permission is first granted).
     LaunchedEffect(permission){if(permission)centeredOnLocation=false}
+    // Back on the home map after cancelling a route or stopping a trip: go back to where you are instead of staying on the old route.
+    LaunchedEffect(screenIsExplore,active){if(screenIsExplore&&!active){centeredOnLocation=false;following=true}}
     LaunchedEffect(ui.snapshot.route,(bottomInsetDp/60f).toInt()){if(!active)fitRoute()}
-    LaunchedEffect(ui.snapshot.userLocation,ui.displayLocation,following,active,permission,loading){val fix=ui.snapshot.userLocation
+    LaunchedEffect(ui.snapshot.userLocation,ui.displayLocation,following,active,permission,loading,centeredOnLocation){val fix=ui.snapshot.userLocation
         val shown=ui.displayLocation ?: fix
-        if(!active && !loading && !centeredOnLocation && ui.focusedPlace==null && ui.snapshot.route==null && permission && shown!=null){
+        if(!active && !loading && !centeredOnLocation && ui.focusedPlace==null && (ui.snapshot.route==null||screenIsExplore) && permission && shown!=null){
             centeredOnLocation=true;val accuracy=ui.displayAccuracy ?: 50.0
             move(camera.position.copy(target=Position(latitude=shown.latitude,longitude=shown.longitude),zoom=if(accuracy<=150)16.0 else if(accuracy<=2_000)14.0 else 11.0,bearing=0.0,tilt=0.0))
         }
