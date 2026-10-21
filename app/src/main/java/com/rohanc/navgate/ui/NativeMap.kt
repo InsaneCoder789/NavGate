@@ -142,7 +142,18 @@ import com.rohanc.navgate.ui.journey.JourneyUi
     // Like any maps app, jump to the user as soon as there is a position (and again when permission is first granted).
     LaunchedEffect(permission){if(permission)centeredOnLocation=false}
     // Back on the home map after cancelling a route or stopping a trip: go back to where you are instead of staying on the old route.
-    LaunchedEffect(screenIsExplore,active){if(screenIsExplore&&!active){centeredOnLocation=false;following=true}}
+    // Trip ended or route cancelled: fly straight back to where you are, flat and north-up. This does not depend on any other
+    // map state (focused place, old route), which is what kept the camera stuck on the old route before.
+    var wasActive by remember{mutableStateOf(false)}
+    val homeFix=ui.displayLocation ?: ui.snapshot.userLocation
+    LaunchedEffect(active,screenIsExplore,ui.snapshot.route==null,homeFix==null){
+        val ended=wasActive&&!active
+        wasActive=active
+        if(!(ended||(screenIsExplore&&!active&&ui.snapshot.route==null))||!permission)return@LaunchedEffect
+        val here=homeFix ?: return@LaunchedEffect
+        centeredOnLocation=true;following=true
+        move(camera.position.copy(target=Position(latitude=here.latitude,longitude=here.longitude),zoom=16.0,bearing=0.0,tilt=0.0,padding=PaddingValues(top=topInsetDp.dp,bottom=bottomInsetDp.dp)))
+    }
     LaunchedEffect(ui.snapshot.route,(bottomInsetDp/60f).toInt()){if(!active)fitRoute()}
     LaunchedEffect(ui.snapshot.userLocation,ui.displayLocation,following,active,permission,loading,centeredOnLocation){val fix=ui.snapshot.userLocation
         val shown=ui.displayLocation ?: fix
