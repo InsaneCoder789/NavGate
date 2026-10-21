@@ -41,4 +41,46 @@ class HybridRoutingProviderTest {
         assertEquals("road called",(HybridRoutingProvider(store,road).plan(request) as RouteResult.Unavailable).detail)
         assertEquals(1,calls)
     }
+
+    @Test fun `road alternatives reach the provider through the production hybrid boundary`()=runTest {
+        val requests=mutableListOf<PlanRequest>()
+        val origin=GeoPoint(18.9,72.0)
+        val destination=GeoPoint(19.001,72.001)
+        val distance=origin.distanceTo(destination)
+        val alternative=CampusRoute("alternative",1,"campus","external","target","",listOf(origin,destination),emptyList(),distance,600.0,
+            listOf(Maneuver("Start",origin,0.0,"Start"),Maneuver("Arrive",destination,distance,"Arrive")),"provider",
+            source="valhalla",profile="driving",provider="test",fetchedAtEpochMillis=1_000,destinationPoint=destination,shapeElapsedSeconds=listOf(0.0,600.0))
+        val road=object:RoutingProvider {
+            override suspend fun plan(request:PlanRequest,pinnedVersion:String?):RouteResult=error("alternatives must not replan")
+            override suspend fun alternatives(request:PlanRequest):List<CampusRoute> {
+                requests+=request
+                return listOf(alternative.copy(profile=request.profile))
+            }
+        }
+        val provider=HybridRoutingProvider(store,road)
+        val outside=PlanRequest(1,"campus",origin,"target",destinationPoint=destination)
+        val drivingInside=outside.copy(origin=GeoPoint(19.001,72.001),profile="driving")
+        val externalInside=outside.copy(origin=GeoPoint(19.001,72.001),routingSource="valhalla",entranceId="gate")
+        for(request in listOf(outside,drivingInside,externalInside)) {
+            val results=provider.alternatives(request)
+            assertEquals("alternative",results.single().id)
+            assertEquals(request.profile,results.single().profile)
+        }
+        assertEquals(listOf(outside,drivingInside,externalInside),requests)
+    }
+
+    @Test fun `local and unknown provider alternatives never escape to the road router`()=runTest {
+        var calls=0
+        val road=object:RoutingProvider {
+            override suspend fun plan(request:PlanRequest,pinnedVersion:String?):RouteResult=error("not planning")
+            override suspend fun alternatives(request:PlanRequest):List<CampusRoute> {calls++;error("must stay local")}
+        }
+        val provider=HybridRoutingProvider(store,road)
+        val inside=PlanRequest(1,"campus",GeoPoint(19.001,72.001),"target",destinationPoint=GeoPoint(19.002,72.002))
+        val outside=inside.copy(origin=GeoPoint(18.9,72.0))
+        for(request in listOf(inside,outside.copy(entranceId="gate"),outside.copy(routingSource="local_campus_astar"),outside.copy(routingSource="unknown"))) {
+            assertTrue(provider.alternatives(request).isEmpty())
+        }
+        assertEquals(0,calls)
+    }
 }

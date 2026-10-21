@@ -235,7 +235,17 @@ class NavigationBackend(
             val routes = try { withContext(compute) { routingProvider.alternatives(request) } }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { emptyList() }
-            if (routes.isNotEmpty()) events.send(Event.PreviewChoices(route.id, RouteChoices.labelled(listOf(route) + routes.filterNot { RouteChoices.sameRoute(it, route) })))
+            // Alternatives cross the same provider boundary as the primary plan. Validate before
+            // geometry deduplication (which assumes a usable shape), and keep the selected trip's
+            // destination/mode/provider even if an adapter or cache returns unrelated results.
+            val valid = routes.filter { candidate ->
+                RouteIntegrity.shapeErrors(candidate).isEmpty() &&
+                    candidate.source == route.source && candidate.provider == route.provider &&
+                    candidate.profile == route.profile && candidate.regionId == route.regionId &&
+                    candidate.destinationPlaceId == route.destinationPlaceId && candidate.destinationPoint == requested.destinationPoint &&
+                    candidate.geometry.first().distanceTo(request.origin) <= 100.0
+            }
+            if (valid.isNotEmpty()) events.send(Event.PreviewChoices(route.id, RouteChoices.labelled(listOf(route) + valid.filterNot { RouteChoices.sameRoute(it, route) })))
         }
     }
 

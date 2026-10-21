@@ -53,6 +53,29 @@ class ValhallaRoutingProviderTest {
         assertTrue(ValhallaRoutingProvider.payload(request(),alternates=2).contains("\"alternates\":2"))
         assertTrue(ValhallaRoutingProvider.parseWithAlternates("not json",request(),"test",1000).isEmpty())
     }
+    @Test fun `geometry correction keeps spoken turn and icon aligned without changing road names`() {
+        val root=Json.parseToJsonElement(fixture("driving")).jsonObject
+        fun changed(instruction:String):CampusRoute {
+            val trip=root.getValue("trip").jsonObject
+            val leg=trip.getValue("legs").jsonArray.single().jsonObject
+            val turns=leg.getValue("maneuvers").jsonArray.toMutableList()
+            turns[1]=JsonObject(turns[1].jsonObject.toMutableMap().apply {
+                put("type",JsonPrimitive(10));put("instruction",JsonPrimitive(instruction))
+            })
+            val updatedLeg=JsonObject(leg.toMutableMap().apply { put("maneuvers",JsonArray(turns)) })
+            val updatedTrip=JsonObject(trip.toMutableMap().apply { put("legs",JsonArray(listOf(updatedLeg))) })
+            val payload=JsonObject(root.toMutableMap().apply { put("trip",updatedTrip) }).toString()
+            return (ValhallaRoutingProvider.parse(payload,request(),"test",1000) as RouteResult.Ready).route
+        }
+        // This recorded maneuver's shape turns left. A contradictory provider label must not reach TTS.
+        val corrected=changed("Turn right onto Right Road.").maneuvers[1]
+        assertEquals("Left",corrected.kind)
+        assertEquals("Turn left onto Right Road.",corrected.instruction)
+        // Do not invent wording for a prefix that is unknown or not in English: preserve the provider pair.
+        val untouched=changed("Prenez la droite vers Right Road.").maneuvers[1]
+        assertEquals("Right",untouched.kind)
+        assertEquals("Prenez la droite vers Right Road.",untouched.instruction)
+    }
     @Test fun `persistent cache distinguishes modes expires and is reused across provider instances`()=runBlocking {
         val server=MockWebServer();server.start()
         val entries=mutableMapOf<String,CampusRoute>()
@@ -81,6 +104,49 @@ class ValhallaRoutingProviderTest {
             val provider=ValhallaRoutingProvider(server.url("/route"),minimumIntervalMillis=0)
             repeat(2){assertTrue(provider.plan(request()) is RouteResult.Unavailable)}
             assertEquals(1,server.requestCount)
+        }finally{server.shutdown()}
+    }
+    @Test fun `503 Retry-After prevents the automatic retry and permits recovery after the window`()=runBlocking {
+        val server=MockWebServer();server.start()
+        try {
+            server.enqueue(MockResponse().setResponseCode(503).setHeader("Retry-After","120"))
+            server.enqueue(MockResponse().setBody(fixture("driving")))
+            var now=0L
+            val provider=ValhallaRoutingProvider(server.url("/route"),minimumIntervalMillis=0,elapsedMillis={now})
+            assertTrue("503 must not retry before Retry-After",provider.plan(request()) is RouteResult.Unavailable)
+            assertEquals("Only the rejected request may reach the provider",1,server.requestCount)
+            now=119_999
+            assertTrue(provider.plan(request()) is RouteResult.Unavailable)
+            assertEquals(1,server.requestCount)
+            now=120_000
+            assertTrue(provider.plan(request()) is RouteResult.Ready)
+            assertEquals(2,server.requestCount)
+        }finally{server.shutdown()}
+    }
+    @Test fun `a previously reserved request respects a newly received cooldown`()=runBlocking {
+        val server=MockWebServer();server.start()
+        try {
+            server.enqueue(MockResponse().setResponseCode(503).setHeader("Retry-After","120")
+                .setHeadersDelay(500,TimeUnit.MILLISECONDS))
+            server.enqueue(MockResponse().setBody(fixture("driving")))
+            val provider=ValhallaRoutingProvider(server.url("/route"),minimumIntervalMillis=1_000)
+            val first=async { provider.plan(request()) }
+            // Ensure the first request has reached the server before reserving the next slot.
+            withContext(Dispatchers.IO) { requireNotNull(server.takeRequest(5,TimeUnit.SECONDS)) }
+            val queued=async { provider.plan(request("walking")) }
+            assertTrue(first.await() is RouteResult.Unavailable)
+            assertTrue(queued.await() is RouteResult.Unavailable)
+            assertEquals("A reserved slot must not bypass Retry-After",1,server.requestCount)
+        }finally{server.shutdown()}
+    }
+    @Test fun `ordinary 500 failure still retries once and recovers`()=runBlocking {
+        val server=MockWebServer();server.start()
+        try {
+            server.enqueue(MockResponse().setResponseCode(500))
+            server.enqueue(MockResponse().setBody(fixture("driving")))
+            val provider=ValhallaRoutingProvider(server.url("/route"),minimumIntervalMillis=0)
+            assertTrue(provider.plan(request()) is RouteResult.Ready)
+            assertEquals(2,server.requestCount)
         }finally{server.shutdown()}
     }
     @Test fun `a slow request does not block a concurrent request`()=runBlocking<Unit> {

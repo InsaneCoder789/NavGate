@@ -148,6 +148,14 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
                 }
                 SwitchRow("Reduce motion", "Move the map without animation.", model.prefs.reduceMotion) { a.setPrefs(model.prefs.copy(reduceMotion = it)) }
             }
+            SettingsGroup("AR smoothness") {
+                Text("How smoothly the AR road line moves. ARCore's camera tops out at 60 frames a second; Max also redraws the line at your screen's own rate (up to 120 Hz) by predicting the camera between frames, which uses more battery.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.selectableGroup().fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("auto" to "Auto", "saver" to "30 fps", "smooth" to "60 fps", "max" to "Max").forEach { (key, label) ->
+                        FilterChip(model.prefs.arFps == key, { a.setPrefs(model.prefs.copy(arFps = key)) }, { Text(label, maxLines = 1, softWrap = false) }, Modifier.weight(1f), shape = RoundedCornerShape(16.dp))
+                    }
+                }
+            }
             SettingsGroup("Guidance") {
                 SwitchRow("Spoken directions", when (model.voice) {
                     VoiceAvailability.Initializing -> "Checking the installed offline voice…"; VoiceAvailability.OfflineReady -> "Offline voice is ready."

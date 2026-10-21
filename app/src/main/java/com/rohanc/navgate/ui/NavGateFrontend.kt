@@ -217,7 +217,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             }
         }
     }
-    val voiceAvailability=VoiceGuidance(enabled=prefs.voiceEnabled && active && permission,utteranceKey=ui.voiceSequence.toString(),message=ui.voiceAnnouncement)
+    val voiceAvailability=GuidanceRuntime(vm.backendState, vm.uiState, permission, vm::checkSignal)
     LaunchedEffect(backend.session.route?.id){selectedManeuver=null}
     LaunchedEffect(backend.initializing){if(!backend.initializing)vm.refreshRegionStatus()}
     LaunchedEffect(backend.session.status,backend.initializing){if(!backend.initializing)screen=sessionDestination(backend.session.status,screen)}
@@ -312,19 +312,6 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         call={phone->runCatching{context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+phone.filter{it.isDigit()||it=='+'})))}},
         openWebsite={site->runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(if(site.startsWith("http://")||site.startsWith("https://"))site else "https://$site")))}})
     val importing=importJob?.isActive==true
-    // Guidance keeps running with the screen off or another app in front: a foreground service holds the process, and its
-    // notification shows the next turn. It starts with the trip and ends the moment the trip does.
-    DisposableEffect(active){
-        if(active){
-            com.rohanc.navgate.nav.NavigationService.show(context,"NavGate","Starting guidance")
-        }
-        onDispose{if(active)com.rohanc.navgate.nav.NavigationService.stop(context)}
-    }
-    val nextInstruction=backend.session.instruction
-    val nextDistanceBucket=(backend.session.distanceToManeuver/25).toInt()
-    LaunchedEffect(active,nextInstruction,nextDistanceBucket){
-        if(active)com.rohanc.navgate.nav.NavigationService.show(context,"In ${backend.session.distanceToManeuver.toInt().let{if(it>=1000)"%.1f km".format(it/1000.0)else"$it m"}}",nextInstruction)
-    }
     val locationServicesOn=com.rohanc.navgate.ui.location.rememberLocationServicesOn()
     // --- Behind the scenes: connectivity, trip memory, touch cues, screen wake ---
     val online=com.rohanc.navgate.ui.map.rememberMapConnection()
@@ -386,40 +373,11 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                         if(screen in listOf("Search","Results","MapPick"))choose(place)
                         else if(!active){placeCaller=screen;vm.focusPlace(place);screen="Place"}
                     }
-                    if(screen=="Camera" && cameraPermission && backend.session.route!=null){
-                        var arFrame by remember{mutableStateOf<com.rohanc.navgate.ui.ar.ArFrameState?>(null)}
-                        var arStatus by remember{mutableStateOf<com.rohanc.navgate.ui.ar.ArSessionStatus>(com.rohanc.navgate.ui.ar.ArSessionStatus.Starting)}
-                        val aligner=remember{com.rohanc.navgate.ui.ar.ArGeoAligner()}
-                        val arBasis by com.rohanc.navgate.ui.ar.rememberCameraBasis(true){ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)}}
-                        val gps=ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)}
-                        val motionNow=vm.motionState.value
-                        val arCamera=remember(arFrame){arFrame?.let{f->
-                            val compass=arBasis?.takeIf{kotlin.math.abs(it.pitchDegrees)<55}?.headingDegrees
-                            aligner.update(f.reading,compass,gps,ui.displayAccuracy?.toDouble()?:20.0,motionNow?.headingDegrees,motionNow?.speedMps?:0.0)
-                        }}
-                        val here=if(arStatus is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable)gps else (arCamera?.position?:gps)
-                        // Checkpoints work behind the scenes: the track keeps only the road you are on loaded, and hands the overlay a short path.
-                        val track=remember(backend.session.route?.id){backend.session.route?.let{com.rohanc.navgate.ui.ar.CheckpointTrack(it)}}
-                        var path by remember(track){mutableStateOf<List<GeoPoint>>(emptyList())}
-                        var roadEnd by remember(track){mutableStateOf(0.0)}
-                        var turnKind by remember(track){mutableStateOf<String?>(null)}
-                        var turnLabel by remember(track){mutableStateOf<String?>(null)}
-                        val stepKey=here?.let{(it.latitude*1e5).toLong() to (it.longitude*1e5).toLong()}
-                        LaunchedEffect(track,stepKey){
-                            val position=here?:return@LaunchedEffect
-                            val t=track?:return@LaunchedEffect
-                            val result=kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default){
-                                t.update(position);Triple(t.pathAhead(),t.metersToStageEnd,t.stageEnd)
-                            }
-                            path=result.first;roadEnd=result.second;turnKind=result.third?.turnKind?:if(result.third?.kind==com.rohanc.navgate.ui.ar.GateKind.Finish)"Arrive" else null;turnLabel=result.third?.label
-                        }
-                        if(arStatus is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable){
-                            CameraPreview(Modifier.fillMaxSize())
-                            com.rohanc.navgate.ui.ar.ArRoadOverlay(path,roadEnd,gps,arBasis,turnKind,turnLabel,roadEnd,Modifier.fillMaxSize())
-                        }else{
-                            com.rohanc.navgate.ui.ar.ArSessionView({arFrame=it;arStatus=com.rohanc.navgate.ui.ar.ArSessionStatus.Running},{if(it is com.rohanc.navgate.ui.ar.ArSessionStatus.Unavailable)arStatus=it},Modifier.fillMaxSize())
-                            com.rohanc.navgate.ui.ar.ArRoadOverlay(path,roadEnd,arCamera?.position,arCamera?.basis,turnKind,turnLabel,roadEnd,Modifier.fillMaxSize(),arFrame)
-                        }
+                    val arRoute=backend.session.route
+                    if(screen=="Camera" && cameraPermission && arRoute!=null){
+                        com.rohanc.navgate.ui.ar.ArNavigationLayer(arRoute,navGeometry,navTrack ?: com.rohanc.navgate.ui.map.TrackInput(arRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,true),
+                            backend.session.snappedLocation,ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)},backend.session.distanceToManeuver,(arRoute.profile)=="driving",
+                            when(prefs.arFps){"saver"->com.rohanc.navgate.ui.ar.ArFpsMode.Saver;"smooth"->com.rohanc.navgate.ui.ar.ArFpsMode.Smooth;"max"->com.rohanc.navgate.ui.ar.ArFpsMode.Max;else->com.rohanc.navgate.ui.ar.ArFpsMode.Auto},Modifier.fillMaxSize())
                     }
                 }
                 JourneyUi(data,{top,bottom->insetTop=top;insetBottom=bottom},actions){

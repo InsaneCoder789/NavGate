@@ -46,14 +46,8 @@ fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, 
             Text(instruction, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 2)
         }
     }
-    Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        GlassPanel(shape = CircleShape, weight = GlassWeight.Thin) {
-            Row(Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) {
-                Text(if (cuesAvailable) alignment.label else "Camera cues paused until location is accurate.", style = MaterialTheme.typography.titleMedium)
-            }
-        }
-        Text("Compass guidance only; it does not detect obstacles.", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-    }
+    Text("AR guidance only. It does not detect obstacles; watch the road.", Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xAA0B1220)).padding(horizontal = 12.dp, vertical = 5.dp),
+        style = MaterialTheme.typography.labelMedium, color = Color.White)
     GlassPanel(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp).fillMaxWidth(), shape = RoundedCornerShape(32.dp)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedIconButton(onClick = a.requestStop, modifier = Modifier.size(52.dp)) { Icon(Icons.Rounded.Close, "Stop navigation") }

@@ -14,4 +14,15 @@ class HybridRoutingProvider(private val regions:RegionStore,private val road:Rou
             return local.plan(request)
         return road.plan(request)
     }
+
+    override suspend fun alternatives(request:PlanRequest):List<CampusRoute> {
+        // External trips keep their provider even after entering campus coverage. Local graph/entrance
+        // requests must not acquire unrelated road alternatives or bypass reviewed-campus routing.
+        if(request.routingSource=="valhalla")return road.alternatives(request)
+        if(request.routingSource!=null || !request.entranceId.isNullOrBlank())return emptyList()
+        val pack=regions.active(request.regionId)
+        if(request.profile=="walking" && pack?.coverage?.contains(request.origin)==true && pack.entrances.any{it.reviewed && it.placeId==request.destinationPlaceId})
+            return emptyList()
+        return road.alternatives(request)
+    }
 }

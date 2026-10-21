@@ -63,3 +63,8 @@ Written 21 October 2026 after the maps-style journey rebuild. Items are grouped 
 - Done and unit-tested: real Mumbai route replay (driving and walking), turn classification from geometry, roundabout enter/exit with exit number, fastest/shortest/alternative route choices, route cache warm-up on opening a place, restyled route editor, map info icon removed (credits moved to Settings).
 - Not yet run on a device after these changes: the full instrumented suite and screenshots (last full pass was before the replay round).
 - Left: drive test of tunnel, junction backup switch, notification and screen-off guidance; AR over a real road; battery measurement; second routing provider; own Valhalla server; accounts and sync if wanted; crowd-sourced traffic; accessibility pass; roundabout exit direction wording on the screen (data is parsed, display shows exit number only).
+
+## AR upgrade (2026-10-22, not yet run on a device)
+- Rewritten: the road line, chevrons and turn arrow are drawn in the ARCore GL frame (`ArSessionView`, `ArMesh`), aligned by `ArGeoAligner` using the route-locked position and the road's heading; 30/60 fps camera selection, Max mode with pose prediction at display rate, tracking guidance, frame-rate readout.
+- Unit-tested: mesh geometry, quaternion extrapolation, alignment maths. `ArRenderSmokeTest` (opt-in `-Pandroid.testInstrumentationRunnerArguments.ar=true`) opens real ARCore and checks for shader or session errors; it needs the phone unlocked.
+- Still to check outdoors: line placement on a real road, yaw stability at junctions, ground height on slopes, depth occlusion (not built), Geospatial API placement (needs a Google Cloud key, not built).

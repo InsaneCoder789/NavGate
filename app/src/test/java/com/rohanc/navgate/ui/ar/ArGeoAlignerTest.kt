@@ -24,7 +24,7 @@ class ArGeoAlignerTest {
         val aligner = ArGeoAligner()
         aligner.update(reading(0.0, 0), 0.0, start, 5.0, null, 0.0)
         var last = aligner.update(reading(0.0, 1), 0.0, start, 5.0, null, 0.0)!!
-        repeat(400) { last = aligner.update(reading(-20.0, 2L + it), 0.0, start, 5.0, null, 0.0)!! } // ARCore claims 20 m north, GPS says stationary
+        repeat(400) { last = aligner.update(reading(-20.0, 2L + it * 33L), 0.0, start, 5.0, null, 0.0)!! } // ARCore claims 20 m north, GPS says stationary
         assertTrue(abs(last.position.latitude - start.latitude) * 111_320 < 8.0)
     }
 }

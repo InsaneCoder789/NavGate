@@ -100,10 +100,17 @@ class ValhallaRoutingProvider(
     }
 
     /** One quiet retry for a busy server (5xx) or a slow reply. No retry when there is no network at all: that fails fast instead. */
-    private suspend fun fetch(request:Request):String=try{ fetchOnce(request) }catch(e:IOException){
+    private suspend fun fetch(request:Request):String=try{
+        // A queued request may have reserved its slot before another response opened a cooldown.
+        if(elapsedMillis()<retryAt)throw IOException("Routing provider is rate limited. Wait and retry.")
+        fetchOnce(request)
+    }catch(e:IOException){
         val transient=e is java.net.SocketTimeoutException || e.message?.startsWith("Routing provider HTTP 5")==true
-        if(!transient)throw e
-        delay(700);fetchOnce(request)
+        if(!transient || elapsedMillis()<retryAt)throw e
+        delay(700)
+        // A concurrent response may have opened a cooldown while this retry was waiting.
+        if(elapsedMillis()<retryAt)throw e
+        fetchOnce(request)
     }
 
     private suspend fun fetchOnce(request:Request):String=suspendCancellableCoroutine { continuation ->
@@ -181,7 +188,7 @@ class ValhallaRoutingProvider(
                     require(start in shape.indices && end in start..shape.lastIndex && start==lastEnd)
                     lastEnd=end
                     val duration=m["time"]!!.jsonPrimitive.double;require(duration.isFinite() && duration>=0)
-                    val instruction=m["instruction"]!!.jsonPrimitive.content.trim();require(instruction.isNotEmpty())
+                    var instruction=m["instruction"]!!.jsonPrimitive.content.trim();require(instruction.isNotEmpty())
                     val type=m["type"]!!.jsonPrimitive.int
                     val arrival=type in 4..6
                     if(index==raw.lastIndex)require(arrival && start==shape.lastIndex)
@@ -190,7 +197,20 @@ class ValhallaRoutingProvider(
                     for(i in start..end)times[i]=elapsed+if(length>0)duration*(lengths[i]-lengths[start])/length else 0.0
                     elapsed+=duration
                     val angle=ManeuverKinds.turnAngle(shape,start)
-                    val kind=ManeuverKinds.forValhalla(type,angle)
+                    val providerKind=ManeuverKinds.forValhalla(type,null)
+                    var kind=ManeuverKinds.forValhalla(type,angle)
+                    // Keep written/spoken cues and the icon consistent. Only a known English turn prefix can be
+                    // safely corrected; road names and unrecognised/localised instructions must remain untouched.
+                    fun side(value:String)=when(value){"Left","SlightLeft","SharpLeft","KeepLeft"->-1;"Right","SlightRight","SharpRight","KeepRight"->1;else->0}
+                    if(side(kind)!=side(providerKind)) {
+                        val prefix=Regex("^(?:Turn(?:\\s+(?:slightly|sharply))?|Bear|Keep)\\s+(left|right)\\b",RegexOption.IGNORE_CASE).find(instruction)
+                        val direction=prefix?.groups?.get(1)
+                        val originalSide=direction?.value?.let{if(it.equals("left",true))-1 else 1}
+                        if(side(kind)!=0 && originalSide==side(providerKind)) {
+                            val word=if(side(kind)<0)"left" else "right"
+                            instruction=instruction.replaceRange(requireNotNull(direction).range,word)
+                        }else kind=providerKind
+                    }
                     // A roundabout is described by the road you enter on and the road you leave on: measure the change between them.
                     val roundaboutChange=if(type==26){
                         val exitStart=raw.drop(index+1).firstOrNull{it["type"]?.jsonPrimitive?.int==27}?.get("begin_shape_index")?.jsonPrimitive?.int
