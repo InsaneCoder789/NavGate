@@ -178,7 +178,10 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     var selectedManeuver by rememberSaveable { mutableStateOf<Int?>(null) }
     var permission by remember { mutableStateOf(hasLocationPermission(context)) }
     var cameraPermission by remember { mutableStateOf(ContextCompat.checkSelfPermission(context,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED) }
-    val locationLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){permission=it.values.any{granted->granted};if(permission&&vm.uiState.value.showOnboarding)vm.dismissOnboarding()}
+    val notificationLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){}
+    val locationLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){permission=it.values.any{granted->granted};if(permission&&vm.uiState.value.showOnboarding)vm.dismissOnboarding()
+        // The navigation notification needs this on Android 13+. Asked once, here, never while a trip is starting.
+        if(permission&&Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)}
     val cameraLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){cameraPermission=it}
     val lifecycleOwner=LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner){
@@ -310,13 +313,8 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     val importing=importJob?.isActive==true
     // Guidance keeps running with the screen off or another app in front: a foreground service holds the process, and its
     // notification shows the next turn. It starts with the trip and ends the moment the trip does.
-    val notificationLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){}
-    var askedNotifications by rememberSaveable{mutableStateOf(false)}
     DisposableEffect(active){
         if(active){
-            if(Build.VERSION.SDK_INT>=33&&!askedNotifications&&ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){
-                askedNotifications=true;notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
             com.rohanc.navgate.nav.NavigationService.show(context,"NavGate","Starting guidance")
         }
         onDispose{if(active)com.rohanc.navgate.nav.NavigationService.stop(context)}
