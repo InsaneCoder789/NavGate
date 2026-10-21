@@ -23,6 +23,9 @@ data class PlanRequest(
     val destinationPlaceId: String,
     val entranceId: String? = null,
     val profile: String = "walking",
+    val destinationPoint: GeoPoint? = null,
+    val destinationTitle: String? = null,
+    val routingSource: String? = null,
 )
 
 @Serializable
@@ -48,7 +51,38 @@ data class CampusRoute(
     val maneuvers: List<Maneuver>,
     val reviewedAt: String,
     val source: String = "local_campus_astar",
-)
+    val profile: String = "walking",
+    val provider: String? = null,
+    val fetchedAtEpochMillis: Long? = null,
+    val destinationPoint: GeoPoint? = null,
+    val destinationTitle: String? = null,
+    /** Provider cumulative elapsed time at every geometry vertex, in seconds. */
+    val shapeElapsedSeconds: List<Double> = emptyList(),
+    val warnings: List<String> = emptyList(),
+    val fromCache: Boolean = false,
+) {
+    val external: Boolean get() = source == "valhalla"
+    fun shapeToRouteMeters(meters: Double): Double =
+        if (geometry.lengthMeters() > 0) meters / geometry.lengthMeters() * distanceMeters else 0.0
+    fun routeToShapeMeters(meters: Double): Double =
+        if (distanceMeters > 0) meters / distanceMeters * geometry.lengthMeters() else 0.0
+    fun remainingSecondsAt(progress: Double): Double {
+        if (distanceMeters <= 0) return 0.0
+        if (shapeElapsedSeconds.size != geometry.size) return estimatedSeconds * (1 - progress / distanceMeters).coerceIn(0.0, 1.0)
+        val target = routeToShapeMeters(progress)
+        var along = 0.0
+        geometry.zipWithNext().forEachIndexed { i, (a, b) ->
+            val length = a.distanceTo(b)
+            if (target <= along + length || i == geometry.lastIndex - 1) {
+                val fraction = if (length > 0) ((target - along) / length).coerceIn(0.0, 1.0) else 1.0
+                val elapsed = shapeElapsedSeconds[i] + fraction * (shapeElapsedSeconds[i + 1] - shapeElapsedSeconds[i])
+                return (estimatedSeconds - elapsed).coerceAtLeast(0.0)
+            }
+            along += length
+        }
+        return 0.0
+    }
+}
 
 /** Coarse spatial buckets narrow segment projection candidates; long segments are safely indexed as overflow. */
 private class EdgeSpatialIndex(private val edges: List<GraphEdge>, private val boundary: List<GeoPoint>) {
@@ -200,7 +234,11 @@ private fun buildManeuvers(path: List<GeoPoint>): List<Maneuver> {
     return steps
 }
 
-class RoutePlanner(private val regions: RegionStore) {
+interface RoutingProvider {
+    suspend fun plan(request: PlanRequest, pinnedVersion: String? = null): RouteResult
+}
+
+class RoutePlanner(private val regions: RegionStore) : RoutingProvider {
     // RegionStore versions are immutable. Retain at most two spatial indexes: current and pinned trip.
     private val cacheLock = kotlinx.coroutines.sync.Mutex()
     private val providers = LinkedHashMap<Pair<String,String>,CampusRoutingProvider>(2,0.75f,true)
@@ -215,7 +253,7 @@ class RoutePlanner(private val regions: RegionStore) {
         } finally { cacheLock.unlock() }
     }
 
-    suspend fun plan(request: PlanRequest, pinnedVersion: String? = null): RouteResult {
+    override suspend fun plan(request: PlanRequest, pinnedVersion: String?): RouteResult {
         coroutineContext.ensureActive()
         val pack = if (pinnedVersion == null) regions.active(request.regionId) else regions.version(request.regionId, pinnedVersion)
         return if (pack == null) RouteResult.Unavailable(RouteFailure.MissingRegion, "Install a reviewed region pack before routing")

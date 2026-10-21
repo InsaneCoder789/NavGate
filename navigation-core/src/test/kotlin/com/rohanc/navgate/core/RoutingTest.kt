@@ -16,6 +16,7 @@ class RoutingTest {
         val route = (CampusRoutingProvider(pack).route(request) as RouteResult.Ready).route
         assertEquals(listOf("ab","bc"), route.edgeIds)
         assertEquals(pack.edges.take(2).sumOf { it.geometry.lengthMeters() },route.distanceMeters,0.01)
+        assertEquals(route.distanceMeters/1.35,route.estimatedSeconds,0.0001)
         assertEquals("local_campus_astar",route.source)
         assertEquals("v1",route.graphVersion)
         assertEquals("entry",route.entranceId)

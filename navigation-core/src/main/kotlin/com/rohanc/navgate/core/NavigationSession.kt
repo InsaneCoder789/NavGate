@@ -39,7 +39,7 @@ data class SessionSnapshot(
 @Serializable
 data class SessionCheckpoint(val snapshot: SessionSnapshot)
 
-data class RerouteRequest(val sessionId: String, val requestId: Long, val request: PlanRequest, val pinnedVersion: String)
+data class RerouteRequest(val sessionId: String, val requestId: Long, val request: PlanRequest, val pinnedVersion: String?, val originFixElapsedMillis: Long = 0)
 
 data class SessionUpdate(val snapshot: SessionSnapshot, val speak: String? = null, val reroute: RerouteRequest? = null)
 
@@ -49,15 +49,18 @@ data class GuidancePolicy(
     val offRouteMeters: Double = 30.0,
     val deviationSamples: Int = 3,
     val arrivalMeters: Double = 10.0,
+    val drivingArrivalMeters: Double = 25.0,
     val arrivalSamples: Int = 2,
     val rerouteCooldownMillis: Long = 12_000,
     val maxWalkingMetersPerSecond: Double = 4.0,
+    val maxDrivingMetersPerSecond: Double = 70.0,
 ) {
     init {
         require(maxFixAgeMillis>0 && maxAccuracyMeters.isFinite() && maxAccuracyMeters>0)
-        require(offRouteMeters.isFinite() && offRouteMeters>0 && arrivalMeters.isFinite() && arrivalMeters>0)
+        require(offRouteMeters.isFinite() && offRouteMeters>0 && arrivalMeters.isFinite() && arrivalMeters>0 && drivingArrivalMeters.isFinite() && drivingArrivalMeters>=arrivalMeters)
         require(deviationSamples>=2 && arrivalSamples>=2 && rerouteCooldownMillis>=0)
         require(maxWalkingMetersPerSecond.isFinite() && maxWalkingMetersPerSecond>0)
+        require(maxDrivingMetersPerSecond.isFinite() && maxDrivingMetersPerSecond>0)
     }
 }
 
@@ -99,7 +102,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         val expected = if (resumed) projectPath(fix.point, route.geometry) else null
         val near = if (resumed) expected?.distanceMeters ?: Double.POSITIVE_INFINITY else fix.point.distanceTo(route.geometry.first())
         if (near > 20.0) return@withLock publish(current.copy(signalReason = "Move to the planned start or replan from your location"))
-        if (resumed && abs((expected?.alongMeters ?: 0.0) - current.alongMeters) > 40.0) {
+        if (resumed && abs(route.shapeToRouteMeters(expected?.alongMeters ?: 0.0) - current.alongMeters) > 40.0) {
             return@withLock publish(current.copy(signalReason = "Position changed since the checkpoint; replan before resuming"))
         }
         resetTracking()
@@ -147,13 +150,14 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         val route = current.route ?: return@withLock SessionUpdate(current)
         val previous = lastAccepted
         val elapsed = previous?.let { (fix.elapsedMillis - it.elapsedMillis) / 1000.0 } ?: 0.0
-        val movementBudget = (elapsed.coerceIn(0.0, 30.0) * policy.maxWalkingMetersPerSecond + 8.0)
+        // Elapsed time is not capped: after a signal outage the user may legitimately be far from the last accepted fix.
+        val movementBudget = (elapsed.coerceAtLeast(0.0) * (if (route.profile == "driving") policy.maxDrivingMetersPerSecond else policy.maxWalkingMetersPerSecond) + 8.0)
         if (previous != null && previous.point.distanceTo(fix.point) > movementBudget + min(previous.accuracyMeters + fix.accuracyMeters, 20.0)) {
             arrivalCount = 0; deviationCount = 0
             return@withLock publish(current.copy(status = SessionStatus.SignalLimited, signalReason = "Implausible location jump; waiting for a stable fix"))
         }
         val projection = projectPath(fix.point, route.geometry,
-            minAlong = max(0.0, current.alongMeters - 15), maxAlong = current.alongMeters + movementBudget)
+            minAlong = route.routeToShapeMeters(max(0.0, current.alongMeters - 15)), maxAlong = route.routeToShapeMeters(current.alongMeters) + movementBudget)
         val fullProjection = projectPath(fix.point, route.geometry)
         if (projection == null || (projection.distanceMeters > policy.offRouteMeters && (fullProjection?.distanceMeters ?: Double.POSITIVE_INFINITY) < 10)) {
             arrivalCount = 0; deviationCount = 0
@@ -162,10 +166,13 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         lastAccepted = fix
         val offRoute = projection.distanceMeters > max(policy.offRouteMeters, fix.accuracyMeters * 1.5)
         deviationCount = if (offRoute) deviationCount + 1 else 0
-        val progress = if (offRoute) current.alongMeters else max(current.alongMeters, projection.alongMeters)
+        val progress = if (offRoute) current.alongMeters else max(current.alongMeters, route.shapeToRouteMeters(projection.alongMeters))
         val remaining = max(0.0, route.distanceMeters - progress)
-        val arrivalRadius = min(policy.arrivalMeters, max(4.0, fix.accuracyMeters))
-        val atDestination = !offRoute && remaining <= policy.arrivalMeters && fix.point.distanceTo(route.geometry.last()) <= arrivalRadius
+        // A moving car can cross a 4-10 m walking radius between two fixes, so driving uses a wider fixed zone.
+        val driving = route.profile == "driving"
+        val arrivalLimit = if (driving) policy.drivingArrivalMeters else policy.arrivalMeters
+        val arrivalRadius = if (driving) arrivalLimit else min(arrivalLimit, max(4.0, fix.accuracyMeters))
+        val atDestination = !offRoute && remaining <= arrivalLimit && fix.point.distanceTo(route.geometry.last()) <= arrivalRadius
         arrivalCount = if (atDestination) arrivalCount + 1 else 0
         val arrived = arrivalCount >= policy.arrivalSamples
         val step = route.maneuvers.indexOfFirst { it.alongMeters > progress + 2 }.let { if (it < 0) route.maneuvers.lastIndex.coerceAtLeast(0) else it }
@@ -176,16 +183,16 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         if (!arrived && canReroute) {
             rerouteCounter++
             reroute = RerouteRequest(requireNotNull(current.sessionId), rerouteCounter,
-                PlanRequest(rerouteCounter, route.regionId, fix.point, route.destinationPlaceId, route.entranceId), route.graphVersion)
+                PlanRequest(rerouteCounter, route.regionId, fix.point, route.destinationPlaceId, route.entranceId, route.profile, route.destinationPoint, route.destinationTitle, route.source), if (route.external) null else route.graphVersion, fix.elapsedMillis)
             pendingReroute = reroute
             lastRerouteAt = nowElapsedMillis
         }
         val nextStatus = when { arrived -> SessionStatus.Arrived; pendingReroute != null -> SessionStatus.Rerouting; current.status == SessionStatus.GuidanceUnavailable && offRoute -> SessionStatus.GuidanceUnavailable; else -> SessionStatus.Navigating }
         val next = current.copy(status = nextStatus, location = fix.point, accuracyMeters = fix.accuracyMeters,
             alongMeters = if (arrived) route.distanceMeters else progress, maneuverIndex = step,
-            remainingMeters = if (arrived) 0.0 else remaining, remainingSeconds = if (arrived) 0.0 else remaining / CampusRoutingProvider.WALKING_SPEED,
+            remainingMeters = if (arrived) 0.0 else remaining, remainingSeconds = if (arrived) 0.0 else route.remainingSecondsAt(progress),
             distanceToManeuver = if (arrived) 0.0 else max(0.0, (maneuver?.alongMeters ?: route.distanceMeters) - progress),
-            instruction = if (arrived) "You have arrived at the selected entrance" else maneuver?.instruction ?: "Follow the mapped path",
+            instruction = if (arrived) if (route.external) "You have arrived at your destination" else "You have arrived at the selected entrance" else maneuver?.instruction ?: "Follow the mapped path",
             signalReason = if (offRoute) "Route deviation detected" else null, offRoute = offRoute)
         if (arrived) pendingReroute = null
         publish(next, if (arrived || step != current.maneuverIndex) next.instruction else null, reroute)
@@ -197,18 +204,39 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         pendingReroute = null
         if (result is RouteResult.Unavailable) return@withLock publish(current.copy(status = SessionStatus.GuidanceUnavailable, signalReason = result.detail))
         val route = (result as RouteResult.Ready).route
-        if (route.graphVersion != request.pinnedVersion || route.regionId != request.request.regionId || route.destinationPlaceId != request.request.destinationPlaceId || route.entranceId!=request.request.entranceId || route.requestId != request.requestId || RouteIntegrity.shapeErrors(route).isNotEmpty()) {
+        if ((!route.external && route.graphVersion != request.pinnedVersion) || route.source != current.route?.source || route.provider != current.route?.provider || route.profile != request.request.profile || route.destinationPoint != request.request.destinationPoint || route.regionId != request.request.regionId || route.destinationPlaceId != request.request.destinationPlaceId || route.entranceId!=request.request.entranceId || route.requestId != request.requestId || RouteIntegrity.shapeErrors(route).isNotEmpty()) {
             return@withLock publish(current.copy(status = SessionStatus.GuidanceUnavailable, signalReason = "Replacement route does not match the current trip"))
         }
         val fix=latestFix
         val signal=qualityReason(fix,nowElapsedMillis ?: fix?.elapsedMillis ?: 0)
         if (signal!=null) return@withLock publish(current.copy(status=SessionStatus.SignalLimited,signalReason=signal))
-        if (fix!!.point.distanceTo(route.geometry.first())>20.0) return@withLock publish(current.copy(status=SessionStatus.GuidanceUnavailable,signalReason="Position moved during rerouting; replan from a confirmed position"))
+        requireNotNull(fix)
+        val now = nowElapsedMillis ?: fix.elapsedMillis
+        val latency = now - request.originFixElapsedMillis
+        val traveledSeconds = (fix.elapsedMillis - request.originFixElapsedMillis) / 1000.0
+        val originSnap = request.request.origin.distanceTo(route.geometry.first())
+        val speedLimit = if (route.profile == "driving") policy.maxDrivingMetersPerSecond else policy.maxWalkingMetersPerSecond
+        val movementBudget = traveledSeconds.coerceAtLeast(0.0) * speedLimit + 8.0 + min(fix.accuracyMeters, 10.0)
+        val projected = projectPath(fix.point, route.geometry)
+        // A route is calculated from the requesting fix. A moving driver need not still be at that
+        // point when the response arrives, but cannot jump to a later loop or use an old response.
+        if (latency !in 0L..30_000L || traveledSeconds < 0 ||
+            originSnap > (if (route.external) 100.0 else 20.0) ||
+            request.request.origin.distanceTo(fix.point) > movementBudget || projected == null ||
+            projected.distanceMeters > max(policy.offRouteMeters, fix.accuracyMeters * 1.5) ||
+            projected.alongMeters > movementBudget + originSnap) {
+            return@withLock publish(current.copy(status=SessionStatus.GuidanceUnavailable,signalReason="Position changed beyond the replacement route; replan from a confirmed position"))
+        }
+        val progress = route.shapeToRouteMeters(projected.alongMeters).coerceIn(0.0, route.distanceMeters)
+        val step = route.maneuvers.indexOfFirst { it.alongMeters > progress + 2 }.let { if (it < 0) route.maneuvers.lastIndex else it }
+        val maneuver = route.maneuvers[step]
         deviationCount = 0; arrivalCount = 0
-        publish(current.copy(route = route, status = SessionStatus.Navigating, alongMeters = 0.0, maneuverIndex = 0,
-            remainingMeters = route.distanceMeters, remainingSeconds = route.estimatedSeconds, offRoute = false, signalReason = null,
-            instruction = route.maneuvers.firstOrNull()?.instruction ?: "Route updated",
-            distanceToManeuver = route.maneuvers.firstOrNull()?.alongMeters ?: 0.0), "Route updated")
+        lastAccepted = fix
+        publish(current.copy(route = route, status = SessionStatus.Navigating, alongMeters = progress, maneuverIndex = step,
+            remainingMeters = (route.distanceMeters - progress).coerceAtLeast(0.0), remainingSeconds = route.remainingSecondsAt(progress), offRoute = false, signalReason = null,
+            location = fix.point, accuracyMeters = fix.accuracyMeters,
+            instruction = maneuver.instruction,
+            distanceToManeuver = (maneuver.alongMeters - progress).coerceAtLeast(0.0)), "Route updated")
     }
 
     private fun resetTracking() {

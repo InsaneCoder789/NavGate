@@ -62,6 +62,7 @@ class NavigationBackend(
     private val session: NavigationSession = NavigationSession(),
     private val compute: CoroutineDispatcher = Dispatchers.Default,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val routingProvider: RoutingProvider = RoutePlanner(regions),
 ) {
     private val job = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + job)
@@ -75,9 +76,9 @@ class NavigationBackend(
     private var rerouteJob: Job? = null
     private var searchGeneration = 0L
     private var planGeneration = 0L
+    private var pendingPlan: PlanRequest? = null
     private var lastCheckpointAt: Long? = null
     private var lastPersistedStatus: SessionStatus? = null
-    private val planner = RoutePlanner(regions)
 
     init {
         scope.launch {
@@ -125,7 +126,7 @@ class NavigationBackend(
             if (checkpoint != null) {
                 val route = checkpoint.snapshot.route
                 val pack = route?.let { withContext(io) { regions.version(it.regionId,it.graphVersion) } }
-                session.restore(checkpoint, pack != null && RouteIntegrity.checkpointErrors(checkpoint,pack).isEmpty())
+                session.restore(checkpoint, if (route?.external == true) RouteIntegrity.externalCheckpointErrors(checkpoint).isEmpty() else pack != null && RouteIntegrity.checkpointErrors(checkpoint,pack).isEmpty())
             }
             mutable.value = mutable.value.copy(initializing = false, session = session.state.value)
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -165,15 +166,26 @@ class NavigationBackend(
                 planJob?.cancel(); rerouteJob?.cancel(); val generation = ++planGeneration
                 session.clear()
                 mutable.value = mutable.value.copy(planning = true, session = session.state.value, routeFailure = null)
+                pendingPlan = event.request.copy(requestId = generation)
                 planJob = scope.launch {
-                    val result = try { withContext(compute) { planner.plan(event.request.copy(requestId = generation)) } }
+                    val result = try { withContext(compute) { routingProvider.plan(event.request.copy(requestId = generation)) } }
                     catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { RouteResult.Unavailable(RouteFailure.InvalidGraph,"Unable to load or calculate the installed route") }
                     events.send(Event.PlanResult(generation,result))
                 }
             }
             is Event.PlanResult -> if (event.generation == planGeneration) {
-                val result = event.result
+                val requested = pendingPlan
+                val candidate = event.result
+                val result = if (candidate is RouteResult.Ready && (requested == null ||
+                    candidate.route.requestId != requested.requestId || candidate.route.profile != requested.profile ||
+                    (requested.routingSource != null && candidate.route.source != requested.routingSource) ||
+                    candidate.route.regionId != requested.regionId || candidate.route.destinationPlaceId != requested.destinationPlaceId ||
+                    (candidate.route.external && candidate.route.destinationPoint != requested.destinationPoint) ||
+                    RouteIntegrity.shapeErrors(candidate.route).isNotEmpty())) {
+                    RouteResult.Unavailable(RouteFailure.InvalidGraph, "Routing provider returned an invalid or mismatched route")
+                } else candidate
+                pendingPlan = null
                 if (result is RouteResult.Ready) session.preview(result.route)
                 mutable.value = mutable.value.copy(planning = false, session = session.state.value,
                     routeFailure = result as? RouteResult.Unavailable)
@@ -197,7 +209,7 @@ class NavigationBackend(
     }
 
     private fun invalidatePlans() {
-        planGeneration++; planJob?.cancel(); rerouteJob?.cancel()
+        planGeneration++; pendingPlan = null; planJob?.cancel(); rerouteJob?.cancel()
         mutable.value = mutable.value.copy(planning = false)
     }
 
@@ -221,7 +233,7 @@ class NavigationBackend(
         }
         update.reroute?.let { request ->
             rerouteJob = scope.launch {
-                val result = try { withContext(compute) { planner.plan(request.request,request.pinnedVersion) } }
+                val result = try { withContext(compute) { routingProvider.plan(request.request,request.pinnedVersion) } }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { RouteResult.Unavailable(RouteFailure.InvalidGraph,"Replacement graph could not be loaded") }
                 events.send(Event.RerouteResult(request,result))

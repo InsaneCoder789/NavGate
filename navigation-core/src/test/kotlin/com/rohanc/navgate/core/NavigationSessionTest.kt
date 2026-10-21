@@ -81,6 +81,7 @@ class NavigationSessionTest {
         assertNull(session.location(fix(off,12_000),12_000).reroute)
         val request=requireNotNull(session.location(fix(off,13_000),13_000).reroute)
         assertEquals("v1",request.pinnedVersion)
+        assertEquals("local_campus_astar",request.request.routingSource)
         assertNull(session.location(fix(off,14_000),14_000).reroute)
         session.stop()
         assertEquals(SessionStatus.Stopped,session.replace(request,RouteResult.Ready(route.copy(requestId=request.requestId))).snapshot.status)
