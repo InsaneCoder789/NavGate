@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="app/src/main/res/drawable-nodpi/navgate_brand_mark.png" alt="NavGate logo" width="96" />
-</p>
+![NavGate — Map and augmented reality navigation](.github/assets/navgate-banner.png)
 
 <h1 align="center">NavGate</h1>
 <p align="center"><strong>Find a place. Choose a route. See your next turn.</strong></p>
