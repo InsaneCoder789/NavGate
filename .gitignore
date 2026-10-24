@@ -76,3 +76,12 @@ __pycache__/
 # Raw Overpass responses used to resume a point-of-interest build.
 /data/poi-cache/
 /data/osm-extract/
+
+# Project documentation is maintained outside this checkout:
+# /Users/rohanc/Documents/Projects/NavGate
+/docs/
+*.md
+*.mmd
+# Preserve legally required notices if introduced by a dependency/project license.
+!LICENSE.md
+!NOTICE.md
