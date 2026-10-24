@@ -10,7 +10,7 @@ NavGate is a native Android navigation project that connects place discovery, ro
 
 The central idea is to make directions easier to understand in context. A map gives the overview; AR brings the upcoming road and turn into the camera view. Both use the same route, progress and destination, so switching views keeps the trip connected.
 
-India is the focus for offline place discovery, Mumbai has a dedicated points-of-interest dataset, and online search and road routing extend beyond those regions wherever the providers have coverage.
+Place discovery works worldwide through online search, with an optional offline India gazetteer and a Mumbai-area points-of-interest index. Coverage depends on each data source and provider.
 
 NavGate is being built with Kotlin, Jetpack Compose and open mapping tools, without requiring a paid API key or a cloud account to use its current navigation flow. It remains an actively developed prototype: physical navigation accuracy, AR placement and background reliability require field testing.
 
@@ -62,9 +62,10 @@ flowchart TD
     GPS[Android location] --> Core
     Sensors[GPS and inertial sensor fusion] --> Display[Position and heading display]
     Display --> UI
-    Core --> Router[Hybrid routing provider]
+    Core --> Router[Routing provider with failover]
     Router --> Road[Valhalla walking and driving]
-    Router --> LocalGraph[Reviewed walking graph: local A*]
+    Router --> LocalRoad[BRouter offline walking and driving]
+    LocalRoad --> RoutingData[Installed BRouter regional tiles and profiles]
     Search[Place search] --> Local[India and Mumbai SQLite indexes]
     Search --> Photon[Photon online search]
     VM --> Search
@@ -79,10 +80,10 @@ flowchart TD
 | **Journey UI** | Connected Explore, Search, Place, Directions, Navigation, Arrival and utility screens, using shared state and action contracts. |
 | **Navigation core** | Platform-independent route geometry, progress tracking, maneuver progression, GPS-quality checks, arrival, rerouting and recovery. |
 | **Route tracking** | Projects position onto the planned route, estimates progress and handles short signal gaps, suspicious fixes and wrong-way movement. |
-| **Routing providers** | Valhalla supplies pedestrian and car routes, metrics and maneuvers. Local A* serves eligible reviewed walking graphs. |
+| **Routing providers** | Valhalla supplies online pedestrian and car routes. BRouter can route on-device when its profile and regional data tiles are installed, and serves as a fallback when online routing is unavailable. |
 | **Discovery** | Local place indexes, online geocoding, aliases, category matching, proximity ranking and duplicate handling. |
 | **Android adapters** | LocationManager, inertial sensors, installed offline speech, haptics, navigation notification and foreground service. |
-| **Persistence** | Room stores bookmarks, recents, itineraries, history, checkpoints and bounded route caches. DataStore stores preferences. |
+| **Persistence** | Room stores bookmarks, recents, itineraries, history, checkpoints, installed region packs and bounded route caches. DataStore stores preferences. |
 | **AR rendering** | ARCore tracking, geographic alignment, road mesh generation and camera-frame rendering; CameraX supports the fallback. |
 
 Routing and tracking use deterministic algorithms. The current app does **not** require an AI model to search its indexes, calculate local paths or advance a navigation session.
@@ -96,15 +97,15 @@ Routing and tracking use deterministic algorithms. The current app does **not** 
 | **Photon** | Online place search and category fallback | Broader discovery wherever indexed data is available. |
 | **Valhalla** | Walking/car routes, distance, estimated time and alternatives | Online road routing using mapped roads and paths. Estimates do not include live traffic. |
 | **OpenFreeMap / OpenStreetMap** | Map display and building geometry | Tile availability and building detail vary by location. |
-| **Reviewed walking packs** | Local walking connectivity and entrances | A destination coordinate alone does not establish a reviewed, accessible walking route. |
+| **BRouter** | Offline pedestrian and car routing | Requires the matching routing data tile and profile; estimates do not include live traffic. |
 
-The record counts above describe the existing local snapshots. Regenerating the indexes may produce different totals. Search indexes and their manifests are generated assets and are currently ignored by Git.
+The record counts above describe the existing local snapshots. Regenerating the indexes may produce different totals. Search indexes and their manifests are generated assets and are currently ignored by Git. The repository does not bundle private or institution-specific place data; regional packs are installed or imported explicitly by the user.
 
 ### What works without a connection
 
 Saved places, personal itineraries and installed place indexes are local. An already planned route can continue supplying guidance during a connection loss. Cached backup routes may help with a deviation when an applicable alternative is already available.
 
-The app also attempts to download map tiles around a planned route. This is a bounded, best-effort corridor download—up to 12 boxes, approximately the first 30 km—not a guarantee that an entire trip is available offline. New road-route requests and reroutes without a suitable cached alternative require a connection. Full offline road routing is future work.
+The app can route offline with BRouter when the required routing tiles and profiles are installed. It also supports importing PMTiles vector-map packs and attempts a bounded, best-effort map corridor download around a planned route—up to 12 boxes, approximately the first 30 km. Map coverage and routing coverage are separate; neither is guaranteed for an entire trip until the needed data is installed. Provider coverage and installed data determine whether a route or reroute can be calculated.
 
 ### What “free” means here
 
@@ -162,7 +163,7 @@ Location is used for current-position guidance; browsing and manual endpoint sel
 | **Core JVM** | Routing, route tracking, session transitions, signal loss/recovery, maneuver behavior and pack integrity. |
 | **Android JVM** | Provider parsing and failures, search ranking, ViewModel integration, recorded-route replay and AR geometry/alignment calculations. |
 | **Instrumentation** | Native screen actions, persistence, lifecycle behavior and opt-in live-provider/device checks. |
-| **Python** | Catalogue and index generation regressions. |
+| **Python** | Region-pack and search-index generation regressions. |
 
 ```sh
 ./gradlew :navigation-core:test :app:testDebugUnitTest
@@ -193,7 +194,7 @@ Recorded routes and simulated GPS test the implementation under controlled condi
 | --- | --- |
 | **Navigation reliability** | Validate real walking and driving journeys, junctions, wrong turns, GPS gaps, background behavior and recovery. |
 | **AR quality** | Measure road alignment, turn stability, tracking recovery, slopes, thermal behavior and battery use on physical devices. |
-| **Offline clarity** | Expose tile-download progress, completion, retry and storage controls; investigate offline road routing. |
+| **Offline clarity** | Improve routing-tile and map-pack progress, storage controls and recovery; validate BRouter coverage at region edges and across longer trips. |
 | **Useful personal routes** | Connect saved itinerary pins to real multi-stop routing and expand maintained local POI coverage. |
 | **Release engineering** | Accessibility, privacy disclosures, signing, automated device checks and sustainable provider access. |
 
@@ -205,9 +206,9 @@ Live traffic, transit, cycling, detailed building models and account-based synch
 | --- | --- |
 | `app/` | Native Android interface, AR rendering, platform adapters, persistence and integration tests. |
 | `navigation-core/` | Kotlin geometry, routing, tracking, session logic and validation independent of Android. |
-| `scripts/` | Place-index builders, catalogue tooling and import regressions. |
-| `data/` | Source material, mapping snapshots and provenance reports. |
-| `backend/` | Historical optional Go service; the current Android navigation flow does not require it. |
+| `scripts/` | Place-index builders, generic region-pack tooling and regressions. |
+| `data/` | Public-source snapshots and provenance for optional generated indexes. |
+| `backend/` | Optional Go HTTP service; the current Android navigation flow does not require it. It ships without a bundled place dataset. |
 
 Detailed research, architecture notes and working documents are maintained separately from the code repository.
 
@@ -215,4 +216,4 @@ Detailed research, architecture notes and working documents are maintained separ
 
 Map and POI data: **© OpenStreetMap contributors**, ODbL. India gazetteer: **GeoNames**, CC BY 4.0. Source attribution and dataset provenance must be retained when generating or distributing data assets.
 
-NavGate builds on MapLibre, OpenFreeMap, Photon, Valhalla, ARCore and the Android/Kotlin ecosystem. Open-source component licenses and data licenses apply independently.
+NavGate builds on MapLibre, OpenFreeMap, Photon, Valhalla, BRouter, ARCore and the Android/Kotlin ecosystem. BRouter is included under its MIT license (`brouter/LICENSE`); open-source component licenses and data licenses apply independently.
