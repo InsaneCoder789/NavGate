@@ -33,3 +33,4 @@ val NavMapGlow = Color(0xFF1A73E8)
 val NavRouteDark = Color(0xFF8AB4F8)         // the map keeps its blue: route line on dark maps
 val NavRouteLight = Color(0xFF3B47E8)        // route line on light maps
 val NavMapPosition = Color(0xFF63D8F2)       // your position on the map
+val NavMapAccent = Color(0xFFD16BFF)         // your own itinerary and the turn you picked: magenta, clear of orange

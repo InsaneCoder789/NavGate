@@ -198,8 +198,10 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             CircleLayer(id="campus-places",source=places,radius=const(9.dp),color=const(Color(0xFFD93025)),strokeColor=const(Color.White),strokeWidth=const(2.5.dp))
             CircleLayer(id="campus-places-dot",source=places,radius=const(3.5.dp),color=const(Color.White))
             // While guiding, the road behind is dimmed and only the road ahead is bright. Cut every ~8 m, not on every 10 Hz update.
-            val alongStep=if(active&&routeGeometry!=null&&trackInput!=null)(trackInput.alongShapeMeters/8.0).toInt() else -1
-            val progress=remember(routeGeometry,alongStep){if(alongStep>=0)MapRouteGeoJson.progressSplit(routeGeometry,alongStep*8.0) else null}
+            // The bright line starts where the vehicle is drawn (last fix plus the distance covered since), not at the last fix.
+            val alongNow=if(trackInput!=null)trackInput.alongShapeMeters+trackInput.speedMps*((android.os.SystemClock.elapsedRealtime()-trackInput.fixElapsedMillis)/1000.0).coerceIn(0.0,8.0) else 0.0
+            val alongStep=if(active&&routeGeometry!=null&&trackInput!=null)(alongNow/4.0).toInt() else -1
+            val progress=remember(routeGeometry,alongStep){if(alongStep>=0)MapRouteGeoJson.progressSplit(routeGeometry,alongStep*4.0) else null}
             val route=rememberGeoJsonSource(GeoJsonData.JsonString(progress?.second ?: MapRouteGeoJson.lineString(if(screenIsExplore)null else ui.snapshot.route)))
             val routeDone=rememberGeoJsonSource(GeoJsonData.JsonString(progress?.first ?: """{"type":"FeatureCollection","features":[]}"""))
             val routeColor=if(dark)NavRouteDark else NavRouteLight
@@ -212,11 +214,11 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             val customPoints=manualPins.map{Coordinate(it.point.latitude,it.point.longitude)}
             val customLine=if(customPoints.size>=2)"""{"type":"LineString","coordinates":[${customPoints.joinToString(","){"[${it.longitude},${it.latitude}]"}}]}"""else """{"type":"FeatureCollection","features":[]}"""
             val manualLine=rememberGeoJsonSource(GeoJsonData.JsonString(customLine))
-            LineLayer(id="manual-itinerary-line",source=manualLine,color=const(NavTertiary.copy(alpha=.6f)),width=const(3.dp))
+            LineLayer(id="manual-itinerary-line",source=manualLine,color=const(NavMapAccent.copy(alpha=.6f)),width=const(3.dp))
             val manualDots=rememberGeoJsonSource(GeoJsonData.JsonString(ManualRouteGeoJson.points(manualPins)))
-            CircleLayer(id="manual-itinerary-pins",source=manualDots,radius=const(8.dp),color=const(NavTertiary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
+            CircleLayer(id="manual-itinerary-pins",source=manualDots,radius=const(8.dp),color=const(NavMapAccent),strokeColor=const(Color.White),strokeWidth=const(2.dp))
             SymbolLayer(id="manual-itinerary-labels",source=manualDots,textField=format(span(feature.get("label").asString())),
-                textFont=const(listOf("Noto Sans Regular")),textSize=const(14.sp),textColor=const(NavTertiary),
+                textFont=const(listOf("Noto Sans Regular")),textSize=const(14.sp),textColor=const(NavMapAccent),
                 textHaloColor=const(if(dark)Color.Black else Color.White),textHaloWidth=const(1.dp),textRadialOffset=const(16.sp),textAnchor=const(org.maplibre.compose.expressions.value.SymbolAnchor.Bottom))
             val tripOrigin=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(active)null else ui.selectedOrigin?.coordinate,null)))
             CircleLayer(id="trip-origin",source=tripOrigin,radius=const(8.dp),color=const(Color(0xFF1A73E8)),strokeColor=const(Color.White),strokeWidth=const(3.dp))
@@ -226,7 +228,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             CircleLayer(id="trip-destination",source=destination,radius=const(11.dp),color=const(Color(0xFFD93025)),strokeColor=const(Color.White),strokeWidth=const(3.dp))
             CircleLayer(id="trip-destination-dot",source=destination,radius=const(4.dp),color=const(Color.White))
             val inspection=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(inspectPoint,null)))
-            CircleLayer(id="inspected-maneuver",source=inspection,radius=const(10.dp),color=const(NavTertiary),strokeColor=const(Color.White),strokeWidth=const(2.dp))
+            CircleLayer(id="inspected-maneuver",source=inspection,radius=const(10.dp),color=const(NavMapAccent),strokeColor=const(Color.White),strokeWidth=const(2.dp))
             val shownLocation=ui.displayLocation ?: ui.snapshot.userLocation
             val location=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(permission)shownLocation else null,null)))
             val radius=((ui.displayAccuracy ?: accuracyMeters)?.div(camera.metersPerDpAtTarget))?.takeIf{it.isFinite()}?.coerceIn(7.0,120.0) ?: 7.0

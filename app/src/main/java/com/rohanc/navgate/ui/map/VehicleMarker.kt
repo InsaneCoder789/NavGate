@@ -74,7 +74,7 @@ private class MarkerState {
             val sinceFix = ((android.os.SystemClock.elapsedRealtime() - track.fixElapsedMillis) / 1000.0).coerceIn(0.0, 8.0)
             val target = (track.alongShapeMeters + track.speedMps * sinceFix).coerceIn(0.0, route.length)
             if (along.isNaN() || abs(target - along) > 80.0) along = target
-            else { val delta = target - along; along += if (delta >= 0) delta * ease(dt, 0.10) else max(delta * ease(dt, 0.10), -0.3) }
+            else { val delta = target - along; along += if (delta >= 0) delta * ease(dt, 0.05) else max(delta * ease(dt, 0.05), -0.3) }
             point = route.pointAt(along); headingTarget = route.bearingAt(along) ?: headingTarget; onRoute = true
         } else {
             along = Double.NaN; onRoute = false
@@ -82,8 +82,8 @@ private class MarkerState {
             point = GeoPoint(point.latitude + (e.point.latitude - point.latitude) * k, point.longitude + (e.point.longitude - point.longitude) * k)
         }
         accuracy = e.accuracyMeters
-        headingTarget?.let { heading = if (ready) turnToward(heading, it, ease(dt, 0.18)) else it }
-        cameraBearing = if (ready) turnToward(cameraBearing, heading, ease(dt, 0.35)) else heading
+        headingTarget?.let { heading = if (ready) turnToward(heading, it, ease(dt, 0.10)) else it }
+        cameraBearing = if (ready) turnToward(cameraBearing, heading, ease(dt, 0.12)) else heading
         val zoomTarget = zoomFor(e.speedMps, tiltTarget > 0)
         // The first frame starts from wherever the map is, so beginning guidance sweeps in to the vehicle instead of jumping.
         if (zoom.isNaN()) { zoom = cameraZoom; tilt = cameraTilt }
