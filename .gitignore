@@ -82,6 +82,8 @@ __pycache__/
 /docs/
 *.md
 *.mmd
+# Keep the public project overview visible on GitHub.
+!/README.md
 # Preserve legally required notices if introduced by a dependency/project license.
 !LICENSE.md
 !NOTICE.md
