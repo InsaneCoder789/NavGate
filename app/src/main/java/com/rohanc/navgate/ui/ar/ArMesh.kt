@@ -75,6 +75,18 @@ object ArMesh {
         return ArMeshData(arr, arr.size / STRIDE)
     }
 
+    /** A flat filled circle. */
+    fun disc(centre: GroundPoint, y: Double, radius: Double): ArMeshData {
+        val steps = 40
+        val verts = FloatArray(steps * 3 * STRIDE); var o = 0
+        fun put(x: Double, z: Double) { verts[o++] = x.toFloat(); verts[o++] = y.toFloat(); verts[o++] = z.toFloat(); verts[o++] = 0f; verts[o++] = 0f }
+        for (s in 0 until steps) {
+            val a0 = 2 * PI * s / steps; val a1 = 2 * PI * (s + 1) / steps
+            put(centre.x, centre.z); put(centre.x + cos(a0) * radius, centre.z + sin(a0) * radius); put(centre.x + cos(a1) * radius, centre.z + sin(a1) * radius)
+        }
+        return ArMeshData(verts, o / STRIDE)
+    }
+
     /** A flat ring, used to mark the destination. */
     fun ring(centre: GroundPoint, y: Double, radius: Double, width: Double): ArMeshData {
         val steps = 36

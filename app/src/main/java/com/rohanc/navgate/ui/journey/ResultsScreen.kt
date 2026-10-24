@@ -46,11 +46,11 @@ fun BoxScope.ResultsScreen(ui: NavGateUiState, userLocation: Coordinate?, onInse
     LaunchedEffect(topPx, bottomPx) { with(density) { onInsets(topPx.toDp().value, bottomPx.toDp().value) } }
     val category = PoiCategory.fromQuery(ui.searchQuery)
     Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged { topPx = it.height }.statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        GmSearchPill(category?.label ?: ui.searchQuery, false, { a.openSearch("place") }, leading = { Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary) },
+        NgSearchPill(category?.label ?: ui.searchQuery, false, { a.openSearch("place") }, leading = { Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary) },
             trailing = { IconButton(onClick = a.closeResults) { Icon(Icons.Rounded.Close, "Close results") } })
-        GmChipRow { PoiCategory.entries.forEach { c -> GmChip(c.label, categoryIcon(c)) { a.openCategory(c) } } }
+        NgChipRow { PoiCategory.entries.forEach { c -> NgChip(c.label, categoryIcon(c)) { a.openCategory(c) } } }
     }
-    GmSheet(Modifier.align(Alignment.BottomCenter).heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.5f).dp).onSizeChanged { bottomPx = it.height }) {
+    NgSheet(Modifier.align(Alignment.BottomCenter).heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.5f).dp).onSizeChanged { bottomPx = it.height }) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
             Text(if (ui.isLoadingPlaces) "Searching…" else "${ui.places.size} ${if (ui.places.size == 1) "place" else "places"}", Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)

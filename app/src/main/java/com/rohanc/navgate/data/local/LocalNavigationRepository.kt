@@ -2,7 +2,6 @@ package com.rohanc.navgate.data.local
 
 import android.content.Context
 import com.rohanc.navgate.core.*
-import com.rohanc.navgate.data.NavigationRepository
 import com.rohanc.navgate.data.search.PlaceSearchRanking
 import com.rohanc.navgate.model.*
 import kotlinx.coroutines.Dispatchers
@@ -10,14 +9,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class RouteUnavailableException(val failure: RouteResult.Unavailable) : IllegalStateException(failure.detail)
-
 /** Production data boundary: local search and local routing, with no public HTTP/fake fallbacks. */
 class LocalNavigationRepository(
     context: Context,
     private val regions: RoomRegionStore,
     private val users: RoomUserPlacesStore,
-) : BackendData, NavigationRepository {
+) : BackendData {
     private val appContext = context.applicationContext
     private val initialization = Mutex()
     private var initialized = false
@@ -40,21 +37,9 @@ class LocalNavigationRepository(
 
     override suspend fun place(regionId: String, id: String): CampusPlace? { initialize(); return regions.place(regionId,id) }
 
-    override suspend fun searchPlaces(query: String, cityHint: String?): List<PlaceSearchResult> {
+    suspend fun searchPlaces(query: String, cityHint: String?): List<PlaceSearchResult> {
         initialize()
         return regions.search(query,city=cityHint).map { it.toAppPlace() }
-    }
-
-    /** Legacy adapter for callers requiring the old interface. New screens should consume NavigationBackend.state. */
-    override suspend fun fetchRoute(request: RouteRequest): RouteResponse {
-        initialize()
-        val id = request.destinationPlaceId ?: throw RouteUnavailableException(RouteResult.Unavailable(RouteFailure.MissingEntrance,"Choose a destination with a reviewed entrance"))
-        val result = withContext(Dispatchers.Default) { RoutePlanner(regions).plan(PlanRequest(0,if (request.cityHint=="Mumbai") "mumbai" else "kiit",
-            GeoPoint(request.origin.latitude,request.origin.longitude),id,profile=request.profile.name.lowercase())) }
-        return when(result) {
-            is RouteResult.Ready -> result.route.toAppRoute()
-            is RouteResult.Unavailable -> throw RouteUnavailableException(result)
-        }
     }
 }
 

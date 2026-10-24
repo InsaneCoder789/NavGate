@@ -54,13 +54,13 @@ class ArRenderSmokeTest {
             compose.runOnUiThread{
                 val regions=RoomRegionStore(db)
                 val road=ValhallaRoutingProvider(cache=RoomRoadRouteCache(db))
-                val routing=HybridRoutingProvider(regions,road)
+                val routing=road
                 vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,AndroidBackendClock,RoomSessionStore(db,regions),routingProvider=routing)},InMemoryUserPlacesStore(),
                     InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta),estimator=road)
                 stores.put("ar",vm)
             }
             compose.setContent{
-                val activity=androidx.compose.ui.platform.LocalContext.current as android.app.Activity
+                @Suppress("ContextCastToActivity") val activity=androidx.compose.ui.platform.LocalContext.current as android.app.Activity
                 androidx.compose.runtime.SideEffect{activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)}
                 NavGateFrontend(vm,renderMap=true,trackLocation=false,showMotion=true)
             }
@@ -74,20 +74,22 @@ class ArRenderSmokeTest {
             compose.onNodeWithText("Directions").performClick()
             compose.waitUntil(40_000){vm.backendState.value.session.route!=null||vm.backendState.value.routeFailure!=null}
             assertNull(vm.backendState.value.routeFailure)
-            compose.onNodeWithContentDescription("Car").performClick()
-            compose.waitUntil(40_000){vm.backendState.value.session.route?.profile=="driving"&&!vm.backendState.value.planning}
+            // AR is for walking routes.
+            compose.onNodeWithContentDescription("Walking").performClick()
+            compose.waitUntil(40_000){vm.backendState.value.session.route?.profile=="walking"&&!vm.backendState.value.planning}
             // Stand on the start of the route, then open AR navigation.
-            compose.runOnUiThread{vm.onRawFix(LocationFix(vm.backendState.value.session.route!!.geometry.first(),AndroidBackendClock.elapsedMillis(),4.0))}
+            compose.runOnUiThread{vm.onLocationFix(LocationFix(vm.backendState.value.session.route!!.geometry.first(),AndroidBackendClock.elapsedMillis(),4.0))}
             compose.waitUntil(5_000){vm.uiState.value.currentLocationUsable}
             compose.waitForIdle()
             compose.onNodeWithContentDescription("AR navigation").performClick()
-            compose.waitForIdle()
+            // The AR layer redraws every frame, so Compose is never "idle" from here on: wait with plain sleeps.
             // ARCore needs a few seconds to start the camera and find the ground; keep the position fresh meanwhile.
-            repeat(12){
-                Thread.sleep(1_000)
-                compose.runOnUiThread{vm.onRawFix(LocationFix(vm.backendState.value.session.route!!.geometry.first(),AndroidBackendClock.elapsedMillis(),4.0))}
+            repeat(45){ i ->
+                if(i==20)shell("screencap -p /sdcard/Download/navgate-ar-mid.png")
+                Thread.sleep(700)
+                compose.mainClock.advanceTimeBy(300)
+                compose.runOnUiThread{vm.onLocationFix(LocationFix(vm.backendState.value.session.route!!.geometry.first(),AndroidBackendClock.elapsedMillis(),4.0))}
             }
-            compose.waitForIdle()
             shell("screencap -p /sdcard/Download/navgate-ar.png")
             val log=shell("logcat -d -s NavGateAR:V AndroidRuntime:E")
             android.util.Log.i("ARSMOKE",log)

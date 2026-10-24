@@ -25,7 +25,7 @@ class RoadRoutingLiveTest {
         val db=Room.inMemoryDatabaseBuilder(context,NavGateDatabase::class.java).build()
         try {
             val regions=RoomRegionStore(db)
-            val provider=HybridRoutingProvider(regions,ValhallaRoutingProvider(cache=RoomRoadRouteCache(db)))
+            val provider=ValhallaRoutingProvider(cache=RoomRoadRouteCache(db))
             val data=object:BackendData {override suspend fun initialize()=Unit;override suspend fun search(query:String,regionId:String)=emptyList<CampusPlace>();override suspend fun place(regionId:String,id:String):CampusPlace?=null}
             for(mode in listOf("walking","driving")) {
                 var time=1000L

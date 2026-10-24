@@ -29,23 +29,23 @@ fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a:
     LaunchedEffect(topPx, bottomPx) { with(density) { onInsets(topPx.toDp().value, bottomPx.toDp().value) } }
     Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged { topPx = it.height }.statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        GmSearchPill("Search here", true, { a.openSearch("place") }, leading = { Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary) },
-            trailing = { GmRoundButton(Icons.Rounded.AccountCircle, "Settings", a.openSettings, container = androidx.compose.ui.graphics.Color.Transparent, tint = MaterialTheme.colorScheme.primary, size = 48.dp) })
-        GmChipRow {
-            com.rohanc.navgate.data.search.PoiCategory.entries.forEach { c -> GmChip(c.label, categoryIcon(c)) { a.openCategory(c) } }
-            GmChip("My routes", Icons.Rounded.Route) { a.openMyRoutes() }
+        NgSearchPill("Search here", true, { a.openSearch("place") }, leading = { Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary) },
+            trailing = { NgRoundButton(Icons.Rounded.AccountCircle, "Settings", a.openSettings, container = androidx.compose.ui.graphics.Color.Transparent, tint = MaterialTheme.colorScheme.primary, size = 48.dp) })
+        NgChipRow {
+            com.rohanc.navgate.data.search.PoiCategory.entries.forEach { c -> NgChip(c.label, categoryIcon(c)) { a.openCategory(c) } }
+            NgChip("My routes", Icons.Rounded.Route) { a.openMyRoutes() }
         }
     }
     Column(Modifier.align(Alignment.BottomCenter).onSizeChanged { bottomPx = it.height }) {
         Row(Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 12.dp), horizontalArrangement = Arrangement.End) {
-            GmDirectionsFab({ a.openSearch("to") })
+            NgDirectionsFab({ a.openSearch("to") })
         }
-        GmSheet {
+        NgSheet {
             Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(areaName ?: "Explore nearby", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
                 Text("Search for a place, or tap one on the map for directions.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        GmBottomBar("Explore", a.openTab)
+        NgBottomBar("Explore", a.openTab)
     }
 }

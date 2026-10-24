@@ -20,7 +20,7 @@ class NavGateViewModelTest {
         try {
             advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
             assertTrue(vm.uiState.value.isPreviewVisible)
-            assertEquals("local_campus_astar",vm.uiState.value.snapshot.route?.routeSource)
+            assertEquals("valhalla",vm.uiState.value.snapshot.route?.routeSource)
             assertEquals("Test Destination",vm.uiState.value.preview?.destinationTitle)
         } finally{h.backend.close()}
     }
@@ -40,14 +40,6 @@ class NavGateViewModelTest {
         try {
             advanceUntilIdle();assertNull(h.appPlace(2).coordinate);vm.selectOrigin(h.appPlace(2));advanceUntilIdle()
             assertNull(vm.uiState.value.selectedOrigin);assertNotNull(vm.uiState.value.statusMessage)
-        } finally{h.backend.close()}
-    }
-    @Test fun `unsupported driving yields a typed failure rather than fake directions`()=runTest {
-        val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
-        try {
-            advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));vm.setTravelProfile(TravelProfile.Driving);advanceUntilIdle()
-            assertEquals(RouteFailure.UnsupportedProfile,vm.uiState.value.routeFailure)
-            assertNull(vm.uiState.value.preview)
         } finally{h.backend.close()}
     }
     @Test fun `saved and recent records still use the injected local store`()=runTest {

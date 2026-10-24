@@ -53,14 +53,14 @@ class JourneyScreenshotTest {
             compose.runOnUiThread{
                 val regions=RoomRegionStore(db)
                 val road=ValhallaRoutingProvider(cache=RoomRoadRouteCache(db))
-                val routing=HybridRoutingProvider(regions,road)
+                val routing=road
                 vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,AndroidBackendClock,RoomSessionStore(db,regions),routingProvider=routing)},InMemoryUserPlacesStore(),
                     InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta),estimator=road)
                 stores.put("shots",vm)
             }
             compose.setContent{
                 // Waiting for live map tiles takes longer than a screen timeout.
-                val activity=androidx.compose.ui.platform.LocalContext.current as android.app.Activity
+                @Suppress("ContextCastToActivity") val activity=androidx.compose.ui.platform.LocalContext.current as android.app.Activity
                 androidx.compose.runtime.SideEffect{activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)}
                 NavGateFrontend(vm,renderMap=true,trackLocation=false,showMotion=true)
             }
@@ -97,12 +97,21 @@ class JourneyScreenshotTest {
             val at=route.geometry[minOf(3,route.geometry.lastIndex)]
             compose.runOnUiThread{vm.onMotion(MotionEstimate(at,13.9,route.geometry[0].bearingTo(route.geometry[1]),0.9,-0.6,5.0,CalibrationState.Good,false,false,AndroidBackendClock.elapsedMillis()))}
             shot("7-navigation")
+            compose.onNodeWithContentDescription("Map details").performClick()
+            shot("15-layers")
+            compose.onNodeWithContentDescription("Close map details").performClick()
             compose.onNodeWithContentDescription("Stop navigation").performClick()
             compose.onNodeWithText("Stop",substring=false).performClick()
             compose.waitUntil(8_000){vm.backendState.value.session.status==SessionStatus.Stopped}
             // The camera must fly back to the user after a trip ends (it used to stay on the old route).
             compose.waitForIdle();Thread.sleep(3_000);compose.waitForIdle()
             shot("11-after-stop")
+            compose.onNodeWithText("Search here").performClick()
+            compose.onNode(hasSetTextAction()).performTextInput("Marine")
+            compose.onNode(hasSetTextAction()).performImeAction()
+            compose.waitUntil(8_000){vm.uiState.value.places.any{it.id=="marine"}}
+            shot("17-results")
+            compose.onNodeWithContentDescription("Close results").performClick()
             compose.onNodeWithText("Saved").performClick()
             shot("8-saved")
             compose.onNodeWithText("Recents").performClick()
@@ -110,6 +119,10 @@ class JourneyScreenshotTest {
             compose.onNodeWithText("Explore").performClick()
             compose.onNodeWithContentDescription("Settings").performClick()
             shot("10-settings")
+            compose.onNodeWithText("Offline & region data").performScrollTo().performClick()
+            compose.waitForIdle();Thread.sleep(1_200);compose.waitForIdle()
+            shot("16-offline")
+            compose.onNodeWithContentDescription("Back").performClick()
             // The route editor and pin picker used to be a plain unstyled form; capture them in dark and light.
             compose.onNodeWithContentDescription("Back").performClick()
             compose.onNodeWithText("My routes").performScrollTo().performClick()

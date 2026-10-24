@@ -44,8 +44,10 @@ object TurnExtractor {
             val kind = ManeuverKinds.fromAngle(net)
             if (kind == ManeuverKinds.STRAIGHT) continue
             val at = (first + last) / 2
-            val onto = nameAt(minOf(length, last + 3.0))
-            out += Maneuver(phrase(kind) + (onto?.let { " onto $it" } ?: ""), geometry.pointAt(at), at, kind, bearingChange = net)
+            val onto = nameAt(minOf(length, last + 3.0)); val from = nameAt(maxOf(0.0, first - 5.0))
+            // Turning but keeping the same road name (a bend, or the road jogging at a junction) is "to stay on", not "onto".
+            val where = when { onto == null -> ""; onto == from -> " to stay on $onto"; else -> " onto $onto" }
+            out += Maneuver(phrase(kind) + where, geometry.pointAt(at), at, kind, bearingChange = net)
         }
         out += Maneuver("You have arrived" + (destinationLabel?.let { " at $it" } ?: " at your destination") + ".", shape.last(), length, ManeuverKinds.ARRIVE)
         return out

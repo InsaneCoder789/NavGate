@@ -23,6 +23,8 @@ android {
         }
 
         buildConfigField("String", "NAVGATE_BACKEND_URL", "\"http://10.0.2.2:8080\"")
+        // Where opted-in crash reports are posted. Blank (the default) means the option is hidden and nothing is ever sent.
+        buildConfigField("String", "CRASH_REPORT_URL", "\"${(project.findProperty("navgate.crashUrl") as String?) ?: ""}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -32,11 +34,20 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrunk and obfuscated for users: smaller download, faster start, harder to reverse. Rules are in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        // The release build, signed with the debug key and installable next to the debug app, so the shrunk app can be tried on a phone.
+        create("releaseCheck") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".check"
+            matchingFallbacks += "release"
         }
     }
     compileOptions {
@@ -82,6 +93,8 @@ dependencies {
     
     // ARCore
     implementation("com.google.ar:core:1.54.0")
+    // On-device object detection (people, vehicles, animals) so the AR road line can pass behind them. Pretrained model in assets/models.
+    implementation("com.google.mediapipe:tasks-vision:0.10.29")
     
     // MapLibre
     implementation("org.maplibre.gl:android-sdk:11.13.5")

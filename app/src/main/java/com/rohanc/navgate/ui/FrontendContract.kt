@@ -2,15 +2,6 @@ package com.rohanc.navgate.ui
 
 import com.rohanc.navgate.core.*
 
-/** Human-readable capability state. A display coordinate never implies a walkable route. */
-internal fun readinessLabel(readiness:DestinationReadiness?):String=when(readiness){
-    DestinationReadiness.MissingRegion->"Region data is not installed"
-    DestinationReadiness.InvalidGraph->"Installed routing data needs repair"
-    DestinationReadiness.MissingGraph->"Walking paths have not been reviewed"
-    DestinationReadiness.MissingEntrance->"No reviewed entrance is available"
-    DestinationReadiness.ReviewedEntrance->"Reviewed entrance available; route connectivity is checked when planning"
-    null->"Plan a route to check walking access"
-}
 internal fun frontendBack(screen:String,active:Boolean,placeCaller:String,settingsCaller:String,utilityCaller:String,searchFor:String,directionCaller:String="Explore"):String=when(screen){
     "Steps","Camera"->if(active)"Navigation" else "Route"
     "Search"->if(searchFor in listOf("from","to"))"Directions" else if(searchFor=="saved")"Saved" else "Explore"

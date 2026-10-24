@@ -37,21 +37,22 @@ import kotlin.math.roundToInt
 
 /** Rounded search field floating over the map: the entry point of every journey. */
 @Composable
-fun GmSearchPill(text: String, placeholder: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
+fun NgSearchPill(text: String, placeholder: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
     leading: @Composable () -> Unit, trailing: @Composable () -> Unit = {}) {
-    GlassPanel(modifier.fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Regular, onClick = onClick) {
+    // The pill sits over a busy map, so it keeps enough body to read the text at any glass setting.
+    GlassPanel(modifier.fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Regular, minOpacity = 0.62f, onClick = onClick) {
         Row(Modifier.heightIn(min = 56.dp).padding(start = 18.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             leading()
             Text(text, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium,
-                color = if (placeholder) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+                color = if (placeholder) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f) else MaterialTheme.colorScheme.onSurface)
             trailing()
         }
     }
 }
 
 @Composable
-fun GmRoundButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier,
+fun NgRoundButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier,
     container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceVariant,
     tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface, size: Dp = 44.dp, enabled: Boolean = true) {
     GlassPanel(modifier, shape = CircleShape, weight = GlassWeight.Thin, shadow = false) {
@@ -61,7 +62,7 @@ fun GmRoundButton(icon: ImageVector, description: String, onClick: () -> Unit, m
 
 /** Frosted round map control such as recenter or compass. */
 @Composable
-fun GmMapButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun NgMapButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     GlassPanel(modifier, shape = CircleShape, weight = GlassWeight.Thin, onClick = onClick) {
         Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) { Icon(icon, description, tint = MaterialTheme.colorScheme.onSurface) }
     }
@@ -69,7 +70,7 @@ fun GmMapButton(icon: ImageVector, description: String, onClick: () -> Unit, mod
 
 /** The large coloured Directions button that sits above the map controls. */
 @Composable
-fun GmDirectionsFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun NgDirectionsFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(onClick = onClick, modifier = modifier.semantics { contentDescription = "Directions" }, shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shadowElevation = 6.dp) {
         Box(Modifier.size(60.dp), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Directions, null, Modifier.size(30.dp)) }
@@ -77,8 +78,8 @@ fun GmDirectionsFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun GmChip(label: String, icon: ImageVector?, onClick: () -> Unit) {
-    GlassPanel(shape = CircleShape, weight = GlassWeight.Thin, onClick = onClick) {
+fun NgChip(label: String, icon: ImageVector?, onClick: () -> Unit) {
+    GlassPanel(shape = CircleShape, weight = GlassWeight.Thin, minOpacity = 0.55f, onClick = onClick) {
         Row(Modifier.heightIn(min = 44.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
             Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
@@ -87,15 +88,15 @@ fun GmChip(label: String, icon: ImageVector?, onClick: () -> Unit) {
 }
 
 @Composable
-fun GmChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+fun NgChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, content = content)
 }
 
 /** Frosted bottom sheet with the grabber used by every sheet in the app. */
 @Composable
-fun GmSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun NgSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     // Sheets carry paragraphs and lists, so they keep a little body even at the clearest setting.
-    GlassPanel(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), weight = GlassWeight.Thick, minOpacity = 0.3f) {
+    GlassPanel(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), weight = GlassWeight.Thick, minOpacity = 0.62f) {
         Column {
             Box(Modifier.fillMaxWidth().height(24.dp).let { if (onGrabber != null) it.clickable(onClickLabel = "Resize panel", onClick = onGrabber) else it }, contentAlignment = Alignment.Center) {
                 Box(Modifier.width(36.dp).height(4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape))
@@ -106,7 +107,7 @@ fun GmSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, cont
 }
 
 @Composable
-fun GmPrimaryButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun NgPrimaryButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 52.dp), shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
         if (icon != null) { Icon(icon, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
@@ -115,7 +116,7 @@ fun GmPrimaryButton(label: String, icon: ImageVector?, onClick: () -> Unit, modi
 }
 
 @Composable
-fun GmTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun NgTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 52.dp), shape = CircleShape,
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
         if (icon != null) { Icon(icon, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
@@ -125,8 +126,8 @@ fun GmTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifi
 
 /** Frosted bottom navigation bar, full width like the Android system pattern. */
 @Composable
-fun GmBottomBar(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
-    GlassPanel(modifier.fillMaxWidth(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false) {
+fun NgBottomBar(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+    GlassPanel(modifier.fillMaxWidth(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.72f) {
         Row(Modifier.navigationBarsPadding().selectableGroup().padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf(Triple("Explore", Icons.Rounded.Place, "Explore"), Triple("Saved", Icons.Rounded.BookmarkBorder, "Saved"), Triple("Recents", Icons.Rounded.History, "Recents")).forEach { (key, icon, label) ->
                 val chosen = key == selected
@@ -177,10 +178,10 @@ fun distanceFrom(origin: Coordinate?, place: PlaceSearchResult): String? {
 
 /** 2D map, 3D map with solid buildings, or AR camera: the three ways to follow a route. Only offered once a route exists. */
 @Composable
-fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier, vertical: Boolean = false) {
+fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier, vertical: Boolean = false, arAvailable: Boolean = true) {
     GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular) {
         val items: @Composable () -> Unit = {
-            listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "AR" to Icons.Rounded.ViewInAr).forEach { (mode, icon) ->
+            listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "AR" to Icons.Rounded.ViewInAr).filter { it.first != "AR" || arAvailable }.forEach { (mode, icon) ->
                 val on = mode == selected
                 val tint = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                 val shape = RoundedCornerShape(20.dp)

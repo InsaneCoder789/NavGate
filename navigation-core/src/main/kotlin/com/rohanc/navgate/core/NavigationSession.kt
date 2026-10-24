@@ -34,7 +34,7 @@ data class SessionSnapshot(
     val instruction: String = "Choose a destination",
     val signalReason: String? = null,
     val offRoute: Boolean = false,
-    /** Position projected onto the route while on it, and the road direction there: what a maps app draws the vehicle at. */
+    /** Position projected onto the route while on it, and the road direction there: where the vehicle is drawn. */
     val snappedLocation: GeoPoint? = null,
     val routeBearing: Double? = null,
     /** Speed along the route and the fix it was measured at, so a screen can glide the vehicle between fixes without jumping. */
@@ -96,6 +96,8 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
     private var jumpCandidate: LocationFix? = null
     private var backups: List<CampusRoute> = emptyList()
     private var aheadStreak = 0
+    private var lastLateralMeters = 0.0
+    private var lastLateralAtMillis = 0L
     private var ambiguousStreak = 0
     private var announcedStep = -1
     private var announcedLevel = 0
@@ -218,11 +220,11 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
             jumpCandidate = null; tracker?.reset(); relocated = true
         } else jumpCandidate = null
         val windowed = projectPath(fix.point, route.geometry,
-            minAlong = route.routeToShapeMeters(max(0.0, current.alongMeters - 15)), maxAlong = if (relocated) Double.POSITIVE_INFINITY else route.routeToShapeMeters(current.alongMeters) + movementBudget)
+            minAlong = route.routeToShapeMeters(max(0.0, current.alongMeters - BACK_WINDOW_METERS)), maxAlong = if (relocated) Double.POSITIVE_INFINITY else route.routeToShapeMeters(current.alongMeters) + movementBudget)
         val fullProjection = projectPath(fix.point, route.geometry)
         // On the route but well behind where the trip had got to: heading back the way it came.
         val behind = windowed == null && fullProjection != null && fullProjection.distanceMeters <= max(policy.offRouteMeters, fix.accuracyMeters * 1.5) &&
-            fullProjection.alongMeters < route.routeToShapeMeters(current.alongMeters) - max(40.0, 3 * fix.accuracyMeters) && (fix.speedMps ?: 5.0) > 2.0
+            fullProjection.alongMeters < route.routeToShapeMeters(current.alongMeters) - BACK_WINDOW_METERS && (fix.speedMps ?: 5.0) > 2.0
         var projection = windowed ?: if (behind) fullProjection else null
         // On the route but further along than the trip had got to (for example after the app was suspended, or progress lagged):
         // two such fixes in a row are real progress, so jump the trip forward instead of reporting "ambiguous" for ever.
@@ -237,9 +239,18 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
             return@withLock publish(current.copy(status = SessionStatus.SignalLimited, signalReason = "Route progress is ambiguous; replan from a confirmed position"))
         }
         ambiguousStreak = 0
+        // A car cannot slide sideways 100 m in a second. A fix that lands far off the road, faster than any vehicle could get there,
+        // is a GPS glitch (multipath, a bad network fix), not a driver leaving the route: ignore it and let the road decide.
+        val sinceLateral = ((fix.elapsedMillis - lastLateralAtMillis).coerceAtLeast(0L)) / 1000.0
+        val lateralAllowance = lastLateralMeters + max(fix.speedMps ?: 5.0, 3.0) * 1.5 * sinceLateral + 25.0
+        if (lastLateralAtMillis != 0L && projection.distanceMeters > lateralAllowance && current.status == SessionStatus.Navigating && !relocated) {
+            deviationCount = 0
+            return@withLock SessionUpdate(current)
+        }
+        lastLateralMeters = projection.distanceMeters; lastLateralAtMillis = fix.elapsedMillis
         lastAccepted = fix
         // Driving the wrong way along the route is a deviation too, even though the car is still on the road.
-        val trackedEarly = trackerFor(route).update(fix.point, fix.accuracyMeters, fix.speedMps, fix.elapsedMillis)
+        val trackedEarly = trackerFor(route).update(fix.point, fix.accuracyMeters, fix.speedMps, fix.elapsedMillis, courseOf(fix))
         val offRoute = projection.distanceMeters > max(policy.offRouteMeters, fix.accuracyMeters * 1.5) || trackedEarly.reversing || behind
         deviationCount = if (offRoute) deviationCount + 1 else 0
         // The route-locked tracker smooths progress: GPS sideways noise and brief glitches cannot move it forward or back.
@@ -268,7 +279,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
                 val nextStep = backup.maneuvers.indexOfFirst { it.alongMeters > moved + 2 }.let { if (it < 0) backup.maneuvers.lastIndex.coerceAtLeast(0) else it }
                 val man = backup.maneuvers.getOrNull(nextStep)
                 deviationCount = 0; arrivalCount = 0; lastAccepted = fix
-                val switched = trackerFor(backup).update(fix.point, fix.accuracyMeters, fix.speedMps, fix.elapsedMillis)
+                val switched = trackerFor(backup).update(fix.point, fix.accuracyMeters, fix.speedMps, fix.elapsedMillis, courseOf(fix))
                 return@withLock publish(current.copy(route = backup, status = SessionStatus.Navigating, alongMeters = moved, maneuverIndex = nextStep,
                     remainingMeters = (backup.distanceMeters - moved).coerceAtLeast(0.0), remainingSeconds = backup.remainingSecondsAt(moved), offRoute = false, signalReason = null,
                     location = fix.point, accuracyMeters = fix.accuracyMeters, instruction = man?.instruction ?: "Follow the route",
@@ -340,7 +351,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         pendingReroute = null
         if (result is RouteResult.Unavailable) return@withLock publish(current.copy(status = SessionStatus.GuidanceUnavailable, signalReason = result.detail))
         val route = (result as RouteResult.Ready).route
-        if ((!route.external && route.graphVersion != request.pinnedVersion) || route.source != current.route?.source || route.provider != current.route?.provider || route.profile != request.request.profile || route.destinationPoint != request.request.destinationPoint || route.regionId != request.request.regionId || route.destinationPlaceId != request.request.destinationPlaceId || route.entranceId!=request.request.entranceId || route.requestId != request.requestId || RouteIntegrity.shapeErrors(route).isNotEmpty()) {
+        if ((!route.external && route.graphVersion != request.pinnedVersion) || route.external != current.route?.external || route.profile != request.request.profile || route.destinationPoint != request.request.destinationPoint || route.regionId != request.request.regionId || route.destinationPlaceId != request.request.destinationPlaceId || route.entranceId!=request.request.entranceId || route.requestId != request.requestId || RouteIntegrity.shapeErrors(route).isNotEmpty()) {
             return@withLock publish(current.copy(status = SessionStatus.GuidanceUnavailable, signalReason = "Replacement route does not match the current trip"))
         }
         val fix=latestFix
@@ -376,6 +387,8 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
     }
 
     /** The tracker for [route]; created once per route and discarded when the route changes. */
+    private fun courseOf(fix: LocationFix): Double? = fix.heading?.takeIf { (fix.speedMps ?: 0.0) >= COURSE_MIN_SPEED_MPS }
+
     private fun trackerFor(route: CampusRoute): RouteTracker {
         if (trackedRouteId != route.id || tracker == null) { tracker = RouteTracker(RouteGeometry(route.geometry), route.profile != "driving"); trackedRouteId = route.id }
         return tracker!!
@@ -406,7 +419,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         }.minByOrNull { it.third }?.let { it.first to it.second }
 
     private fun resetTracking() {
-        tracker = null; trackedRouteId = null; jumpCandidate = null; backups = emptyList(); announcedStep = -1; announcedLevel = 0; aheadStreak = 0; ambiguousStreak = 0
+        tracker = null; trackedRouteId = null; jumpCandidate = null; backups = emptyList(); announcedStep = -1; announcedLevel = 0; aheadStreak = 0; ambiguousStreak = 0; lastLateralMeters = 0.0; lastLateralAtMillis = 0L
         lastAccepted = null; deviationCount = 0; arrivalCount = 0; pendingReroute = null; lastRerouteAt = null
     }
 
@@ -424,6 +437,10 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
     }
 
     companion object {
+        /** How far behind the trip's progress a fix may still be matched to the route. The tracker predicts ahead, so a car that stops or turns off is behind its own prediction. */
+        /** GPS heading is only trustworthy while moving; slower than this it is noise. */
+        const val COURSE_MIN_SPEED_MPS = 3.0
+        const val BACK_WINDOW_METERS = 60.0
         val ACTIVE = setOf(SessionStatus.Navigating, SessionStatus.SignalLimited, SessionStatus.Rerouting, SessionStatus.GuidanceUnavailable)
     }
 }

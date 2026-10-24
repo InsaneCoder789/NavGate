@@ -23,7 +23,7 @@ class NativeFrontendFlowTest {
     @Before fun setup(){
         fixture=Fixture()
         compose.runOnUiThread{
-            vm=NavGateViewModel({scope->NavigationBackend(scope,fixture,fixture,fixture)},fixture.users,InMemoryAppPreferencesStore(storedCityMode=CityMode.KiitBeta),fixture)
+            vm=NavGateViewModel({scope->NavigationBackend(scope,fixture,fixture,fixture,routingProvider=com.rohanc.navgate.testing.FixtureRouting())},fixture.users,InMemoryAppPreferencesStore(storedCityMode=CityMode.KiitBeta),fixture)
             store.put("test-vm",vm)
         }
         compose.setContent{NavGateFrontend(injectedViewModel=vm,renderMap=false,trackLocation=false)}

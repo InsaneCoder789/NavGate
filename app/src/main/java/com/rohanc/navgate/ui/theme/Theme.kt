@@ -32,28 +32,28 @@ private val NavGateColors =
         onError = Color.White,
     )
 
-private val GoogleLightColors = lightColorScheme(
-    primary = Color(0xFF2F7A88), onPrimary = Color.White, primaryContainer = Color(0xFFD8F0F5), onPrimaryContainer = Color(0xFF0E4652),
-    secondary = Color(0xFF1A73E8), onSecondary = Color.White, secondaryContainer = Color(0xFFE8F0FE), onSecondaryContainer = Color(0xFF174EA6),
-    tertiary = Color(0xFF188038), background = Color(0xFFF1F3F4), onBackground = Color(0xFF202124),
-    surface = Color.White, onSurface = Color(0xFF202124), surfaceVariant = Color(0xFFF1F3F4), onSurfaceVariant = Color(0xFF5F6368),
-    outline = Color(0xFF9AA0A6), outlineVariant = Color(0xFFDADCE0), error = Color(0xFFD93025), onError = Color.White,
-    inverseSurface = Color(0xFF303134), inverseOnSurface = Color(0xFFF1F3F4),
+private val LightColors = lightColorScheme(
+    primary = Color(0xFFD9482B), onPrimary = Color.White, primaryContainer = Color(0xFFFFDBD0), onPrimaryContainer = Color(0xFF4A1204),
+    secondary = Color(0xFF6B4FD8), onSecondary = Color.White, secondaryContainer = Color(0xFFE9DDFF), onSecondaryContainer = Color(0xFF260F66),
+    tertiary = Color(0xFFB26A00), background = Color(0xFFFBF7F5), onBackground = Color(0xFF201A1D),
+    surface = Color.White, onSurface = Color(0xFF201A1D), surfaceVariant = Color(0xFFF3ECEF), onSurfaceVariant = Color(0xFF665A62),
+    outline = Color(0xFF9A8E96), outlineVariant = Color(0xFFE2D9DE), error = Color(0xFFD93025), onError = Color.White,
+    inverseSurface = Color(0xFF33292F), inverseOnSurface = Color(0xFFF7EEF2),
 )
 
-private val GoogleDarkColors = darkColorScheme(
-    primary = Color(0xFF7FD0DF), onPrimary = Color(0xFF00363F), primaryContainer = Color(0xFF1F4A55), onPrimaryContainer = Color(0xFFD8F0F5),
-    secondary = Color(0xFF8AB4F8), onSecondary = Color(0xFF062E6F), secondaryContainer = Color(0xFF1F3A63), onSecondaryContainer = Color(0xFFD2E3FC),
-    tertiary = Color(0xFF81C995), background = Color(0xFF121212), onBackground = Color(0xFFE8EAED),
-    surface = Color(0xFF202124), onSurface = Color(0xFFE8EAED), surfaceVariant = Color(0xFF303134), onSurfaceVariant = Color(0xFFBDC1C6),
-    outline = Color(0xFF80868B), outlineVariant = Color(0xFF3C4043), error = Color(0xFFF28B82), onError = Color(0xFF601410),
-    inverseSurface = Color(0xFFE8EAED), inverseOnSurface = Color(0xFF202124),
+private val DarkColors = darkColorScheme(
+    primary = NavPrimary, onPrimary = NavOnPrimary, primaryContainer = Color(0xFF6B2F1D), onPrimaryContainer = Color(0xFFFFDBD0),
+    secondary = NavSecondary, onSecondary = Color(0xFF2A1457), secondaryContainer = NavSecondaryContainer, onSecondaryContainer = Color(0xFFE9DDFF),
+    tertiary = NavTertiary, background = NavBackground, onBackground = NavOnSurface,
+    surface = NavSurface, onSurface = NavOnSurface, surfaceVariant = NavSurfaceHigh, onSurfaceVariant = NavOnSurfaceVariant,
+    outline = Color(0xFF8C8096), outlineVariant = Color(0xFF3F3548), error = Color(0xFFFF8A80), onError = Color(0xFF601410),
+    inverseSurface = Color(0xFFF4EEF7), inverseOnSurface = Color(0xFF1A1422),
 )
 
 @Composable
 fun NavGateTheme(dark: Boolean = true, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if(dark) GoogleDarkColors else GoogleLightColors,
+        colorScheme = if(dark) DarkColors else LightColors,
         shapes = Shapes(
             extraSmall=RoundedCornerShape(8.dp), small=RoundedCornerShape(12.dp),
             medium=RoundedCornerShape(18.dp), large=RoundedCornerShape(24.dp),

@@ -54,7 +54,7 @@ fun GlassPage(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modifie
 fun BoxScope.TabPage(selected: String, title: String, a: JourneyActions, actions: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxSize()) {
         GlassPage(title, null, Modifier.weight(1f), actions, content)
-        GmBottomBar(selected, a.openTab)
+        NgBottomBar(selected, a.openTab)
     }
 }
 
@@ -155,12 +155,22 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
                         FilterChip(model.prefs.arFps == key, { a.setPrefs(model.prefs.copy(arFps = key)) }, { Text(label, maxLines = 1, softWrap = false) }, Modifier.weight(1f), shape = RoundedCornerShape(16.dp))
                     }
                 }
+                SwitchRow("Hide the line behind people and vehicles", "A small on-device model spots people, vehicles and animals in the camera view so the road line passes behind them. Uses a little battery.", model.prefs.arObjects) { a.setPrefs(model.prefs.copy(arObjects = it)) }
+                NgTonalButton("Try AR here (practice path)", Icons.Rounded.ViewInAr, a.practiceAr, Modifier.fillMaxWidth())
+                NgTonalButton("Share AR diagnostics", Icons.Rounded.Share, a.exportArDiagnostics, Modifier.fillMaxWidth())
+            }
+            if (com.rohanc.navgate.BuildConfig.CRASH_REPORT_URL.isNotBlank()) SettingsGroup("Help improve NavGate") {
+                SwitchRow("Send crash reports", "If the app closes unexpectedly, send the technical details automatically next time. They contain no places, routes or personal data.", model.prefs.sendCrashReports) { a.setPrefs(model.prefs.copy(sendCrashReports = it)) }
+            }
+            SettingsGroup("Driving routes") {
+                SwitchRow("Avoid tolls", "Prefer roads without tolls when a sensible route exists. Applies to the next route you plan.", model.prefs.avoidTolls) { a.setPrefs(model.prefs.copy(avoidTolls = it)) }
+                SwitchRow("Avoid highways", "Prefer city streets over motorways. Routes may take longer.", model.prefs.avoidHighways) { a.setPrefs(model.prefs.copy(avoidHighways = it)) }
             }
             SettingsGroup("Guidance") {
                 SwitchRow("Spoken directions", when (model.voice) {
                     VoiceAvailability.Initializing -> "Checking the installed offline voice…"; VoiceAvailability.OfflineReady -> "Offline voice is ready."
                     VoiceAvailability.Unavailable -> "No offline voice installed. Written directions stay on screen." }, model.prefs.voiceEnabled) { a.setPrefs(model.prefs.copy(voiceEnabled = it)) }
-                if (!model.hasLocation) GmPrimaryButton("Turn on location", Icons.Rounded.MyLocation, a.requestLocation, Modifier.fillMaxWidth())
+                if (!model.hasLocation) NgPrimaryButton("Turn on location", Icons.Rounded.MyLocation, a.requestLocation, Modifier.fillMaxWidth())
                 TextButton(onClick = a.openAppSettings) { Text("Permissions in Android settings") }
             }
             SettingsGroup("Map data") {
@@ -205,30 +215,21 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
     }
 }
 
-/** Region data page: what is installed, and installing a signed update from files. */
+/** Offline data page: the test-place catalogue, offline maps and offline routing. */
 @Composable
-fun BoxScope.OfflineScreen(region: RegionStatus?, updatesEnabled: Boolean, tripActive: Boolean, importing: Boolean, importVerifying: Boolean, a: JourneyActions) {
+fun BoxScope.OfflineScreen(region: RegionStatus?, tripActive: Boolean, a: JourneyActions) {
     GlassPage("Offline & region data", a.back) {
         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SettingsGroup("Installed data") {
+            SettingsGroup("Test places") {
                 if (region == null) Text("Region status is not available yet.", style = MaterialTheme.typography.bodyMedium)
                 else {
-                    Text("Readiness: ${region.readiness}", style = MaterialTheme.typography.bodyLarge)
                     Text("${region.placeCount} places · ${region.missingCoordinateCount} without coordinates", style = MaterialTheme.typography.bodyMedium)
-                    Text("${region.reviewedEdgeCount} reviewed paths · ${region.reviewedEntranceCount} reviewed entrances", style = MaterialTheme.typography.bodyMedium)
                     listOfNotNull(region.version?.let { "Version: $it" }, region.reviewedAt?.let { "Reviewed: $it" }, region.source?.let { "Source: $it" }, region.attribution, region.license?.let { "License: $it" })
                         .forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
                 Text("Without a saved offline map, map tiles need a connection. Campus data and saved places are stored on this phone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OfflineMapAndRoutingGroups(tripActive)
-            SettingsGroup("Updates") {
-                GmPrimaryButton("Install signed region files", Icons.Rounded.FileOpen, a.installRegion, Modifier.fillMaxWidth(), enabled = updatesEnabled && !tripActive && !importing)
-                if (!updatesEnabled) Text("External region updates are not enabled in this build. Your installed data remains available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (tripActive) Text("Stop this trip before installing another region.", style = MaterialTheme.typography.bodySmall)
-                if (importing) { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(if (importVerifying) "Verifying signature and routing data…" else "Reading selected documents…", style = MaterialTheme.typography.bodyMedium); TextButton(onClick = a.cancelImport) { Text("Cancel import") } }
-                OutlinedButton(onClick = a.refreshRegion, shape = CircleShape) { Text("Refresh status") }
-            }
         }
     }
 }

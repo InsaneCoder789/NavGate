@@ -44,7 +44,6 @@ data class BackendSnapshot(
     val places: List<CampusPlace> = emptyList(),
     val session: SessionSnapshot = SessionSnapshot(),
     val routeFailure: RouteResult.Unavailable? = null,
-    val destinationAvailability: Map<String,DestinationAvailability> = emptyMap(),
     val storageError: String? = null,
     val durableRevision: Long = 0,
     /** Other ways to the same destination, loaded in the background while the preview is open (includes the previewed route). */
@@ -64,7 +63,7 @@ class NavigationBackend(
     private val session: NavigationSession = NavigationSession(),
     private val compute: CoroutineDispatcher = Dispatchers.Default,
     private val io: CoroutineDispatcher = Dispatchers.IO,
-    private val routingProvider: RoutingProvider = RoutePlanner(regions),
+    private val routingProvider: RoutingProvider,
 ) {
     private val job = SupervisorJob(parentScope.coroutineContext[Job])
     private val scope = CoroutineScope(parentScope.coroutineContext + job)
@@ -105,6 +104,8 @@ class NavigationBackend(
     suspend fun stop() = dispatch(Event.Stop)
     suspend fun clear() = dispatch(Event.Clear)
     suspend fun chooseRoute(routeId: String) = dispatch(Event.ChooseRoute(routeId))
+    /** Previews a route that was built locally (the AR practice path). */
+    suspend fun previewRoute(route: CampusRoute) = dispatch(Event.PreviewRoute(route))
     suspend fun location(fix: LocationFix) = events.send(Event.Location(fix))
     suspend fun tick() = events.send(Event.Tick)
     suspend fun presentation(value: Presentation) = events.send(Event.PresentationChange(value))
@@ -130,9 +131,7 @@ class NavigationBackend(
                 null
             }
             if (checkpoint != null) {
-                val route = checkpoint.snapshot.route
-                val pack = route?.let { withContext(io) { regions.version(it.regionId,it.graphVersion) } }
-                session.restore(checkpoint, if (route?.external == true) RouteIntegrity.externalCheckpointErrors(checkpoint).isEmpty() else pack != null && RouteIntegrity.checkpointErrors(checkpoint,pack).isEmpty())
+                session.restore(checkpoint, RouteIntegrity.externalCheckpointErrors(checkpoint).isEmpty())
             }
             mutable.value = mutable.value.copy(initializing = false, session = session.state.value)
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -150,19 +149,14 @@ class NavigationBackend(
                 mutable.value = mutable.value.copy(searching = true, query = event.query, regionId = event.regionId, searchNotice=null)
                 searchJob = scope.launch {
                     try {
-                        val (page,availability) = withContext(io) {
-                            val page=data.searchPage(event.query,event.regionId)
-                            val places=page.places
-                            val all=destinationAvailability(regions.active(event.regionId))
-                            page to places.mapNotNull{place -> all[place.id]?.let{place.id to it}}.toMap()
-                        }
-                        events.send(Event.SearchResult(generation,page.places,null,availability,page.notice))
+                        val page = withContext(io) { data.searchPage(event.query,event.regionId) }
+                        events.send(Event.SearchResult(generation,page.places,null,page.notice))
                     } catch (cancelled: CancellationException) { throw cancelled }
                     catch (_: Exception) { events.send(Event.SearchResult(generation, emptyList(),"Place search is unavailable. Check your connection or installed data.")) }
                 }
             }
             is Event.SearchResult -> if (event.generation == searchGeneration) {
-                mutable.value = mutable.value.copy(searching = false, places = event.places, destinationAvailability = event.availability, storageError = event.error, searchNotice=event.notice)
+                mutable.value = mutable.value.copy(searching = false, places = event.places, storageError = event.error, searchNotice=event.notice)
             }
             is Event.Plan -> {
                 if (session.state.value.status in NavigationSession.ACTIVE) {
@@ -185,7 +179,6 @@ class NavigationBackend(
                 val candidate = event.result
                 val result = if (candidate is RouteResult.Ready && (requested == null ||
                     candidate.route.requestId != requested.requestId || candidate.route.profile != requested.profile ||
-                    (requested.routingSource != null && candidate.route.source != requested.routingSource) ||
                     candidate.route.regionId != requested.regionId || candidate.route.destinationPlaceId != requested.destinationPlaceId ||
                     (candidate.route.external && candidate.route.destinationPoint != requested.destinationPoint) ||
                     RouteIntegrity.shapeErrors(candidate.route).isNotEmpty())) {
@@ -215,6 +208,12 @@ class NavigationBackend(
             Event.Tick -> consume(session.tick(clock.elapsedMillis()))
             is Event.PresentationChange -> consume(session.presentation(event.value))
             is Event.RerouteResult -> consume(session.replace(event.request,event.result,clock.elapsedMillis()))
+            is Event.PreviewRoute -> if (session.state.value.status !in NavigationSession.ACTIVE) {
+                invalidatePlans()
+                session.clear()
+                session.preview(event.route)
+                mutable.value = mutable.value.copy(planning = false, session = session.state.value, routeFailure = null, routeChoices = emptyList())
+            }
             is Event.PreviewChoices -> if (session.state.value.route?.id == event.forRouteId && session.state.value.status == SessionStatus.Preview) {
                 mutable.value = mutable.value.copy(routeChoices = event.routes)
             }
@@ -240,7 +239,7 @@ class NavigationBackend(
             // destination/mode/provider even if an adapter or cache returns unrelated results.
             val valid = routes.filter { candidate ->
                 RouteIntegrity.shapeErrors(candidate).isEmpty() &&
-                    candidate.source == route.source && candidate.provider == route.provider &&
+                    candidate.external == route.external &&
                     candidate.profile == route.profile && candidate.regionId == route.regionId &&
                     candidate.destinationPlaceId == route.destinationPlaceId && candidate.destinationPoint == requested.destinationPoint &&
                     candidate.geometry.first().distanceTo(request.origin) <= 100.0
@@ -307,7 +306,7 @@ class NavigationBackend(
         data class Barrier(val done: CompletableDeferred<Unit>) : Event
         data object Initialize : Event
         data class Search(val query: String, val regionId: String) : Event
-        data class SearchResult(val generation: Long, val places: List<CampusPlace>, val error: String?, val availability:Map<String,DestinationAvailability> = emptyMap(),val notice:String?=null) : Event
+        data class SearchResult(val generation: Long, val places: List<CampusPlace>, val error: String?, val notice:String?=null) : Event
         data class Plan(val request: PlanRequest) : Event
         data class PlanResult(val generation: Long, val result: RouteResult) : Event
         data object Start : Event
@@ -320,5 +319,6 @@ class NavigationBackend(
         data class Backups(val routeId: String, val routes: List<CampusRoute>) : Event
         data class PreviewChoices(val forRouteId: String, val routes: List<CampusRoute>) : Event
         data class ChooseRoute(val routeId: String) : Event
+        data class PreviewRoute(val route: CampusRoute) : Event
     }
 }

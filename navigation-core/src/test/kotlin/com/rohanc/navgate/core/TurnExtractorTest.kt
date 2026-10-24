@@ -53,4 +53,10 @@ class TurnExtractorTest {
         assertEquals(RouteGeometry(line(0.0 to 0.0, 100.0 to 0.0, 100.0 to 100.0, 0.0 to 100.0, 0.0 to 200.0)).length, m.last().alongMeters, 0.01)
         assertEquals(listOf("Start", "Right", "Right", "Left", "Arrive"), m.map { it.kind })
     }
+
+    @Test fun `turning without changing road names says to stay on it`() {
+        val shape = line(0.0 to 0.0, 200.0 to 0.0, 200.0 to 300.0)
+        val m = TurnExtractor.extract(shape, "driving", shape.map { "Marine Drive" })
+        assertEquals("Turn right to stay on Marine Drive", m[1].instruction)
+    }
 }

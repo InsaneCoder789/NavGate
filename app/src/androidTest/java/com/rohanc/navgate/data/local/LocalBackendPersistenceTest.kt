@@ -94,13 +94,13 @@ class LocalBackendPersistenceTest {
 
     @Test fun checkpointAndTripSurviveReopenThenStopClearsOnlyCheckpoint()=runBlocking {
         val pack=pack();install(pack)
-        val route=(CampusRoutingProvider(pack).route(PlanRequest(1,"test",pack.nodes.first().point,"target")) as RouteResult.Ready).route
+        val route=(com.rohanc.navgate.testing.FixtureRouting().plan(PlanRequest(1,"test",pack.nodes.first().point,"target",destinationPoint=pack.nodes.last().point,destinationTitle="Target")) as RouteResult.Ready).route
         val session=NavigationSession();session.preview(route);session.location(LocationFix(pack.nodes.first().point,1000,4.0),1000);session.start(1000)
         RoomSessionStore(database,regions).persist(session.state.value,1_800_000_000_000)
         database.close();open()
         val store=RoomSessionStore(database,regions)
         val saved=requireNotNull(store.loadCheckpoint())
-        val restored=NavigationSession();restored.restore(saved,regions.version("test",route.graphVersion)!=null)
+        val restored=NavigationSession();restored.restore(saved,true)
         assertEquals(SessionStatus.ResumeAvailable,restored.state.value.status)
         assertEquals(SessionStatus.ResumeAvailable,restored.start(2000).snapshot.status)
         restored.stop();store.persist(restored.state.value,1_800_000_001_000)
@@ -123,7 +123,7 @@ class LocalBackendPersistenceTest {
 
     @Test fun terminalPersistenceKeepsTripStartAndFinishAndClearHistoryRemovesBothSummaries()=runBlocking {
         val pack=pack();install(pack)
-        val route=(CampusRoutingProvider(pack).route(PlanRequest(1,"test",pack.nodes.first().point,"target")) as RouteResult.Ready).route
+        val route=(com.rohanc.navgate.testing.FixtureRouting().plan(PlanRequest(1,"test",pack.nodes.first().point,"target",destinationPoint=pack.nodes.last().point,destinationTitle="Target")) as RouteResult.Ready).route
         val store=RoomSessionStore(database,regions)
         val active=SessionSnapshot(sessionId="stable-trip",route=route,status=SessionStatus.Navigating,
             remainingMeters=route.distanceMeters,remainingSeconds=route.estimatedSeconds)
@@ -141,11 +141,11 @@ class LocalBackendPersistenceTest {
         assertNull(store.loadCheckpoint())
     }
 
-    @Test fun productionCatalogueSearchAndPlanningNeverInventWalkingPaths()=runBlocking {
+    @Test fun productionCatalogueSearchListsTestPlaces()=runBlocking {
         val users=RoomUserPlacesStore(context,database)
         val repository=LocalNavigationRepository(context,regions,users)
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
-        val backend=NavigationBackend(scope,repository,regions,AndroidBackendClock,RoomSessionStore(database,regions))
+        val backend=NavigationBackend(scope,repository,regions,AndroidBackendClock,RoomSessionStore(database,regions),routingProvider=com.rohanc.navgate.testing.FixtureRouting())
         try {
             withTimeout(15_000){backend.state.first{!it.initializing}}
             backend.search("","kiit")
@@ -153,14 +153,7 @@ class LocalBackendPersistenceTest {
             val installed=requireNotNull(regions.active("kiit"))
             assertEquals(175,installed.places.size)
             assertEquals(84,installed.places.count{it.point==null})
-            assertEquals(40,searched.destinationAvailability.size)
-            assertTrue(searched.destinationAvailability.values.all{it.readiness==DestinationReadiness.MissingGraph})
-            assertEquals(RegionReadiness.CatalogueOnly,backend.regionStatus("kiit").readiness)
-            val destination=searched.places.first{it.point!=null}
-            backend.plan(PlanRequest(10,"kiit",requireNotNull(destination.point),destination.id))
-            val failed=withTimeout(15_000){backend.state.first{it.routeFailure!=null}}
-            assertEquals(RouteFailure.MissingGraph,failed.routeFailure?.reason)
-            assertNull(failed.session.route)
+            assertEquals(RegionReadiness.Catalogue,backend.regionStatus("kiit").readiness)
             assertNull(RoomSessionStore(database,regions).loadCheckpoint())
             assertTrue(database.user().trips(10).isEmpty())
         } finally {backend.close();scope.cancel()}

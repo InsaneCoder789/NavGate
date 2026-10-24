@@ -15,8 +15,8 @@ import java.io.File
 
 class OfflineRouteException(message: String) : Exception(message)
 
-/** The result of one offline search: the road line and BRouter's travel time. Street names are not in the offline data. */
-class OfflineTrack(val points: List<GeoPoint>, val seconds: Double)
+/** The result of one offline search: the road line and BRouter's travel time. Street names are added afterwards from a saved map pack. */
+class OfflineTrack(val points: List<GeoPoint>, val seconds: Double, val streetNames: List<String?> = emptyList())
 
 /** Thin, thread-safe wrapper around the vendored BRouter engine. One search runs at a time. */
 class BRouterEngine(private val segmentDir: File, private val profileDir: File) {

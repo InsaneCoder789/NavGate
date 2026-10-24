@@ -15,11 +15,11 @@ import com.rohanc.navgate.data.FrontendPreferences
 /** "Map details": the map's look (follow the phone, always light, always dark) and 3D buildings. */
 @Composable
 fun BoxScope.LayersSheet(prefs: FrontendPreferences, onChange: (FrontendPreferences) -> Unit, onDismiss: () -> Unit) {
-    GmSheet(Modifier.align(Alignment.BottomCenter)) {
+    NgSheet(Modifier.align(Alignment.BottomCenter)) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Map details", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
-                GmRoundButton(Icons.Rounded.Close, "Close map details", onDismiss)
+                NgRoundButton(Icons.Rounded.Close, "Close map details", onDismiss)
             }
             Text("Map style", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Row(Modifier.selectableGroup().fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -100,6 +100,7 @@ class NavGateViewModel(
                 val beta = appPreferencesStore.kiitBetaAccess()
                 val frontend = appPreferencesStore.frontendPreferences()
                 persistedFrontendPreferences = frontend
+                applyRoadPreferences(frontend)
                 mutable.update { it.copy(cityMode=city,showOnboarding=!onboarding,kiitBetaAccess=beta,frontendPreferences=frontend,preferencesLoaded=true) }
                 backend.search("",city.regionId)
                 refreshRegionStatus()
@@ -310,10 +311,15 @@ class NavGateViewModel(
         mutable.update { it.copy(currentLocationUsable=freshCurrentLocation()!=null) }
         viewModelScope.launch { backend.tick() }
     }
+    private fun applyRoadPreferences(p: FrontendPreferences) {
+        com.rohanc.navgate.data.routing.RoadPreferences.avoidTolls = p.avoidTolls
+        com.rohanc.navgate.data.routing.RoadPreferences.avoidHighways = p.avoidHighways
+    }
     fun retryInitialization() { viewModelScope.launch { backend.retryInitialization() } }
     fun clearRouteHistory() { viewModelScope.launch { storeOperation { userPlacesStore.clearRouteHistory();refreshUserPlaces() } } }
     fun clearRecents() { viewModelScope.launch { storeOperation { userPlacesStore.clearRecents();refreshUserPlaces() } } }
     fun updateFrontendPreferences(value: FrontendPreferences) {
+        applyRoadPreferences(value)
         mutable.update { it.copy(frontendPreferences=value) }
         viewModelScope.launch { preferenceWrites.withLock {
             try { appPreferencesStore.setFrontendPreferences(value);persistedFrontendPreferences=value }
@@ -374,6 +380,9 @@ class NavGateViewModel(
         warmRoutesTo(place)
     }
 
+    /** Previews a locally built route (the AR practice path) without any network call. */
+    fun previewLocalRoute(route: CampusRoute) { viewModelScope.launch { backend.previewRoute(route) } }
+
     /** Switch the previewed route to another choice (fastest, shortest, alternative). */
     fun chooseRoute(routeId: String) { viewModelScope.launch { backend.chooseRoute(routeId) } }
 
@@ -395,6 +404,29 @@ class NavGateViewModel(
                 try { provider.plan(base.copy(profile=profile),null) } catch (c: CancellationException) { throw c } catch (_: Exception) { return@launch }
             }
             try { provider.alternatives(base) } catch (c: CancellationException) { throw c } catch (_: Exception) { }
+        }
+    }
+    /**
+     * Turns an ordered manual itinerary into one road-following trip: each pair of stops is routed, then the legs are joined.
+     * [onResult] gets true when the trip is ready to preview, false with the reason in the status message otherwise.
+     */
+    fun planItinerary(route: ManualRoute, onResult: (Boolean) -> Unit) {
+        val provider = estimator
+        if (provider == null || route.pins.size < 2 || !canEditTrip()) { onResult(false); return }
+        viewModelScope.launch {
+            mutable.update { it.copy(statusMessage = "Routing ${route.pins.size} stops…") }
+            val region = mutable.value.cityMode.regionId
+            try {
+                val legs = route.pins.zipWithNext().mapIndexed { i, (from, to) ->
+                    val request = PlanRequest(-1, region, from.point, "itinerary:${route.id}:${i + 1}", null, route.mode, to.point, to.label, "valhalla")
+                    (provider.plan(request, null) as? RouteResult.Ready)?.route ?: throw IllegalStateException("No ${route.mode} route between “${from.label}” and “${to.label}”.")
+                }
+                val trip = RouteJoin.join(legs, route.pins.drop(1).map { it.label }) ?: throw IllegalStateException("The stops could not be joined into one trip.")
+                backend.previewRoute(trip.copy(destinationPlaceId = "itinerary:${route.id}", destinationTitle = route.name))
+                mutable.update { it.copy(statusMessage = null) }
+                onResult(true)
+            } catch (c: CancellationException) { throw c }
+            catch (e: Exception) { mutable.update { it.copy(statusMessage = e.message ?: "The itinerary could not be routed. Check your connection and retry.") }; onResult(false) }
         }
     }
     fun dismissFocusedPlace() { mutable.update { it.copy(focusedPlace=null) } }

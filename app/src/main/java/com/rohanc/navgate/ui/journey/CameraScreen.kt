@@ -26,7 +26,7 @@ fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, 
         GlassPage("Camera guidance", a.closeCamera) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Allow camera access to see compass cues over the live view.", style = MaterialTheme.typography.bodyLarge)
-                GmPrimaryButton("Allow camera", Icons.Rounded.CameraAlt, a.requestCamera, Modifier.fillMaxWidth())
+                NgPrimaryButton("Allow camera", Icons.Rounded.CameraAlt, a.requestCamera, Modifier.fillMaxWidth())
                 TextButton(onClick = a.openAppSettings) { Text("Camera permission settings") }
             }
         }
@@ -51,7 +51,7 @@ fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, 
     GlassPanel(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp).fillMaxWidth(), shape = RoundedCornerShape(32.dp)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedIconButton(onClick = a.requestStop, modifier = Modifier.size(52.dp)) { Icon(Icons.Rounded.Close, "Stop navigation") }
-            GmPrimaryButton("Return to map", Icons.Rounded.Map, a.closeCamera, Modifier.weight(1f))
+            NgPrimaryButton("Return to map", Icons.Rounded.Map, a.closeCamera, Modifier.weight(1f))
             OutlinedIconButton(onClick = a.toggleVoice, modifier = Modifier.size(52.dp)) { Icon(if (voiceOn) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff, if (voiceOn) "Mute spoken cues" else "Turn on spoken cues") }
         }
     }

@@ -114,3 +114,74 @@ class SessionVoiceAndDirectionTest {
         assertNotNull("U-turned onto the same road: guidance must notice", reroute)
     }
 }
+
+/** Longer stories: wrong turn, reroute, recovery, arrival and a second trip. */
+class SessionStoryTest {
+    private val origin = GeoPoint(19.0, 72.85)
+    private fun at(east: Double, north: Double) = GeoPoint(origin.latitude + north / 111_320.0, origin.longitude + east / (111_320.0 * cos(Math.toRadians(origin.latitude))))
+    private fun road(id: String, requestId: Long, vararg pts: GeoPoint): CampusRoute {
+        val g = pts.toList(); val len = g.lengthMeters()
+        val times = DoubleArray(g.size).also { for (i in 1 until g.size) it[i] = it[i - 1] + g[i - 1].distanceTo(g[i]) / 12.0 }
+        return CampusRoute(id, requestId, "x", "v", "dest", "", g, emptyList(), len, times.last(),
+            listOf(Maneuver("Head north", g.first(), 0.0, "Start"), Maneuver("Arrive", g.last(), len, "Arrive")), "", source = "valhalla", profile = "driving",
+            provider = "p", fetchedAtEpochMillis = 1, destinationPoint = g.last(), shapeElapsedSeconds = times.toList())
+    }
+    private fun fix(p: GeoPoint, t: Long, speed: Double = 12.0) = LocationFix(p, t, 4.0, null, speed)
+
+    @Test fun `a wrong turn is detected, rerouted and guidance finishes the trip`() = runTest {
+        val primary = road("primary", 1, at(0.0, 0.0), at(0.0, 2000.0))
+        val session = NavigationSession(); session.preview(primary)
+        session.location(fix(primary.geometry.first(), 100), 100); session.start(100)
+        var t = 100L; var request: RerouteRequest? = null
+        for (i in 1..40) { t += 1_000; session.location(fix(at(0.0, 12.0 * i), t), t) }                 // 480 m along
+        // The driver turns east onto a side road.
+        for (i in 1..12) { t += 1_000; val u = session.location(fix(at(12.0 * i, 480.0), t), t); if (u.reroute != null && request == null) { request = u.reroute; break } }
+        assertNotNull("leaving the road must request a reroute", request)
+        assertEquals(SessionStatus.Rerouting, session.state.value.status)
+        // The router answers with a road from where the driver was when asked.
+        val from = request!!.request.origin
+        val replacement = road("replacement", request.requestId, from, primary.geometry.last())
+        val adopted = session.replace(request, RouteResult.Ready(replacement), t)
+        assertEquals(adopted.snapshot.signalReason, SessionStatus.Navigating, adopted.snapshot.status)
+        assertEquals("replacement", adopted.snapshot.route?.id)
+        // Drive the new road to the end.
+        var last = adopted.snapshot; var s = 0.0
+        val geo = RouteGeometry(replacement.geometry)
+        while (last.status != SessionStatus.Arrived && s < geo.length + 40) { t += 1_000; s += 12.0; last = session.location(fix(geo.pointAt(minOf(s, geo.length)), t), t).snapshot }
+        assertEquals(SessionStatus.Arrived, last.status)
+    }
+
+    @Test fun `a failed reroute recovers by itself when the driver rejoins the road`() = runTest {
+        val primary = road("primary", 1, at(0.0, 0.0), at(0.0, 2000.0))
+        val session = NavigationSession(); session.preview(primary)
+        session.location(fix(primary.geometry.first(), 100), 100); session.start(100)
+        var t = 100L; var request: RerouteRequest? = null
+        for (i in 1..20) { t += 1_000; session.location(fix(at(0.0, 12.0 * i), t), t) }
+        for (i in 1..8) { t += 1_000; val u = session.location(fix(at(14.0 * i, 240.0), t), t); if (u.reroute != null && request == null) { request = u.reroute; break } }
+        assertNotNull(request)
+        val failed = session.replace(request!!, RouteResult.Unavailable(RouteFailure.NoConnection, "offline"), t)
+        assertEquals(SessionStatus.GuidanceUnavailable, failed.snapshot.status)
+        // The driver comes back to the road (still no network): guidance resumes on the original route.
+        var snap = failed.snapshot
+        for (i in 1..6) { t += 1_000; snap = session.location(fix(at(0.0, 240.0 + 12.0 * i), t), t).snapshot }
+        assertEquals(snap.signalReason, SessionStatus.Navigating, snap.status)
+        assertEquals("primary", snap.route?.id)
+        assertFalse(snap.offRoute)
+    }
+
+    @Test fun `a new trip can start straight after arriving`() = runTest {
+        val first = road("first", 1, at(0.0, 0.0), at(0.0, 200.0))
+        val session = NavigationSession(); session.preview(first)
+        session.location(fix(first.geometry.first(), 100), 100); session.start(100)
+        var t = 100L; var s = 0.0; val g = RouteGeometry(first.geometry); var snap = session.state.value
+        while (snap.status != SessionStatus.Arrived && s < 260) { t += 1_000; s += 12.0; snap = session.location(fix(g.pointAt(minOf(s, g.length)), t), t).snapshot }
+        assertEquals(SessionStatus.Arrived, snap.status)
+        val second = road("second", 2, at(0.0, 200.0), at(300.0, 200.0))
+        session.preview(second)
+        t += 1_000; session.location(fix(second.geometry.first(), t), t)
+        val started = session.start(t).snapshot
+        assertEquals(started.signalReason, SessionStatus.Navigating, started.status)
+        assertEquals("second", started.route?.id)
+        assertEquals(0.0, started.alongMeters, 1.0)
+    }
+}

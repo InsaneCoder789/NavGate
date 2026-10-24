@@ -16,7 +16,9 @@ object RouteChoices {
     /** Labels each route: the quickest is "Fastest", the least distance is "Shortest" (if different), the rest "Alternative". */
     fun labelled(routes: List<CampusRoute>): List<CampusRoute> {
         if (routes.isEmpty()) return routes
-        val fastest = routes.minBy { it.estimatedSeconds }
+        // Routes within half a minute of each other count as equally quick, and the first (the one the provider ranked best) wins the tie.
+        val quickest = routes.minOf { it.estimatedSeconds }
+        val fastest = routes.first { it.estimatedSeconds <= quickest + 30.0 }
         val shortest = routes.minBy { it.distanceMeters }
         return routes.map { r -> r.copy(label = when { r.id == fastest.id -> "Fastest"; r.id == shortest.id -> "Shortest"; else -> "Alternative" }) }
     }

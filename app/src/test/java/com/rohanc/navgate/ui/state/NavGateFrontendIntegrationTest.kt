@@ -68,7 +68,7 @@ class NavGateFrontendIntegrationTest {
         try {
             runCurrent();assertNull(vm.uiState.value.regionStatus)
             ready.complete(Unit);advanceUntilIdle()
-            assertEquals(RegionReadiness.ReviewedGraph,vm.uiState.value.regionStatus?.readiness)
+            assertEquals(RegionReadiness.Catalogue,vm.uiState.value.regionStatus?.readiness)
         } finally { h.backend.close() }
     }
 

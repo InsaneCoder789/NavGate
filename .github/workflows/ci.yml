@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests (navigation core and app)
+        run: ./gradlew :navigation-core:test :app:testDebugUnitTest --stacktrace
+      - name: Lint
+        run: ./gradlew :app:lintDebug --stacktrace
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/build/reports/tests/
+            **/build/reports/lint-results-debug.html

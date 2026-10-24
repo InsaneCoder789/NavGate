@@ -27,5 +27,5 @@ fun NavGlassSurface(
     content: @Composable () -> Unit,
 ) {
     GlassPanel(modifier, shape, if (dense) GlassWeight.Thick else GlassWeight.Regular, shadow = shadowElevation > 0.dp,
-        tint = baseColor, contentColor = contentColor, onClick = onClick) { content() }
+        tint = baseColor, contentColor = contentColor, minOpacity = if (dense) 0.9f else 0.7f, onClick = onClick) { content() }
 }

@@ -60,12 +60,12 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
     val topDp = with(density) { topPx.toDp().value }
     // Expanded steps may grow until just below the route card, never over it.
     val maxHeight = (if (showSteps) (screenDp - topDp - 12f).coerceAtLeast(240f) else screenDp * 0.44f).dp
-    GmSheet(Modifier.align(Alignment.BottomCenter).heightIn(max = maxHeight).onSizeChanged { bottomPx = it.height }, onGrabber = { showSteps = !showSteps }) {
+    NgSheet(Modifier.align(Alignment.BottomCenter).heightIn(max = maxHeight).onSizeChanged { bottomPx = it.height }, onGrabber = { showSteps = !showSteps }) {
         Column(Modifier.navigationBarsPadding()) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (driving) "Drive" else "Walk", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
-                destination?.let { GmRoundButton(Icons.Rounded.Share, "Share destination", { a.share(it) }) }
-                GmRoundButton(Icons.Rounded.Close, "Clear directions", a.clearPlan)
+                destination?.let { NgRoundButton(Icons.Rounded.Share, "Share destination", { a.share(it) }) }
+                NgRoundButton(Icons.Rounded.Close, "Clear directions", a.clearPlan)
             }
             ModeTabs(ui, a)
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -82,9 +82,9 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
                 }
             }
             Row(Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (ui.preview != null) GmPrimaryButton(if (ui.startPending) "Starting…" else if (driving) "Start driving" else "Start walking", Icons.Rounded.Navigation, a.start, Modifier.weight(1f), enabled = !ui.startPending && permission)
-                else GmPrimaryButton(if (driving) "Preview driving route" else "Preview walking route", Icons.Rounded.Directions, a.replan, Modifier.weight(1f), enabled = !ui.isLoadingRoute && origin != null && destination != null)
-                GmTonalButton("Steps", if (showSteps) Icons.Rounded.ExpandMore else Icons.Rounded.FormatListBulleted, { showSteps = !showSteps }, enabled = steps.isNotEmpty())
+                if (ui.preview != null) NgPrimaryButton(if (ui.startPending) "Starting…" else if (driving) "Start driving" else "Start walking", Icons.Rounded.Navigation, a.start, Modifier.weight(1f), enabled = !ui.startPending && permission)
+                else NgPrimaryButton(if (driving) "Preview driving route" else "Preview walking route", Icons.Rounded.Directions, a.replan, Modifier.weight(1f), enabled = !ui.isLoadingRoute && origin != null && destination != null)
+                NgTonalButton("Steps", if (showSteps) Icons.Rounded.ExpandMore else Icons.Rounded.FormatListBulleted, { showSteps = !showSteps }, enabled = steps.isNotEmpty())
             }
         }
     }
@@ -169,7 +169,7 @@ fun StepsList(steps: List<RouteStep>, originLabel: String, currentIndex: Int = -
             Icon(maneuverIcon(step.maneuverType), null, Modifier.size(24.dp))
             Column {
                 Text(step.instruction, style = MaterialTheme.typography.bodyLarge, fontWeight = if (index == currentIndex) FontWeight.Bold else FontWeight.Normal)
-                // A step's length is the distance to the next manoeuvre, shown under its instruction like a maps app.
+                // A step's length is the distance to the next manoeuvre, shown under its instruction.
                 val length = steps.getOrNull(index + 1)?.distanceMeters ?: 0.0
                 if (length > 0) Text(length.asMetersLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

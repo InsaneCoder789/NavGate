@@ -10,7 +10,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.rohanc.navgate.core.DestinationAvailability
 import com.rohanc.navgate.core.MotionEstimate
 import com.rohanc.navgate.core.RegionStatus
 import com.rohanc.navgate.core.SessionSnapshot
@@ -29,9 +28,9 @@ val JourneyScreens = setOf("Explore", "Search", "Results", "Place", "Directions"
 /** All state the screens read, in one place. */
 class JourneyData(
     val screen: String, val searchFor: String, val ui: NavGateUiState, val session: SessionSnapshot, val steps: List<RouteStep>, val routeWarnings: List<String>,
-    val permission: Boolean, val voiceOn: Boolean, val areaName: String?, val searchResults: List<PlaceSearchResult>, val availability: DestinationAvailability?,
-    val entranceLabels: Map<String, String>, val tripActive: Boolean, val motion: StateFlow<MotionEstimate?>?, val settings: SettingsModel,
-    val viewMode: String, val updatesEnabled: Boolean, val importing: Boolean, val importVerifying: Boolean, val hasCameraPermission: Boolean, val alignment: AlignmentStatus, val cuesAvailable: Boolean,
+    val permission: Boolean, val voiceOn: Boolean, val areaName: String?, val searchResults: List<PlaceSearchResult>,
+    val tripActive: Boolean, val motion: StateFlow<MotionEstimate?>?, val settings: SettingsModel,
+    val viewMode: String, val hasCameraPermission: Boolean, val alignment: AlignmentStatus, val cuesAvailable: Boolean,
     val online: Boolean = true, val tripSummary: String? = null, val locationOn: Boolean = true,
 )
 
@@ -48,14 +47,14 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
         "Explore" -> ExploreHome(d.areaName, onInsets, a)
         "Results" -> ResultsScreen(ui, userLocation, onInsets, a)
         "Search" -> SearchPage(ui.searchQuery, d.searchFor, d.searchResults, ui.recentPlaces, ui.isLoadingPlaces, ui.searchNotice.takeIf { d.searchFor != "saved" }, d.permission, userLocation, a)
-        "Place" -> ui.focusedPlace?.let { place -> PlaceUi(place, ui.savedPlaces.any { it.id == place.id }, userLocation, d.availability, d.entranceLabels, d.tripActive, onInsets, a) }
+        "Place" -> ui.focusedPlace?.let { place -> PlaceUi(place, ui.savedPlaces.any { it.id == place.id }, userLocation, d.tripActive, onInsets, a) }
         "Directions", "Route" -> DirectionsUi(ui, d.steps, d.routeWarnings, d.permission, onInsets, a)
         "Navigation" -> NavigationUi(d.session, d.steps, d.voiceOn, (d.session.route?.profile ?: ui.travelProfile.name.lowercase()) == "driving", d.motion, onInsets, a, d.online, locationIssue = when { !d.permission -> "Location permission was turned off."; !d.locationOn -> "Location is turned off on this phone."; else -> null })
         "Arrival" -> ArrivalUi(ui.selectedDestination?.title ?: d.session.route?.destinationTitle ?: "Destination", ui.travelProfile == TravelProfile.Driving, d.tripSummary, onInsets, a)
         "Saved" -> SavedScreen(ui, userLocation, a)
         "Recents" -> RecentsScreen(ui, userLocation, a)
         "Settings" -> SettingsScreen(d.settings, a)
-        "Offline" -> OfflineScreen(ui.regionStatus, d.updatesEnabled, d.tripActive, d.importing, d.importVerifying, a)
+        "Offline" -> OfflineScreen(ui.regionStatus, d.tripActive, a)
         "Steps" -> StepsScreen(d.steps, d.session.maneuverIndex, ui.selectedOrigin?.title ?: "Your location", a)
         "Camera" -> CameraScreen(d.hasCameraPermission, d.cuesAvailable, d.alignment, d.session.instruction, d.session.distanceToManeuver.asMetersLabel(), d.voiceOn, d.session.route?.maneuvers?.getOrNull(d.session.maneuverIndex)?.kind, a)
         "MapPick" -> PickPrompt(if (d.searchFor == "from") "Tap the map to choose a start" else "Tap the map to choose a destination", a)
@@ -66,9 +65,9 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
     val routed = d.session.route != null
     val screenDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
     if (routed && d.screen in setOf("Directions", "Route") && sheetDp in 1f..(screenDp * 0.5f)) {
-        ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = sheetDp.dp + 12.dp))
+        ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = sheetDp.dp + 12.dp), arAvailable = d.session.route?.profile == "walking")
     }
     // While driving the vertical switch sits mid-left, clear of the car, the banner and the map buttons on the right.
-    if (routed && d.screen == "Navigation") ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterStart).offset(y = 6.dp).padding(start = 12.dp), vertical = true)
+    if (routed && d.screen == "Navigation") ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterStart).offset(y = 6.dp).padding(start = 12.dp), vertical = true, arAvailable = d.session.route?.profile == "walking")
     if (routed && d.screen == "Camera" && d.hasCameraPermission) ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterEnd).padding(end = 12.dp), vertical = true)
 }

@@ -40,7 +40,7 @@ class RoadRouteUiTest {
         try {
             compose.runOnUiThread {
                 val regions=RoomRegionStore(db)
-                val routing=HybridRoutingProvider(regions,ValhallaRoutingProvider(cache=RoomRoadRouteCache(db)))
+                val routing=ValhallaRoutingProvider(cache=RoomRoadRouteCache(db))
                 vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,AndroidBackendClock,RoomSessionStore(db,regions),routingProvider=routing)},InMemoryUserPlacesStore(),InMemoryAppPreferencesStore(onboardingSeen=true))
                 stores.put("road-vm",vm)
             }

@@ -100,4 +100,35 @@ class ShortestRoutePayloadTest {
         assertTrue(ValhallaRoutingProvider.payload(request.copy(preference = "shortest")).contains("\"shortest\":true"))
         assertFalse(ValhallaRoutingProvider.payload(request).contains("shortest"))
     }
+
+    @Test fun `avoid tolls and highways reach a car request only when asked, and never a walking one`() {
+        try {
+            assertFalse(ValhallaRoutingProvider.payload(request).contains("use_tolls"))
+            RoadPreferences.avoidTolls = true; RoadPreferences.avoidHighways = true
+            val car = ValhallaRoutingProvider.payload(request)
+            assertTrue(car.contains("\"use_tolls\":0") && car.contains("\"use_highways\":0"))
+            assertFalse(ValhallaRoutingProvider.payload(request.copy(profile = "walking")).contains("use_tolls"))
+        } finally { RoadPreferences.avoidTolls = false; RoadPreferences.avoidHighways = false }
+    }
+}
+
+class CurvedRouteDistanceTest {
+    private fun fixture(mode: String) = javaClass.classLoader!!.getResourceAsStream("routing/mumbai-$mode.json")!!.bufferedReader().readText()
+    private val request = PlanRequest(9, "mumbai", GeoPoint(18.92297, 72.83329), "marine-drive", profile = "driving", destinationPoint = GeoPoint(18.9341, 72.82365), destinationTitle = "Marine Drive")
+
+    /** Other projects have shipped turn distances measured on one scale and progress on another, wrong on every curve. Pin them together. */
+    @Test fun `every turn distance equals the distance along the drawn shape to that turn`() {
+        for (mode in listOf("driving", "walking")) {
+            val route = (ValhallaRoutingProvider.parse(fixture(mode), request.copy(profile = mode), "t", 1000) as RouteResult.Ready).route
+            val shape = route.geometry
+            val cumulative = DoubleArray(shape.size).also { for (i in 1 until shape.size) it[i] = it[i - 1] + shape[i - 1].distanceTo(shape[i]) }
+            route.maneuvers.forEach { m ->
+                val index = shape.indexOf(m.target)
+                // The route says it is `distanceMeters` long and the shape is `cumulative.last()` long; turns are placed in proportion, so they agree on every curve.
+                val expected = cumulative[index] / cumulative.last() * route.distanceMeters
+                assertEquals("$mode '${m.instruction}'", expected, m.alongMeters, 1.0)
+                assertEquals("and progress maps back to the same shape position", cumulative[index], route.routeToShapeMeters(m.alongMeters), 1.0)
+            }
+        }
+    }
 }

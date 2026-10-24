@@ -35,11 +35,11 @@ class NavigationBackendTest {
 
     @Test fun `initialization search plan start stop and recover share one backend`() = runTest {
         val dispatcher=StandardTestDispatcher(testScheduler); val regions=MemoryRegionStore();val clock=Clock();val data=Data(regions);val store=Sessions()
-        val backend=NavigationBackend(this,data,regions,clock,store,compute=dispatcher,io=dispatcher)
+        val backend=NavigationBackend(this,data,regions,clock,store,compute=dispatcher,io=dispatcher,routingProvider=FixedRouting())
         try {
             advanceUntilIdle();assertFalse(backend.state.value.initializing)
             backend.search("target");advanceUntilIdle();assertEquals("target",backend.state.value.places.first().title)
-            backend.plan(PlanRequest(5,"test",fixturePack().nodes.first().point,"target"));advanceUntilIdle()
+            backend.plan(PlanRequest(5,"test",fixturePack().nodes.first().point,"target",destinationPoint=fixtureRoute().destinationPoint));advanceUntilIdle()
             assertEquals(SessionStatus.Preview,backend.state.value.session.status)
             backend.location(LocationFix(fixturePack().nodes.first().point,clock.time,4.0));advanceUntilIdle()
             backend.start();advanceUntilIdle()
@@ -56,7 +56,7 @@ class NavigationBackendTest {
     }
 
     @Test fun `new search cancels old work and result generations prevent overwrite`() = runTest {
-        val d=StandardTestDispatcher(testScheduler);val regions=MemoryRegionStore();val backend=NavigationBackend(this,Data(regions),regions,Clock(),compute=d,io=d)
+        val d=StandardTestDispatcher(testScheduler);val regions=MemoryRegionStore();val backend=NavigationBackend(this,Data(regions),regions,Clock(),compute=d,io=d,routingProvider=FixedRouting())
         try {
             advanceUntilIdle();backend.search("old");runCurrent();backend.search("new");advanceUntilIdle()
             assertEquals("new",backend.state.value.query)
@@ -65,29 +65,19 @@ class NavigationBackendTest {
     }
 
     @Test fun `stop invalidates an outstanding plan and cannot be undone by late completion`() = runTest {
-        val d=StandardTestDispatcher(testScheduler);val regions=MemoryRegionStore();val backend=NavigationBackend(this,Data(regions),regions,Clock(),compute=d,io=d)
+        val d=StandardTestDispatcher(testScheduler);val regions=MemoryRegionStore();val backend=NavigationBackend(this,Data(regions),regions,Clock(),compute=d,io=d,routingProvider=FixedRouting())
         try {
-            advanceUntilIdle();backend.plan(PlanRequest(1,"test",fixturePack().nodes.first().point,"target"));backend.stop();advanceUntilIdle()
+            advanceUntilIdle();backend.plan(PlanRequest(1,"test",fixturePack().nodes.first().point,"target",destinationPoint=fixtureRoute().destinationPoint));backend.stop();advanceUntilIdle()
             assertEquals(SessionStatus.Stopped,backend.state.value.session.status)
             assertFalse(backend.state.value.planning)
         } finally { backend.close() }
     }
 
-    @Test fun `information only catalogue gives an explicit missing graph failure`() = runTest {
-        val d=StandardTestDispatcher(testScheduler);val regions=MemoryRegionStore();val data=Data(regions,fixturePack().copy(nodes=emptyList(),edges=emptyList(),entrances=emptyList()))
-        val backend=NavigationBackend(this,data,regions,Clock(),compute=d,io=d)
-        try {
-            advanceUntilIdle();backend.plan(PlanRequest(1,"test",fixturePack().nodes.first().point,"target"));advanceUntilIdle()
-            assertEquals(RouteFailure.MissingGraph,backend.state.value.routeFailure?.reason)
-            assertNull(backend.state.value.session.route)
-        } finally { backend.close() }
-    }
-
     @Test fun `persistence failure preserves active guidance and is surfaced`() = runTest {
         val d=StandardTestDispatcher(testScheduler);val regions=MemoryRegionStore();val clock=Clock();val store=Sessions().apply{fail=true}
-        val backend=NavigationBackend(this,Data(regions),regions,clock,store,compute=d,io=d)
+        val backend=NavigationBackend(this,Data(regions),regions,clock,store,compute=d,io=d,routingProvider=FixedRouting())
         try {
-            advanceUntilIdle();backend.plan(PlanRequest(1,"test",fixturePack().nodes.first().point,"target"));advanceUntilIdle()
+            advanceUntilIdle();backend.plan(PlanRequest(1,"test",fixturePack().nodes.first().point,"target",destinationPoint=fixtureRoute().destinationPoint));advanceUntilIdle()
             backend.location(LocationFix(fixturePack().nodes.first().point,clock.time,4.0));advanceUntilIdle();backend.start();advanceUntilIdle()
             assertEquals(SessionStatus.Navigating,backend.state.value.session.status)
             assertNotNull(backend.state.value.storageError)
@@ -96,7 +86,7 @@ class NavigationBackendTest {
 
     @Test fun `initialization failure can be explicitly retried`() = runTest {
         val d=StandardTestDispatcher(testScheduler);val regions=MemoryRegionStore();val data=Data(regions).apply{failInitialization=true}
-        val backend=NavigationBackend(this,data,regions,Clock(),compute=d,io=d)
+        val backend=NavigationBackend(this,data,regions,Clock(),compute=d,io=d,routingProvider=FixedRouting())
         try {
             advanceUntilIdle();assertNotNull(backend.state.value.storageError)
             data.failInitialization=false;backend.retryInitialization();advanceUntilIdle()

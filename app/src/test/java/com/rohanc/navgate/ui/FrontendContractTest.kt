@@ -20,10 +20,8 @@ class FrontendContractTest {
         assertEquals("Saved",back("Place"));assertEquals("Route",back("Settings"));assertEquals("Settings",back("Offline"))
         assertEquals("Navigation",back("Steps",true));assertEquals("Route",back("Steps"))
     }
-    @Test fun `all trip surfaces select Go while capability labels never promise connectivity`() {
+    @Test fun `all trip surfaces select Go `() {
         for(screen in listOf("Route","Directions","Navigation","Steps","Arrival","Camera"))assertEquals("Directions",selectedFrontendTab(screen))
         assertEquals("Saved",selectedFrontendTab("Search","saved"));assertEquals("Directions",selectedFrontendTab("Results","from"))
-        assertTrue(readinessLabel(DestinationReadiness.ReviewedEntrance).contains("connectivity"))
-        assertTrue(readinessLabel(DestinationReadiness.MissingGraph).contains("not been reviewed"))
     }
 }

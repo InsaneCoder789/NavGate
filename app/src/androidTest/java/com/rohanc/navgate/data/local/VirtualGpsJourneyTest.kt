@@ -59,7 +59,7 @@ class VirtualGpsJourneyTest {
         val scope=CoroutineScope(SupervisorJob()+Dispatchers.Default)
         val users=RoomUserPlacesStore(context,database)
         val repository=LocalNavigationRepository(context,regions,users)
-        val backend=NavigationBackend(scope,repository,regions,AndroidBackendClock,RoomSessionStore(database,regions))
+        val backend=NavigationBackend(scope,repository,regions,AndroidBackendClock,RoomSessionStore(database,regions),routingProvider=com.rohanc.navgate.testing.FixtureRouting())
         val manager=context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val acceptGps=AtomicBoolean(true)
         val listener=object:LocationListener {

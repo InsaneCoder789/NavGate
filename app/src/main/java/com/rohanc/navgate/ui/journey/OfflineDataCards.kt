@@ -101,7 +101,7 @@ private fun OfflineMapsGroup(store: MapPackStore, tripActive: Boolean) {
         }
         message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         listOf(10.0 to "Around me · 10 km", 25.0 to "Around me · 25 km", 50.0 to "Around me · 50 km (a whole city region)").forEach { (radius, label) ->
-            GmTonalButton(label, Icons.Rounded.Download, {
+            NgTonalButton(label, Icons.Rounded.Download, {
                 val here = lastKnown(context)
                 if (here == null) message = "Turn on location (and open the map once) so NavGate knows which area to save."
                 else {
@@ -112,7 +112,7 @@ private fun OfflineMapsGroup(store: MapPackStore, tripActive: Boolean) {
                 }
             }, Modifier.fillMaxWidth(), enabled = !busy)
         }
-        GmTonalButton("Import a .pmtiles file", Icons.Rounded.FileOpen, { picker.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth(), enabled = !busy)
+        NgTonalButton("Import a .pmtiles file", Icons.Rounded.FileOpen, { picker.launch(arrayOf("*/*")) }, Modifier.fillMaxWidth(), enabled = !busy)
         Text("An imported file must be a PMTiles v3 vector map in the OpenMapTiles layout (for example one made from OpenFreeMap).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -152,7 +152,7 @@ private fun OfflineRoutingGroup(data: RoutingDataStore) {
         }
         if (suggestion != null && !data.isInstalled(suggestion) && suggestion !in progress) {
             val size = sizes[suggestion]
-            GmPrimaryButton("Download routing data here" + (size?.let { " · ${megabytes(it)}" } ?: ""), Icons.Rounded.Download, { data.download(suggestion) }, Modifier.fillMaxWidth())
+            NgPrimaryButton("Download routing data here" + (size?.let { " · ${megabytes(it)}" } ?: ""), Icons.Rounded.Download, { data.download(suggestion) }, Modifier.fillMaxWidth())
             Text("Covers ${areaLabel(suggestion)}, a 5° by 5° area. Trips near its edge may need the neighbouring area too.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else if (suggestion == null) {
             Text("Turn on location to see which routing data covers where you are.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

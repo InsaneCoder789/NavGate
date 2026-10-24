@@ -33,7 +33,7 @@ private val Ink = Color(0xFF0B1220)
  * and action label over the turn, tracking help, and the live frame rates.
  */
 @Composable
-fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: TrackInput?, snapped: GeoPoint?, gps: GeoPoint?, distanceToTurnMeters: Double, driving: Boolean, fpsMode: ArFpsMode, modifier: Modifier = Modifier) {
+fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: TrackInput?, snapped: GeoPoint?, gps: GeoPoint?, distanceToTurnMeters: Double, driving: Boolean, fpsMode: ArFpsMode, modifier: Modifier = Modifier, objectAwareness: Boolean = true) {
     val inputs = remember { ArInputs() }
     var status by remember { mutableStateOf<ArSessionStatus>(ArSessionStatus.Starting) }
     var hud by remember { mutableStateOf<ArHud?>(null) }
@@ -56,7 +56,7 @@ fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: Track
     }
     // The render thread reads these; they are plain volatile fields, so updating them costs nothing per frame.
     SideEffect {
-        inputs.path = path; inputs.roadEndMeters = roadEnd; inputs.turnKind = turnKind; inputs.geometry = geometry; inputs.driving = driving
+        inputs.objectAwareness = objectAwareness; inputs.path = path; inputs.roadEndMeters = roadEnd; inputs.turnKind = turnKind; inputs.geometry = geometry; inputs.driving = driving
         inputs.alongShapeMeters = track?.alongShapeMeters ?: 0.0; inputs.speedMps = track?.speedMps ?: 0.0; inputs.fixElapsedMillis = track?.fixElapsedMillis ?: 0L
         inputs.compassAzimuth = basis?.takeIf { kotlin.math.abs(it.pitchDegrees) < 55 }?.headingDegrees
         inputs.compassUpAzimuth = basis?.let { (Math.toDegrees(kotlin.math.atan2(it.up[0], it.up[1])) + 360.0) % 360.0 }
@@ -64,9 +64,10 @@ fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: Track
 
     Box(modifier) {
         if (status is ArSessionStatus.Unavailable) {
-            // No ARCore on this phone: the plain camera with the compass-based line.
+            // No ARCore on this phone: AR needs it, so say so plainly over the plain camera instead of drawing a guess.
             CameraPreview(Modifier.fillMaxSize())
-            ArRoadOverlay(path, roadEnd, gps, basis, turnKind, turnLabel, roadEnd, Modifier.fillMaxSize())
+            Text("AR guidance needs Google Play Services for AR, which this phone does not support. Use the map to navigate.",
+                Modifier.align(Alignment.Center).padding(32.dp).clip40().background(Ink.copy(alpha = 0.85f)).padding(horizontal = 20.dp, vertical = 14.dp), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         } else {
             ArSessionView(inputs, fpsMode, { status = it; if (it is ArSessionStatus.Running) Unit }, { hud = it; if (status !is ArSessionStatus.Running) status = ArSessionStatus.Running }, Modifier.fillMaxSize())
             ArTextLayer(hud, turnKind, turnLabel, distanceToTurnMeters, fpsMode)
@@ -97,11 +98,12 @@ private fun BoxScope.ArTextLayer(hud: ArHud?, turnKind: String?, turnLabel: Stri
             }
         }
         hud?.tracking?.let { message ->
-            Text(message, Modifier.align(Alignment.Center).clip40().background(Ink.copy(alpha = 0.85f)).padding(horizontal = 18.dp, vertical = 12.dp), color = Color.White, style = MaterialTheme.typography.titleMedium)
+            // Under the turn banner, clear of the mode switch on the right.
+            Text(message, Modifier.align(Alignment.TopCenter).padding(top = 170.dp, start = 12.dp, end = 92.dp).clip40().background(Ink.copy(alpha = 0.85f)).padding(horizontal = 16.dp, vertical = 10.dp), color = Color.White, style = MaterialTheme.typography.titleSmall)
         }
         if (hud != null) Text(
-            "${fpsMode.name} · camera ${hud.cameraFps} fps · overlay ${hud.overlayFps} fps${if (hud.groundFound) "" else " · finding ground"}",
-            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 150.dp).clip40().background(Ink.copy(alpha = 0.55f)).padding(horizontal = 10.dp, vertical = 4.dp),
+            "${fpsMode.name} · camera ${hud.cameraFps} fps · overlay ${hud.overlayFps} fps${if (hud.groundFound) " · phone %.2f m up".format(hud.phoneHeight) else " · finding ground"}${if (hud.objects > 0) " · ${hud.objects} in view" else ""}",
+            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 196.dp).clip40().background(Ink.copy(alpha = 0.55f)).padding(horizontal = 10.dp, vertical = 4.dp),
             color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp,
         )
     }

@@ -15,8 +15,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.ui.journey.GlassPanel
 import com.rohanc.navgate.ui.journey.GlassWeight
-import com.rohanc.navgate.ui.journey.GmPrimaryButton
-import com.rohanc.navgate.ui.journey.GmTonalButton
+import com.rohanc.navgate.ui.journey.NgPrimaryButton
+import com.rohanc.navgate.ui.journey.NgTonalButton
 import com.rohanc.navgate.core.GeoPoint
 import com.rohanc.navgate.core.ManualRoute
 import com.rohanc.navgate.core.RoutePin
@@ -29,8 +29,10 @@ import com.rohanc.navgate.ui.state.asDistanceLabel
 @Composable
 internal fun ManualRoutePanel(store: ManualRouteStore, pins: List<RoutePin>, onPins: (List<RoutePin>)->Unit,
                               selectedPoint: GeoPoint?, onPick: ()->Unit, onClearPoint: ()->Unit,
-                              onInspect: (GeoPoint)->Unit, onClearInspection: ()->Unit = {}) {
+                              onInspect: (GeoPoint)->Unit, onClearInspection: ()->Unit = {}, onRoadRoute: (ManualRoute)->Unit = {}) {
     val scope=rememberCoroutineScope()
+    val context=androidx.compose.ui.platform.LocalContext.current
+    fun shareGpx(route: ManualRoute){context.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND).setType("application/gpx+xml").putExtra(android.content.Intent.EXTRA_SUBJECT,route.name).putExtra(android.content.Intent.EXTRA_TEXT,com.rohanc.navgate.core.Gpx.write(route)),"Share GPX"))}
     var unreadable by remember { mutableStateOf<List<String>>(emptyList()) }
     var routes by remember { mutableStateOf<List<ManualRoute>>(emptyList()) }
     var routeId by rememberSaveable { mutableStateOf(UUID.randomUUID().toString()) }
@@ -60,7 +62,7 @@ internal fun ManualRoutePanel(store: ManualRouteStore, pins: List<RoutePin>, onP
         }
 
         ManualSection("Add a pin") {
-            GmTonalButton("Pin location on map", Icons.Rounded.PinDrop, onPick, Modifier.fillMaxWidth(), enabled = !busy)
+            NgTonalButton("Pin location on map", Icons.Rounded.PinDrop, onPick, Modifier.fillMaxWidth(), enabled = !busy)
             ManualField(label, { label = it.take(120) }, "Pin label")
             // Quick names for the places people save first.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -70,7 +72,7 @@ internal fun ManualRoutePanel(store: ManualRouteStore, pins: List<RoutePin>, onP
                 ManualField(latitude, { latitude = it.take(30) }, "Latitude", Modifier.weight(1f), KeyboardType.Decimal)
                 ManualField(longitude, { longitude = it.take(30) }, "Longitude", Modifier.weight(1f), KeyboardType.Decimal)
             }
-            GmPrimaryButton("Add labelled pin", Icons.Rounded.AddLocationAlt, {
+            NgPrimaryButton("Add labelled pin", Icons.Rounded.AddLocationAlt, {
                 try {
                     val point = GeoPoint(latitude.toDouble(), longitude.toDouble())
                     val pin = RoutePin(UUID.randomUUID().toString(), label.trim(), point)
@@ -98,9 +100,9 @@ internal fun ManualRoutePanel(store: ManualRouteStore, pins: List<RoutePin>, onP
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            GmPrimaryButton("Save manual route", Icons.Rounded.Check, { perform { store.save(ManualRoute(routeId, name.trim(), mode, pins.toList())); message = "Manual route saved" } },
+            NgPrimaryButton("Save manual route", Icons.Rounded.Check, { perform { store.save(ManualRoute(routeId, name.trim(), mode, pins.toList())); message = "Manual route saved" } },
                 Modifier.weight(1f), enabled = !busy && pins.size >= 2 && name.isNotBlank())
-            GmTonalButton("New manual route", Icons.Rounded.Add, { routeId = UUID.randomUUID().toString(); name = ""; label = ""; latitude = ""; longitude = ""; onPins(emptyList()); onClearPoint(); onClearInspection(); message = null },
+            NgTonalButton("New manual route", Icons.Rounded.Add, { routeId = UUID.randomUUID().toString(); name = ""; label = ""; latitude = ""; longitude = ""; onPins(emptyList()); onClearPoint(); onClearInspection(); message = null },
                 Modifier.weight(1f), enabled = !busy)
         }
         message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) }
@@ -111,6 +113,8 @@ internal fun ManualRoutePanel(store: ManualRouteStore, pins: List<RoutePin>, onP
             routes.forEach { route ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(enabled = !busy, modifier = Modifier.weight(1f), onClick = { routeId = route.id; name = route.name; mode = route.mode; onPins(route.pins); onInspect(route.pins.first().point) }) { Text("Open ${route.name} · ${route.pins.size} pins · ${route.mode}") }
+                    TextButton(enabled = !busy && route.pins.size >= 2, onClick = { onRoadRoute(route) }) { Text("Navigate") }
+                    TextButton(enabled = !busy && route.pins.size >= 2, onClick = { shareGpx(route) }) { Text("GPX") }
                     TextButton(enabled = !busy, onClick = { perform { store.delete(route.id); if (routeId == route.id) { routeId = UUID.randomUUID().toString(); name = ""; onPins(emptyList()); onClearInspection() }; message = "Manual route deleted" } }) { Text("Delete ${route.name}") }
                 }
             }
@@ -118,7 +122,7 @@ internal fun ManualRoutePanel(store: ManualRouteStore, pins: List<RoutePin>, onP
                 Text("A saved manual route is unreadable. Other routes are still available.", color = MaterialTheme.colorScheme.error)
                 TextButton(enabled = !busy, onClick = { perform { store.delete(id); message = "Unreadable record removed" } }) { Text("Remove unreadable route $id") }
             }
-            GmTonalButton("Reload saved routes", Icons.Rounded.Refresh, { perform { reload() } }, Modifier.fillMaxWidth(), enabled = !busy)
+            NgTonalButton("Reload saved routes", Icons.Rounded.Refresh, { perform { reload() } }, Modifier.fillMaxWidth(), enabled = !busy)
         }
     }
 }

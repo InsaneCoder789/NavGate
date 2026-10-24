@@ -27,15 +27,15 @@ import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.PlaceSearchResult
 
-/** Full-screen search like a maps app: one field, recent places, then results with distance from the user. */
+/** Full-screen search: one field, recent places, then results with distance from the user. */
 @Composable
 fun SearchPage(query: String, searchFor: String, results: List<PlaceSearchResult>, recents: List<PlaceSearchResult>, loading: Boolean,
     notice: String?, hasLocationPermission: Boolean, userLocation: Coordinate?, a: JourneyActions) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    GlassPanel(Modifier.fillMaxSize(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false) {
+    GlassPanel(Modifier.fillMaxSize(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.78f) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
-            GlassPanel(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Thin, shadow = false) {
+            GlassPanel(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Thin, shadow = false, minOpacity = 0.6f) {
                 Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = a.back) { Icon(Icons.Rounded.ArrowBack, "Back") }
                     Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {

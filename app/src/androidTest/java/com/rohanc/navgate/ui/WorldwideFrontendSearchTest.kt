@@ -32,7 +32,7 @@ class WorldwideFrontendSearchTest {
         val store=ViewModelStore()
         lateinit var vm:NavGateViewModel
         compose.runOnUiThread{
-            vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,clock)},InMemoryUserPlacesStore(),InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta),clock)
+            vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,clock,routingProvider=com.rohanc.navgate.testing.FixtureRouting())},InMemoryUserPlacesStore(),InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta),clock)
             store.put("worldwide-search",vm)
         }
         try {

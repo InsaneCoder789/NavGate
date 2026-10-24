@@ -73,7 +73,7 @@ class ValhallaRoutingProvider(
 
     private fun key(r:PlanRequest):String {
         val raw=listOf(endpoint.toString(),// Origin is bucketed to ~100 m: reads still require the cached route to start within 100 m of the pin.
-        Math.round(r.origin.latitude*1000),Math.round(r.origin.longitude*1000),r.destinationPoint?.latitude,r.destinationPoint?.longitude,r.profile,r.destinationPlaceId,r.regionId,r.preference).joinToString("|")
+        Math.round(r.origin.latitude*1000),Math.round(r.origin.longitude*1000),r.destinationPoint?.latitude,r.destinationPoint?.longitude,r.profile,r.destinationPlaceId,r.regionId,r.preference,RoadPreferences.avoidTolls,RoadPreferences.avoidHighways).joinToString("|")
         return java.security.MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString(""){"%02x".format(it)}
     }
     /** Backup routes: the best route from where you are now plus up to two alternates, validated like any other route. */
@@ -141,7 +141,8 @@ class ValhallaRoutingProvider(
             val costing=if(request.profile=="driving")"auto"else"pedestrian"
             put("costing",costing);put("units","kilometers");put("language","en-US")
             if(alternates>0)put("alternates",alternates)
-            putJsonObject("costing_options"){putJsonObject(costing){put("use_ferry",0);if(request.preference=="shortest")put("shortest",true)}}
+            putJsonObject("costing_options"){putJsonObject(costing){put("use_ferry",0);if(request.preference=="shortest")put("shortest",true)
+                if(costing=="auto"){if(RoadPreferences.avoidTolls)put("use_tolls",0);if(RoadPreferences.avoidHighways)put("use_highways",0)}}}
             putJsonArray("locations") { for(point in listOf(request.origin,requireNotNull(request.destinationPoint))) add(buildJsonObject {
                 put("lat",point.latitude);put("lon",point.longitude);put("search_cutoff",100);put("radius",25)
                 // Do not snap a driver standing by a pier onto a ferry instead of a nearby road.

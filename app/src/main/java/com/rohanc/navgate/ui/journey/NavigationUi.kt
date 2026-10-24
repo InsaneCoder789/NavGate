@@ -24,7 +24,7 @@ import com.rohanc.navgate.model.asMetersLabel
 import java.text.DateFormat
 import java.util.Date
 
-private val GuidanceTeal = Color(0xFF265E66)
+private val GuidanceTeal = com.rohanc.navgate.ui.theme.NavGuidance
 
 /** Turn-by-turn guidance: next manoeuvre on top, trip summary and exit at the bottom. */
 @Composable
@@ -74,10 +74,10 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
     if (motion != null && showSensors) SensorHud(motion, Modifier.align(Alignment.CenterStart).padding(start = 88.dp))
     if (motion != null && driving && !showSensors) SpeedBubble(motion, { showSensors = true }, Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = with(density) { bottomPx.toDp() } + 14.dp))
     Column(Modifier.align(Alignment.CenterEnd).offset(y = (-46).dp).padding(end = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        GmMapButton(if (voiceOn) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff, if (voiceOn) "Mute spoken directions" else "Turn on spoken directions", a.toggleVoice)
-        if (motion != null) GmMapButton(Icons.Rounded.Sensors, if (showSensors) "Hide sensor readings" else "Show sensor readings", { showSensors = !showSensors })
+        NgMapButton(if (voiceOn) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff, if (voiceOn) "Mute spoken directions" else "Turn on spoken directions", a.toggleVoice)
+        if (motion != null) NgMapButton(Icons.Rounded.Sensors, if (showSensors) "Hide sensor readings" else "Show sensor readings", { showSensors = !showSensors })
     }
-    GmSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { bottomPx = it.height }) {
+    NgSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { bottomPx = it.height }) {
         Row(Modifier.navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedIconButton(onClick = a.requestStop, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.Close, "Stop navigation") }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -135,7 +135,7 @@ private fun ColorScheme.errorContainerFallback(): Color = Color(0xFFFFE0B2)
 @Composable
 fun BoxScope.ArrivalUi(destinationTitle: String, driving: Boolean, tripSummary: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
     val density = LocalDensity.current
-    GmSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { with(density) { onInsets(0f, it.height.toDp().value) } }) {
+    NgSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { with(density) { onInsets(0f, it.height.toDp().value) } }) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.size(48.dp).background(MaterialTheme.colorScheme.primaryContainer, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Flag, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
@@ -143,8 +143,8 @@ fun BoxScope.ArrivalUi(destinationTitle: String, driving: Boolean, tripSummary: 
             }
             Text(if (driving) "Your driving guidance is complete." else "Your walking guidance is complete.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             tripSummary?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
-            if (driving) GmTonalButton("Save parking spot", Icons.Rounded.LocalParking, a.saveParking, Modifier.fillMaxWidth())
-            GmPrimaryButton("Done", Icons.Rounded.Check, a.finishArrival, Modifier.fillMaxWidth())
+            if (driving) NgTonalButton("Save parking spot", Icons.Rounded.LocalParking, a.saveParking, Modifier.fillMaxWidth())
+            NgPrimaryButton("Done", Icons.Rounded.Check, a.finishArrival, Modifier.fillMaxWidth())
         }
     }
 }

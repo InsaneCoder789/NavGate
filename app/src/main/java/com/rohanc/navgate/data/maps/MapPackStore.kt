@@ -78,6 +78,18 @@ class MapPackStore(context: Context, private val client: OkHttpClient = defaultC
         refresh()
     }
 
+    private var cachedIndex: Pair<String, StreetNameIndex>? = null
+
+    /** A road name for each point, from the active pack's road-name layer; empty when no pack covers the whole line. */
+    suspend fun streetNamesFor(points: List<com.rohanc.navgate.core.GeoPoint>): List<String?> = withContext(Dispatchers.IO) {
+        val pack = active() ?: return@withContext emptyList()
+        if (points.size < 2 || !pack.contains(points.first().latitude, points.first().longitude) || !pack.contains(points.last().latitude, points.last().longitude)) return@withContext emptyList()
+        val index = synchronized(this@MapPackStore) {
+            cachedIndex?.takeIf { it.first == pack.id }?.second ?: StreetNameIndex(Pmtiles.Reader(file(pack))).also { cachedIndex = pack.id to it }
+        }
+        index.namesAlong(points)
+    }
+
     fun totalBytes() = mutablePacks.value.sumOf { it.bytes }
 
     /** Downloads tiles for [area] and installs them as a new pack, which becomes the active one. */

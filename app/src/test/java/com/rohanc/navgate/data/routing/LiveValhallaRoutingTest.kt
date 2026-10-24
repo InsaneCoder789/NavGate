@@ -21,7 +21,7 @@ class LiveValhallaRoutingTest {
             override suspend fun search(query:String,regionId:String)=emptyList<CampusPlace>()
             override suspend fun place(regionId:String,id:String):CampusPlace?=null
         }
-        val provider=HybridRoutingProvider(regions,ValhallaRoutingProvider())
+        val provider=ValhallaRoutingProvider()
         for(mode in listOf("walking","driving")) {
             var now=1000L
             val clock=object:BackendClock {override fun elapsedMillis()=now;override fun epochMillis()=System.currentTimeMillis()}

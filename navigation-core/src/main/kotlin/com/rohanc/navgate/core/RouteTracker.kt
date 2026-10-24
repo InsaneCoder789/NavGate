@@ -11,6 +11,13 @@ class RouteGeometry(val points: List<GeoPoint>) {
     val cumulative = DoubleArray(points.size).also { for (i in 1 until points.size) it[i] = it[i - 1] + points[i - 1].distanceTo(points[i]) }
     val length: Double get() = cumulative.lastOrNull() ?: 0.0
 
+    companion object { const val COURSE_PENALTY_METERS = 12.0 }
+
+    private fun courseMismatch(roadBearing: Double, course: Double): Double {
+        val d = abs(((roadBearing - course + 540.0) % 360.0) - 180.0)    // 0 = same direction, 180 = opposite
+        return if (d <= 30.0) 0.0 else ((d - 30.0) / 150.0).coerceIn(0.0, 1.0)
+    }
+
     data class Hit(val alongMeters: Double, val lateralMeters: Double, val point: GeoPoint, val segment: Int)
 
     private fun segmentAt(s: Double): Int {
@@ -39,14 +46,16 @@ class RouteGeometry(val points: List<GeoPoint>) {
      * Closest spot on the route within [fromS]..[toS]. Distance from the point is the main cost; [continuityWeight] adds a small
      * penalty for being far from [predictedS], so a parallel road or a loop that crosses itself cannot steal the match.
      */
-    fun nearest(point: GeoPoint, fromS: Double, toS: Double, predictedS: Double?, continuityWeight: Double = 0.25): Hit? {
+    fun nearest(point: GeoPoint, fromS: Double, toS: Double, predictedS: Double?, continuityWeight: Double = 0.25, courseDegrees: Double? = null): Hit? {
         if (points.size < 2) return null
         var i = segmentAt(max(0.0, fromS)); var best: Hit? = null; var bestCost = Double.MAX_VALUE
         while (i < points.size - 1 && cumulative[i] <= toS) {
             val p = project(point, points[i], points[i + 1])
             val along = cumulative[i] + (cumulative[i + 1] - cumulative[i]) * p.fraction
             if (along in fromS..toS) {
-                val cost = p.distanceMeters + (predictedS?.let { continuityWeight * abs(along - it) } ?: 0.0)
+                // Heading of travel separates side-by-side roads and a flyover from the road beneath: up to 12 m of cost for facing the wrong way.
+                val coursePenalty = courseDegrees?.let { COURSE_PENALTY_METERS * courseMismatch(points[i].bearingTo(points[i + 1]), it) } ?: 0.0
+                val cost = p.distanceMeters + coursePenalty + (predictedS?.let { continuityWeight * abs(along - it) } ?: 0.0)
                 if (cost < bestCost) { bestCost = cost; best = Hit(along, p.distanceMeters, p.point, i) }
             }
             i++
@@ -100,9 +109,9 @@ class RouteTracker(private val route: RouteGeometry, private val walking: Boolea
         lastT = t
     }
 
-    fun update(point: GeoPoint, accuracyMeters: Double, speedMps: Double?, tMillis: Long): RoutePosition {
+    fun update(point: GeoPoint, accuracyMeters: Double, speedMps: Double?, tMillis: Long, courseDegrees: Double? = null): RoutePosition {
         if (!started) {
-            val hit = route.nearest(point, 0.0, route.length, s.takeIf { it > 0 })
+            val hit = route.nearest(point, 0.0, route.length, s.takeIf { it > 0 }, courseDegrees = courseDegrees)
             if (hit != null) { s = hit.alongMeters; lateral = hit.lateralMeters }
             v = speedMps?.takeIf { it.isFinite() && it >= 0 } ?: 0.0
             p00 = max(accuracyMeters, 3.0).let { it * it }; p01 = 0.0; p11 = 4.0
@@ -114,7 +123,7 @@ class RouteTracker(private val route: RouteGeometry, private val walking: Boolea
         val sigma = sqrt(max(p00, 1.0))
         val from = (s - 25 - 3 * sigma).coerceAtLeast(0.0)
         val to = s + max(v, 1.0) * 2.0 + 40 + 3 * sigma
-        val hit = route.nearest(point, from, to, s)
+        val hit = route.nearest(point, from, to, s, courseDegrees = courseDegrees)
         val acc = max(accuracyMeters, 3.0)
         val measured = speedMps?.takeIf { it.isFinite() && it >= 0 }
         if (hit == null) { offStreak++; locked = offStreak < 3; return position(tMillis) }

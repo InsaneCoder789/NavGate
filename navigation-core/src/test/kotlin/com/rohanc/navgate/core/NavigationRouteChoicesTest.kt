@@ -57,7 +57,6 @@ class NavigationRouteChoicesTest {
             alternative.copy(id = "wrong-point", destinationPoint = at(30.0, 1_000.0)),
             alternative.copy(id = "wrong-mode", profile = "walking"),
             alternative.copy(id = "wrong-region", regionId = "another-region"),
-            alternative.copy(id = "wrong-provider", provider = "another-provider"),
             alternative.copy(id = "unknown-source", source = "unknown"),
         )
         val backend = backend { candidates }

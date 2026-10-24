@@ -31,7 +31,7 @@ internal class BackendTestHarness(private val dispatcher:CoroutineDispatcher) : 
     override suspend fun search(query:String,regionId:String)=if(regionId=="kiit") places.filter{it.title.contains(query,true)} else emptyList()
     override suspend fun place(regionId:String,id:String)=places.find{it.id==id}
     fun viewModel(preferences: com.rohanc.navgate.data.AppPreferencesStore = InMemoryAppPreferencesStore(storedCityMode=CityMode.KiitBeta)):NavGateViewModel=NavGateViewModel(
-        backendFactory={scope:CoroutineScope -> NavigationBackend(scope,this,this,this,compute=dispatcher,io=dispatcher).also{backend=it}},
+        backendFactory={scope:CoroutineScope -> NavigationBackend(scope,this,this,this,compute=dispatcher,io=dispatcher,routingProvider=FixtureRouting()).also{backend=it}},
         userPlacesStore=users,appPreferencesStore=preferences,clock=this)
     fun appPlace(index:Int)=places[index].toAppPlace()
 }

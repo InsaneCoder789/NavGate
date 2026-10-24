@@ -17,7 +17,7 @@ object OfflineRouteBuilder {
         val length = geometry.length
         require(track.points.size >= 2 && length > 0)
         val seconds = track.seconds.takeIf { it.isFinite() && it > 0 } ?: (length / if (request.profile == "driving") 11.0 else 1.3)
-        val maneuvers = TurnExtractor.extract(track.points, request.profile, destinationLabel = request.destinationTitle)
+        val maneuvers = TurnExtractor.extract(track.points, request.profile, track.streetNames, request.destinationTitle)
         // Time at each point, in proportion to distance along the line: BRouter's own totals, spread evenly.
         val elapsed = track.points.indices.map { if (length <= 0) 0.0 else geometry.cumulative[it] / length * seconds }
         val warnings = buildList {

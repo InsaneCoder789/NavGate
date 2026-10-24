@@ -5,7 +5,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NavigationSessionTest {
-    private suspend fun route(): CampusRoute = (CampusRoutingProvider(fixturePack()).route(PlanRequest(1,"test",fixturePack().nodes.first().point,"target")) as RouteResult.Ready).route
+    private fun route(): CampusRoute = fixtureRoute()
     private fun fix(point:GeoPoint,time:Long,accuracy:Double=4.0)=LocationFix(point,time,accuracy)
 
     @Test fun `manual preview cannot start without fresh accurate location at planned start`() = runTest {
@@ -81,10 +81,24 @@ class NavigationSessionTest {
         assertNull(session.location(fix(off,11_000),11_000).reroute)
         assertNull(session.location(fix(off,12_000),12_000).reroute)
         val request=requireNotNull(session.location(fix(off,13_000),13_000).reroute)
-        assertEquals("v1",request.pinnedVersion)
-        assertEquals("local_campus_astar",request.request.routingSource)
+        assertNull(request.pinnedVersion)
+        assertEquals("valhalla",request.request.routingSource)
         assertNull(session.location(fix(off,14_000),14_000).reroute)
         session.stop()
         assertEquals(SessionStatus.Stopped,session.replace(request,RouteResult.Ready(route.copy(requestId=request.requestId))).snapshot.status)
+    }
+
+    @Test fun `an online trip can be rerouted by the offline router when the network drops`() = runTest {
+        val session=NavigationSession(); val route=route()
+        session.preview(route);session.location(fix(route.geometry.first(),1_000),1_000);session.start(1_000)
+        val off=GeoPoint(19.9997,85.0)
+        session.location(fix(off,11_000),11_000);session.location(fix(off,12_000),12_000)
+        val request=requireNotNull(session.location(fix(off,13_000),13_000).reroute)
+        val end=route.geometry.last(); val length=off.distanceTo(end); val seconds=length/1.35
+        val offlineRoute=route.copy(requestId=request.requestId,source="brouter",provider="brouter-offline",id="offline-detour",geometry=listOf(off,end),distanceMeters=length,estimatedSeconds=seconds,
+            maneuvers=listOf(Maneuver("Head north",off,0.0,"Start"),Maneuver("You have arrived",end,length,"Arrive")),shapeElapsedSeconds=listOf(0.0,seconds))
+        val after=session.replace(request,RouteResult.Ready(offlineRoute)).snapshot
+        assertNotEquals("unavailable: ${after.signalReason}",SessionStatus.GuidanceUnavailable,after.status)
+        assertEquals("brouter",after.route?.source)
     }
 }

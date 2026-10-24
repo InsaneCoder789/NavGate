@@ -21,10 +21,10 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
     private val data = context.applicationContext.navGatePreferences
     override suspend fun frontendPreferences(): FrontendPreferences {
         val p = data.data.first()
-        return FrontendPreferences(p[APPEARANCE] ?: "system",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true,p[BUILDINGS] ?: true,(p[GLASS] ?: 0.15f).coerceIn(0f,1f),p[AR_FPS] ?: "auto")
+        return FrontendPreferences(p[APPEARANCE] ?: "system",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true,p[BUILDINGS] ?: true,(p[GLASS] ?: 0.15f).coerceIn(0f,1f),p[AR_FPS] ?: "auto",p[AR_OBJECTS] ?: true,p[SEND_CRASHES] ?: false,p[AVOID_TOLLS] ?: false,p[AVOID_HIGHWAYS] ?: false)
     }
     override suspend fun setFrontendPreferences(value: FrontendPreferences) { data.edit {
-        it[APPEARANCE]=value.appearance;it[SOLID]=value.reduceTransparency;it[MOTION]=value.reduceMotion;it[VOICE]=value.voiceEnabled;it[BUILDINGS]=value.buildings3d;it[GLASS]=value.glassOpacity;it[AR_FPS]=value.arFps
+        it[APPEARANCE]=value.appearance;it[SOLID]=value.reduceTransparency;it[MOTION]=value.reduceMotion;it[VOICE]=value.voiceEnabled;it[BUILDINGS]=value.buildings3d;it[GLASS]=value.glassOpacity;it[AR_FPS]=value.arFps;it[AR_OBJECTS]=value.arObjects;it[SEND_CRASHES]=value.sendCrashReports;it[AVOID_TOLLS]=value.avoidTolls;it[AVOID_HIGHWAYS]=value.avoidHighways
     } }
     override suspend fun isOnboardingSeen(): Boolean = data.data.first()[ONBOARDING] ?: false
     override suspend fun markOnboardingSeen() { data.edit { it[ONBOARDING] = true } }
@@ -36,6 +36,10 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
     companion object {
         private val APPEARANCE=stringPreferencesKey("frontend_appearance")
         private val BUILDINGS=booleanPreferencesKey("frontend_buildings_3d")
+        private val AR_OBJECTS=booleanPreferencesKey("frontend_ar_objects")
+        private val SEND_CRASHES=booleanPreferencesKey("frontend_send_crashes")
+        private val AVOID_TOLLS=booleanPreferencesKey("frontend_avoid_tolls")
+        private val AVOID_HIGHWAYS=booleanPreferencesKey("frontend_avoid_highways")
         private val AR_FPS=stringPreferencesKey("frontend_ar_fps")
         private val GLASS=floatPreferencesKey("frontend_glass_opacity")
         private val SOLID=booleanPreferencesKey("frontend_reduce_transparency")

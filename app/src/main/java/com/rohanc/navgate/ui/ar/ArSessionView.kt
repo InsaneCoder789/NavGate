@@ -66,10 +66,12 @@ class ArInputs {
     /** True-north heading of the top edge of the phone, used when the camera looks at the ground. */
     @Volatile var compassUpAzimuth: Double? = null
     @Volatile var driving = true
+    /** Hide the line behind people, vehicles and animals the camera sees. */
+    @Volatile var objectAwareness = true
 }
 
 /** What the render thread reports back for the on-screen text and status. */
-data class ArHud(val turnX: Float?, val turnY: Float?, val tracking: String?, val aligned: Boolean, val groundFound: Boolean, val cameraFps: Int, val overlayFps: Int)
+data class ArHud(val turnX: Float?, val turnY: Float?, val tracking: String?, val aligned: Boolean, val groundFound: Boolean, val cameraFps: Int, val overlayFps: Int, val objects: Int = 0, val phoneHeight: Double = 0.0, val confidence: Double = 0.0)
 
 private const val TAG = "NavGateAR"
 
@@ -127,16 +129,20 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     private var session: Session? = null
     private val background = BackgroundRenderer()
     private val path = ArPathRenderer()
-    private val aligner = ArGeoAligner()
+    private val objects = ArObjectAwareness(context)
+    private val world = ArWorld()
+    private val aligner get() = world.aligner
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
     @Volatile private var viewport = intArrayOf(0, 0)
     private val target = resolveFps(context, fpsMode)
-    private var groundHeight: Double? = null
+    private val ground = GroundEstimator()
     private var groundSamples = 0
+    private var phoneHeightNow = 0.0
     private var planesOff = false
     private var lastTimestamp = 0L
     private var last: PoseSample? = null
     private var previous: PoseSample? = null
+    private var lastAxes: Pair<DoubleArray, DoubleArray>? = null
     private var lostAtMillis = 0L
     private var cameraFrames = 0; private var drawnFrames = 0; private var windowStart = SystemClock.elapsedRealtime()
     private var cameraFps = 0; private var overlayFps = 0
@@ -212,7 +218,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     }
 
     fun pause() { surface.onPause(); session?.pause() }
-    fun release() { surface.onPause(); session?.close(); session = null }
+    fun release() { surface.onPause(); session?.close(); session = null; objects.close() }
 
     private fun draw() {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
@@ -226,6 +232,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         val tracking = camera.trackingState == TrackingState.TRACKING
         val newImage = frame.timestamp != lastTimestamp
         if (newImage) { lastTimestamp = frame.timestamp; cameraFrames++ }
+        // Looks at the picture for people and vehicles whether or not tracking has started, a few times a second.
+        if (newImage && inputs.objectAwareness && fpsPolicyAllowsObjects()) objects.maybeDetect(frame, now, width, height)
 
         if (!tracking) {
             if (lostAtMillis == 0L) lostAtMillis = now
@@ -233,14 +241,14 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
             return
         }
         // ARCore's world can shift when tracking comes back after a loss: realign from scratch rather than trust the old offset.
-        if (lostAtMillis != 0L) { if (now - lostAtMillis > 1500) { aligner.reset(); last = null; previous = null }; lostAtMillis = 0L }
+        if (lostAtMillis != 0L) { if (now - lostAtMillis > 1500) { world.relocalized(); ground.reset(); groundSamples = 0; last = null; previous = null }; lostAtMillis = 0L }
 
         val displayPose = camera.displayOrientedPose
         if (newImage || last == null) {
             previous = last
             last = PoseSample(System.nanoTime(), doubleArrayOf(displayPose.tx().toDouble(), displayPose.ty().toDouble(), displayPose.tz().toDouble()),
                 doubleArrayOf(displayPose.qx().toDouble(), displayPose.qy().toDouble(), displayPose.qz().toDouble(), displayPose.qw().toDouble()))
-            updateGround(active, displayPose)
+            updateGround(frame, active, displayPose, width, height)
             alignWorld(displayPose, now)
         }
         // Between camera frames (Max mode) the pose is carried forward at the speed it was last moving, so the line moves at display rate.
@@ -251,11 +259,15 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
 
         var turnX: Float? = null; var turnY: Float? = null
         val scene = buildScene(last!!.position[1])
+        GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST); GLES20.glDisable(GLES20.GL_CULL_FACE)
+        drawFeetMarker(now)
         if (scene != null) {
             GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
             GLES20.glDisable(GLES20.GL_DEPTH_TEST); GLES20.glDisable(GLES20.GL_CULL_FACE)
             val seconds = (now % 100_000L) / 1000f
-            path.drawRibbon(mvp, scene.ribbon, seconds, scene.roadEnd)
+            path.setHidden(if (inputs.objectAwareness && fpsPolicyAllowsObjects()) objects.latest.takeIf { now - it.atMillis < 1200 } else null, width, height)
+            path.drawRibbon(mvp, scene.ribbon, seconds, scene.roadEnd, world.confidence.toFloat())
             scene.arrowOutline?.let { path.drawSolid(mvp, it, 0.04f, 0.07f, 0.12f, 0.92f) }
             scene.arrow?.let { path.drawSolid(mvp, it, if (scene.turnIsArrival) 0.78f else 1.0f, if (scene.turnIsArrival) 1.0f else 0.62f, if (scene.turnIsArrival) 0.0f else 0.0f, 0.97f) }
             scene.turnPoint?.let { t ->
@@ -265,75 +277,76 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
             GLES20.glDisable(GLES20.GL_BLEND)
         }
         drawnFrames++
-        publishHud(now, turnX, turnY, if (aligner.aligned) null else "Aligning with the road: hold the phone up and look along it")
+        publishHud(now, turnX, turnY, when { !aligner.aligned -> "Aligning with the road: hold the phone up and look along it"; world.confidence < 0.5 -> "Lining up with the road: walk a few steps forward"; else -> null })
     }
+
+    /**
+     * "You are here": a small blue disc and ring on the ground under the body, only while the phone looks down at the feet, and held to the
+     * ground itself, so lifting or lowering the phone never drags it. It fades in as the phone tilts from level toward straight down.
+     */
+    private fun drawFeetMarker(now: Long) {
+        val l = last ?: return
+        val axes = lastAxes ?: return
+        val plan = FeetMarker.plan(l.position[0], l.position[2], axes.first, axes.second) ?: return
+        val y = ground.groundY(l.position[1], assumedPhoneHeight()) + 0.015
+        val centre = GroundPoint(plan.x, plan.z)
+        val phase = ((now % 1800L) / 1800.0)
+        val a = plan.alpha
+        path.drawSolid(mvp, ArMesh.disc(centre, y, plan.radius), 0.16f, 0.45f, 1.0f, 0.24f * a)
+        path.drawSolid(mvp, ArMesh.ring(centre, y + 0.004, plan.radius, 0.07), 0.35f, 0.65f, 1.0f, 0.95f * a)
+        path.drawSolid(mvp, ArMesh.ring(centre, y + 0.002, plan.radius + 0.4 * phase, 0.05), 0.35f, 0.65f, 1.0f, (0.5 * (1.0 - phase)).toFloat() * a)
+    }
+
+    /** A phone is held lower in a car mount than at a walker's chest; this only matters until the ground has been measured. */
+    private fun assumedPhoneHeight() = if (inputs.driving) 1.25 else 1.3
 
     // ---- tracking, ground and alignment -------------------------------------------------------------------------------------------------
 
-    private fun updateGround(active: Session, pose: Pose) {
-        val y = pose.ty()
-        // Height above the ground: the nearest upward-facing horizontal plane that lies well below the phone.
-        val floor = active.getAllTrackables(Plane::class.java).filter {
-            it.trackingState == TrackingState.TRACKING && it.subsumedBy == null && it.type == Plane.Type.HORIZONTAL_UPWARD_FACING && y - it.centerPose.ty() > 0.5f
-        }.maxOfOrNull { it.centerPose.ty() }
-        if (floor != null) {
-            groundSamples++
-            val measured = (y - floor).toDouble().coerceIn(0.7, 2.5)
-            groundHeight = groundHeight?.let { it + (measured - it) * 0.06 } ?: measured
+    /**
+     * Measures the ground: rays from the lower part of the picture are tested against the planes ARCore has found, and the height where
+     * they land is the ground's height in the world. Phone height above the ground then follows from where the phone is, so it is always current.
+     */
+    private fun updateGround(frame: Frame, active: Session, pose: Pose, width: Int, height: Int) {
+        val camY = pose.ty().toDouble()
+        var hits = 0
+        for ((fx, fy) in listOf(0.5f to 0.88f, 0.5f to 0.7f, 0.3f to 0.8f, 0.7f to 0.8f, 0.5f to 0.5f)) {
+            val hit = frame.hitTest(width * fx, height * fy).firstOrNull { r ->
+                val t = r.trackable; t is Plane && t.type == Plane.Type.HORIZONTAL_UPWARD_FACING && t.isPoseInPolygon(r.hitPose)
+            } ?: continue
+            ground.addSample(hit.hitPose.ty().toDouble(), camY); hits++
         }
-        // Once the ground height has settled, stop plane detection: it is the most expensive part of tracking.
-        if (!planesOff && groundSamples > 120) { planesOff = true; runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.DISABLED }) } }
+        if (hits > 0) groundSamples++
+        phoneHeightNow = ground.phoneHeight(camY, assumedPhoneHeight())
+        // Once the ground has settled, stop plane detection: it is the most expensive part of tracking. The height is kept as a world value.
+        if (!planesOff && ground.found && groundSamples > 120) { planesOff = true; runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.DISABLED }) } }
     }
 
-    /** Feeds ARCore's camera and the route-locked vehicle position to the aligner. The road's own direction aligns the world once moving. */
+    /** Feeds ARCore's camera and the route-locked vehicle position to the AR engine. The road's own direction aligns the world once moving. */
     private fun alignWorld(pose: Pose, now: Long) {
         val geometry = inputs.geometry ?: return
-        val alongNow = (inputs.alongShapeMeters + inputs.speedMps * ((now - inputs.fixElapsedMillis) / 1000.0).coerceIn(0.0, 8.0)).coerceIn(0.0, geometry.length)
-        val here = geometry.pointAt(alongNow); val bearing = geometry.bearingAt(alongNow)
+        val alongNow = inputs.alongShapeMeters + inputs.speedMps * ((now - inputs.fixElapsedMillis) / 1000.0).coerceIn(0.0, 8.0)
         fun axis(i: Int) = pose.getTransformedAxis(i, 1f).let { doubleArrayOf(it[0].toDouble(), it[1].toDouble(), it[2].toDouble()) }
         val z = axis(2)
         val reading = ArCameraReading(doubleArrayOf(pose.tx().toDouble(), pose.ty().toDouble(), pose.tz().toDouble()), doubleArrayOf(-z[0], -z[1], -z[2]), axis(0), axis(1), now)
-        aligner.update(reading, inputs.compassAzimuth, here, 3.0, bearing, inputs.speedMps, inputs.compassUpAzimuth)
+        lastAxes = reading.forward to reading.up
+        world.align(reading, inputs.compassAzimuth, inputs.compassUpAzimuth, geometry, alongNow, inputs.speedMps)
     }
 
     private fun predictedPose(): Pose? {
         val l = last ?: return null; val p = previous ?: return null
         val span = (l.timeNanos - p.timeNanos).toDouble()
         if (span <= 0 || span > 200e6) return null
-        val k = ((System.nanoTime() - l.timeNanos) / span).coerceIn(0.0, 1.6)
-        val position = DoubleArray(3) { l.position[it] + (l.position[it] - p.position[it]) * k }
-        val q = ArMath.extrapolate(p.rotation, l.rotation, 1.0 + k)
+        val (position, q) = PosePredictor.predict(p.position, p.rotation, l.position, l.rotation, (System.nanoTime() - l.timeNanos) / span)
         return Pose(floatArrayOf(position[0].toFloat(), position[1].toFloat(), position[2].toFloat()), floatArrayOf(q[0].toFloat(), q[1].toFloat(), q[2].toFloat(), q[3].toFloat()))
     }
 
     // ---- what to draw -------------------------------------------------------------------------------------------------------------------
 
-    private class Scene(val ribbon: ArMeshData, val arrow: ArMeshData?, val arrowOutline: ArMeshData?, val turnPoint: GroundPoint?, val turnIsArrival: Boolean, val roadEnd: Float, val groundY: Float)
+    private fun buildScene(cameraY: Double): ArScene? =
+        world.buildScene(inputs.path, inputs.roadEndMeters, inputs.turnKind, ground.groundY(cameraY, assumedPhoneHeight()))
 
-    private fun buildScene(cameraY: Double): Scene? {
-        val geo = inputs.path
-        if (geo.size < 2 || !aligner.aligned) return null
-        val ground = geo.mapNotNull { aligner.toGround(it) }
-        if (ground.size < 2) return null
-        val eye = groundHeight ?: if (inputs.driving) 1.25 else 1.45
-        val y = cameraY - eye + 0.02
-        val ribbon = ArMesh.ribbon(ground, y, 0.8)
-        val end = inputs.roadEndMeters
-        var turn: GroundPoint? = null; var arrow: ArMeshData? = null; var outline: ArMeshData? = null
-        val arrival = inputs.turnKind == "Arrive"
-        // Walk the path to the end of this road and read the direction in and out of it.
-        var travelled = 0.0; var index = ground.lastIndex
-        for (i in 1 until ground.size) { travelled += hypot(ground[i].x - ground[i - 1].x, ground[i].z - ground[i - 1].z); if (travelled >= end) { index = i; break } }
-        if (inputs.turnKind != null && index >= 2) {
-            turn = ground[index]
-            fun unit(a: GroundPoint, b: GroundPoint): GroundPoint { val dx = b.x - a.x; val dz = b.z - a.z; val n = hypot(dx, dz).takeIf { it > 1e-6 } ?: 1.0; return GroundPoint(dx / n, dz / n) }
-            val incoming = unit(ground[max(0, index - 3)], ground[index])
-            val outgoing = if (index < ground.lastIndex) unit(ground[index], ground[min(ground.lastIndex, index + 3)]) else incoming
-            if (arrival) { arrow = ArMesh.ring(turn, y + 0.03, 2.2, 0.55); outline = ArMesh.ring(turn, y + 0.025, 2.2, 1.0) }
-            else { arrow = ArMesh.turnArrow(turn, incoming, outgoing, y + 0.03); outline = ArMesh.turnArrow(turn, incoming, outgoing, y + 0.025, 1.6) }
-        }
-        return Scene(ribbon, arrow, outline, turn, arrival, end.toFloat(), y.toFloat())
-    }
+    /** Object awareness costs battery, so the 30 fps saver mode leaves it off. */
+    private fun fpsPolicyAllowsObjects() = target.first >= 60 || fpsMode != ArFpsMode.Saver
 
     private fun trackingMessage(camera: Camera): String? = when (camera.trackingFailureReason) {
         TrackingFailureReason.INSUFFICIENT_LIGHT -> "Too dark for AR: turn on more light or use the map"
@@ -347,7 +360,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         if (now - windowStart >= 1000) { cameraFps = cameraFrames; overlayFps = drawnFrames; cameraFrames = 0; drawnFrames = 0; windowStart = now }
         if (now - lastHudAt < 60) return
         lastHudAt = now
-        val hud = ArHud(turnX, turnY, tracking, aligner.aligned, groundHeight != null, cameraFps, overlayFps)
+        val hud = ArHud(turnX, turnY, tracking, aligner.aligned, ground.found, cameraFps, overlayFps, objects.latest.takeIf { now - it.atMillis < 1200 }?.count ?: 0, phoneHeightNow, world.confidence)
+        ArDiagnostics.record(now, hud)
         main.post { onHud(hud) }
     }
 }
@@ -355,7 +369,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
 /** Draws the ribbon and arrow meshes with a small shader: fade with distance, glowing edges, chevrons that flow toward the turn. */
 private class ArPathRenderer {
     private var program = 0; private var buffer = 0
-    private var aPos = 0; private var aUv = 0; private var uMvp = 0; private var uMode = 0; private var uTime = 0; private var uEnd = 0; private var uColor = 0
+    private var aPos = 0; private var aUv = 0; private var uMvp = 0; private var uMode = 0; private var uTime = 0; private var uEnd = 0; private var uColor = 0; private var uBox = 0; private var uViewport = 0; private var uConfidence = 0
+    private val boxes = FloatArray(32); private var viewW = 1f; private var viewH = 1f
     private var staging: FloatBuffer = ByteBuffer.allocateDirect(4 * 5 * 6 * 400).order(ByteOrder.nativeOrder()).asFloatBuffer()
 
     fun create() {
@@ -364,8 +379,25 @@ private class ArPathRenderer {
             void main(){ gl_Position = uMvp * vec4(aPos, 1.0); vUv = aUv; }""")
         val fragment = compile(GLES20.GL_FRAGMENT_SHADER, """
             precision mediump float; varying vec2 vUv; uniform int uMode; uniform float uTime; uniform float uEnd; uniform vec4 uColor;
+            uniform vec4 uBox[8]; uniform vec2 uViewport; uniform float uConfidence;
+            // 0 where something stands in front of the road (the lower part of a person's or vehicle's box), 1 elsewhere, with a soft edge.
+            float clearOfObjects() {
+              vec2 p = vec2(gl_FragCoord.x / uViewport.x, 1.0 - gl_FragCoord.y / uViewport.y);
+              float keep = 1.0;
+              for (int i = 0; i < 8; i++) {
+                vec4 b = uBox[i];
+                if (b.z > b.x) {
+                  float top = b.y + (b.w - b.y) * 0.18;
+                  float inX = smoothstep(b.x - 0.01, b.x + 0.015, p.x) * (1.0 - smoothstep(b.z - 0.015, b.z + 0.01, p.x));
+                  float inY = smoothstep(top - 0.01, top + 0.02, p.y) * (1.0 - smoothstep(b.w - 0.01, b.w + 0.02, p.y));
+                  keep *= 1.0 - inX * inY;
+                }
+              }
+              return keep;
+            }
             void main(){
-              if (uMode == 1) { gl_FragColor = uColor; return; }
+              float visible = clearOfObjects();
+              if (uMode == 1) { gl_FragColor = vec4(uColor.rgb, uColor.a * visible); return; }
               float side = abs(vUv.x);
               float edge = smoothstep(0.80, 0.96, side);
               // Chevrons point along the road and flow toward the turn.
@@ -378,7 +410,8 @@ private class ArPathRenderer {
               float near = smoothstep(0.8, 3.5, vUv.y);
               float a = (0.58 + 0.30 * (1.0 - side)) * far * beyond * near;
               a = max(a, edge * far * beyond * near * 0.95);
-              gl_FragColor = vec4(col, a);
+              // Less sure of the alignment: fainter line, never a confident-looking one that may be wrong.
+              gl_FragColor = vec4(col, a * visible * mix(0.45, 1.0, uConfidence));
             }""")
         program = GLES20.glCreateProgram().also { GLES20.glAttachShader(it, vertex); GLES20.glAttachShader(it, fragment); GLES20.glLinkProgram(it) }
         val linked = IntArray(1); GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linked, 0)
@@ -386,11 +419,19 @@ private class ArPathRenderer {
         aPos = GLES20.glGetAttribLocation(program, "aPos"); aUv = GLES20.glGetAttribLocation(program, "aUv")
         uMvp = GLES20.glGetUniformLocation(program, "uMvp"); uMode = GLES20.glGetUniformLocation(program, "uMode")
         uTime = GLES20.glGetUniformLocation(program, "uTime"); uEnd = GLES20.glGetUniformLocation(program, "uEnd"); uColor = GLES20.glGetUniformLocation(program, "uColor")
+        uBox = GLES20.glGetUniformLocation(program, "uBox"); uViewport = GLES20.glGetUniformLocation(program, "uViewport"); uConfidence = GLES20.glGetUniformLocation(program, "uConfidence")
         val ids = IntArray(1); GLES20.glGenBuffers(1, ids, 0); buffer = ids[0]
     }
 
-    fun drawRibbon(mvp: FloatArray, mesh: ArMeshData, seconds: Float, roadEnd: Float) {
-        GLES20.glUseProgram(program); GLES20.glUniform1i(uMode, 0); GLES20.glUniform1f(uTime, seconds); GLES20.glUniform1f(uEnd, max(roadEnd, 10f))
+    /** Rectangles (view-normalized) the line must stay behind; null clears them. */
+    fun setHidden(detected: DetectedBoxes?, width: Int, height: Int) {
+        java.util.Arrays.fill(boxes, 0f)
+        detected?.let { System.arraycopy(it.rects, 0, boxes, 0, minOf(32, it.count * 4)) }
+        viewW = width.toFloat(); viewH = height.toFloat()
+    }
+
+    fun drawRibbon(mvp: FloatArray, mesh: ArMeshData, seconds: Float, roadEnd: Float, confidence: Float) {
+        GLES20.glUseProgram(program); GLES20.glUniform1i(uMode, 0); GLES20.glUniform1f(uConfidence, confidence); GLES20.glUniform1f(uTime, seconds); GLES20.glUniform1f(uEnd, max(roadEnd, 10f))
         draw(mvp, mesh)
     }
 
@@ -402,6 +443,7 @@ private class ArPathRenderer {
     private fun draw(mvp: FloatArray, mesh: ArMeshData) {
         if (mesh.vertexCount == 0) return
         GLES20.glUniformMatrix4fv(uMvp, 1, false, mvp, 0)
+        GLES20.glUniform4fv(uBox, 8, boxes, 0); GLES20.glUniform2f(uViewport, viewW, viewH)
         if (staging.capacity() < mesh.vertices.size) staging = ByteBuffer.allocateDirect(mesh.vertices.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
         staging.clear(); staging.put(mesh.vertices, 0, mesh.vertexCount * 5); staging.flip()
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, buffer)

@@ -8,19 +8,21 @@ import kotlinx.coroutines.CancellationException
 class OfflineRoutingProvider internal constructor(
     private val tiles: TileAccess,
     private val engine: RouteEngine,
+    private val streetNames: suspend (List<GeoPoint>) -> List<String?> = { emptyList() },
     private val clock: () -> Long = System::currentTimeMillis,
 ) : RoutingProvider {
     internal interface TileAccess { fun missing(names: List<String>): List<String>; fun prepare() }
     internal interface RouteEngine { suspend fun route(from: GeoPoint, to: GeoPoint, profile: String, avoidTolls: Boolean, avoidHighways: Boolean): OfflineTrack }
 
     companion object {
-        fun of(data: RoutingDataStore): OfflineRoutingProvider = OfflineRoutingProvider(object : TileAccess {
+        /** [streetNames] gives a road name per point (from a saved map pack) so offline directions can name the roads. */
+        fun of(data: RoutingDataStore, streetNames: suspend (List<GeoPoint>) -> List<String?> = { emptyList() }): OfflineRoutingProvider = OfflineRoutingProvider(object : TileAccess {
             override fun missing(names: List<String>) = data.missing(names)
             override fun prepare() = data.prepareProfiles()
         }, object : RouteEngine {
             private val brouter = BRouterEngine(data.segments, data.profiles)
             override suspend fun route(from: GeoPoint, to: GeoPoint, profile: String, avoidTolls: Boolean, avoidHighways: Boolean) = brouter.route(from, to, profile, avoidTolls, avoidHighways)
-        })
+        }, streetNames)
 
         /** A provider with canned tiles and a canned answer, for tests. */
         internal fun forTesting(installed: Boolean, result: RouteResult): OfflineRoutingProvider = OfflineRoutingProvider(object : TileAccess {
@@ -49,7 +51,8 @@ class OfflineRoutingProvider internal constructor(
         return try {
             tiles.prepare()
             val track = engine.route(request.origin, destination, request.profile, RoadPreferences.avoidTolls, RoadPreferences.avoidHighways)
-            val route = OfflineRouteBuilder.build(request, track, clock())
+            val named = runCatching { streetNames(track.points) }.getOrDefault(emptyList())
+            val route = OfflineRouteBuilder.build(request, OfflineTrack(track.points, track.seconds, named), clock())
             val problems = RouteIntegrity.shapeErrors(route)
             if (problems.isEmpty()) RouteResult.Ready(route) else RouteResult.Unavailable(RouteFailure.InvalidGraph, "The offline route could not be validated.")
         } catch (c: CancellationException) { throw c }

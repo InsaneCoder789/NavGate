@@ -29,3 +29,19 @@ internal class MemoryRegionStore : RegionStore {
         versions[key] = pack; digests[key] = sha256; activeVersions[pack.regionId] = pack.version
     }
 }
+
+/** A road-style route a -> b -> c over the fixture coordinates, shaped like a provider response. */
+internal fun fixtureRoute(requestId: Long = 1): CampusRoute {
+    val points = listOf(GeoPoint(20.0, 85.0), GeoPoint(20.0, 85.001), GeoPoint(20.001, 85.001))
+    val first = points[0].distanceTo(points[1]); val total = first + points[1].distanceTo(points[2])
+    val seconds = total / 1.35
+    return CampusRoute("fixture-route", requestId, "test", "fixture-v1", "target", "", points, emptyList(), total, seconds,
+        listOf(Maneuver("Head east", points[0], 0.0, "Start"), Maneuver("Turn left", points[1], first, "Left"), Maneuver("You have arrived", points[2], total, "Arrive")),
+        "", source = "valhalla", profile = "walking", provider = "fixture", fetchedAtEpochMillis = 1L, destinationPoint = points.last(), destinationTitle = "Test target",
+        shapeElapsedSeconds = listOf(0.0, first / 1.35, seconds))
+}
+
+/** Always answers with the fixture route, or with a failure when [failure] is set. */
+internal class FixedRouting(private val failure: RouteResult.Unavailable? = null) : RoutingProvider {
+    override suspend fun plan(request: PlanRequest, pinnedVersion: String?): RouteResult = failure ?: RouteResult.Ready(fixtureRoute(request.requestId))
+}
