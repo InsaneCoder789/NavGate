@@ -1,0 +1,306 @@
+{
+  "version": "2.0.0",
+  "date": "2026-10-25",
+  "status": "Runtime navigation marker assets",
+  "sourceCommit": "d545dd6",
+  "models": [
+    {
+      "key": "sedan",
+      "label": "Sedan",
+      "file": "sedan.glb",
+      "bytes": 181928,
+      "triangles": 2954,
+      "dimensions": {
+        "width": 1.9698,
+        "height": 1.2823,
+        "length": 4.6
+      },
+      "bounds": {
+        "min": [
+          -0.9848867308705826,
+          0.0,
+          -2.3
+        ],
+        "max": [
+          0.9848867308705826,
+          1.2823089740997553,
+          2.3
+        ]
+      },
+      "sha256": "a5c0b1bc0ef83490642f05b8a0aa83c74dd88871218884a6b719ac307a741e9e",
+      "source": {
+        "name": "car1",
+        "id": "Cz6yDaUcM9",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "page": "https://poly.pizza/m/Cz6yDaUcM9",
+        "download": "https://static.poly.pizza/59a67a6c-490e-472e-bae6-5a4d2541f1c7.glb",
+        "bytes": 164752,
+        "sha256": "bf00f2f0386a25aa310abc0424d22586e46a59ee6c737e6b375c97c9f01bd462"
+      },
+      "up": "+Y",
+      "forward": "-Z",
+      "units": "metres",
+      "defaultPaint": "#F4F6FA",
+      "paintMaterials": [
+        "BodyPaint"
+      ],
+      "sourceLength": 4.220716953277588,
+      "uniformScale": 1.089862232156525
+    },
+    {
+      "key": "pickup",
+      "label": "Trail truck",
+      "file": "pickup.glb",
+      "bytes": 450516,
+      "triangles": 6432,
+      "dimensions": {
+        "width": 2.2317,
+        "height": 1.7841,
+        "length": 5.0
+      },
+      "bounds": {
+        "min": [
+          -1.1158319870873672,
+          0.0,
+          -2.5
+        ],
+        "max": [
+          1.1158319870873672,
+          1.784082382211836,
+          2.5
+        ]
+      },
+      "sha256": "9edbe630ddca746081ba9a164467c192a56666497045e1d9d4e2532fd5bf8dc6",
+      "source": {
+        "name": "pickup",
+        "id": "qn4grQgHm8",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "page": "https://poly.pizza/m/qn4grQgHm8",
+        "download": "https://static.poly.pizza/4e925a01-dbb8-4aab-848b-221306b835ea.glb",
+        "bytes": 273012,
+        "sha256": "9d6b2e33af0d37bf42b2e7af850949f4efd0ddbb9a88077812d152d8b4c1c3eb"
+      },
+      "up": "+Y",
+      "forward": "-Z",
+      "units": "metres",
+      "defaultPaint": "#FFD21F",
+      "paintMaterials": [
+        "BodyPaint"
+      ],
+      "sourceLength": 5.18038130663521,
+      "uniformScale": 0.9651799170836766
+    },
+    {
+      "key": "suv",
+      "label": "SUV",
+      "file": "suv.glb",
+      "bytes": 201004,
+      "triangles": 3294,
+      "dimensions": {
+        "width": 2.3572,
+        "height": 1.7059,
+        "length": 4.7
+      },
+      "bounds": {
+        "min": [
+          -1.1785883664329502,
+          0.0,
+          -2.35
+        ],
+        "max": [
+          1.1785883664329502,
+          1.7059405915397736,
+          2.35
+        ]
+      },
+      "sha256": "778601d0c20af999e35b6c0437a2349a6e1f1ae69c936d55fb35cb6cbc27dd8e",
+      "source": {
+        "name": "suv",
+        "id": "xsMtZhBkxL",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "page": "https://poly.pizza/m/xsMtZhBkxL",
+        "download": "https://static.poly.pizza/e5fbf2ee-5c9e-47d5-8ab6-80cacd463baa.glb",
+        "bytes": 181608,
+        "sha256": "1a9ce2bba813dca5005abab09715b01b8b5f4a9c48d7260463afdfeb876aa8b6"
+      },
+      "up": "+Y",
+      "forward": "-Z",
+      "units": "metres",
+      "defaultPaint": "#1E9BFF",
+      "paintMaterials": [
+        "BodyPaint"
+      ],
+      "sourceLength": 4.209349155426025,
+      "uniformScale": 1.1165621635215282
+    },
+    {
+      "key": "hatch",
+      "label": "Hatchback",
+      "file": "hatch.glb",
+      "bytes": 192484,
+      "triangles": 3124,
+      "dimensions": {
+        "width": 1.9307,
+        "height": 1.35,
+        "length": 3.9
+      },
+      "bounds": {
+        "min": [
+          -0.9653587725879611,
+          0.0,
+          -1.9500000000000002
+        ],
+        "max": [
+          0.9653587725879611,
+          1.3499731809327695,
+          1.9500000000000002
+        ]
+      },
+      "sha256": "06434c9ef5fefbdcfd253067712e97330381a6b7d9277d8ea49388720705dd06",
+      "source": {
+        "name": "car2",
+        "id": "unqqkULtRU",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "page": "https://poly.pizza/m/unqqkULtRU",
+        "download": "https://static.poly.pizza/d35173c8-6078-4367-8f87-b1f2599f0bb7.glb",
+        "bytes": 174320,
+        "sha256": "e5f5fa41c4434383b20287725c0e9d757cbd0f059eedc342ec265d32a195fe39"
+      },
+      "up": "+Y",
+      "forward": "-Z",
+      "units": "metres",
+      "defaultPaint": "#0E8A98",
+      "paintMaterials": [
+        "BodyPaint"
+      ],
+      "sourceLength": 3.3096230030059814,
+      "uniformScale": 1.178381947568592
+    },
+    {
+      "key": "coupe",
+      "label": "Coupe",
+      "file": "coupe.glb",
+      "bytes": 193452,
+      "triangles": 3148,
+      "dimensions": {
+        "width": 2.1449,
+        "height": 1.3788,
+        "length": 4.5
+      },
+      "bounds": {
+        "min": [
+          -1.0724677058326233,
+          0.0,
+          -2.25
+        ],
+        "max": [
+          1.0724677058326233,
+          1.3787602398181427,
+          2.25
+        ]
+      },
+      "sha256": "49eb6c8d6b274957c24ca8c5a31ec8342caa5ead93b956fab1b4791d6fb3f20a",
+      "source": {
+        "name": "sports",
+        "id": "1mkmFkAz5v",
+        "author": "Quaternius",
+        "license": "CC0-1.0",
+        "page": "https://poly.pizza/m/1mkmFkAz5v",
+        "download": "https://static.poly.pizza/34db1344-31cc-49ac-bc46-c055f68e39ca.glb",
+        "bytes": 175100,
+        "sha256": "bbb1c718d2aaf5f4344e9fb2cd66d8332a998a515b09ddd4dfa14698d787124e"
+      },
+      "up": "+Y",
+      "forward": "-Z",
+      "units": "metres",
+      "defaultPaint": "#F2495A",
+      "paintMaterials": [
+        "BodyPaint"
+      ],
+      "sourceLength": 3.9265329837799072,
+      "uniformScale": 1.1460492038622938
+    },
+    {
+      "key": "arrow",
+      "label": "Navigation arrow",
+      "file": "arrow.glb",
+      "bytes": 7060,
+      "triangles": 30,
+      "dimensions": {
+        "width": 3.0538,
+        "height": 0.457,
+        "length": 4.0
+      },
+      "bounds": {
+        "min": [
+          -1.5268817204301073,
+          0.0,
+          -2.0
+        ],
+        "max": [
+          1.5268817204301073,
+          0.456989247311828,
+          2.0
+        ]
+      },
+      "sha256": "394e294f15727ed95d4bb9fbffaaf21c6d2979aadad595b8c721c367a5b63e5f",
+      "source": {
+        "author": "NavGate original",
+        "license": "CC0-1.0"
+      },
+      "up": "+Y",
+      "forward": "-Z",
+      "units": "metres",
+      "description": "Concave dart silhouette, raised centre ridge, white chamfered rim. Two paint facets preserve heading readability.",
+      "category": "symbol",
+      "defaultPaint": "#307CF6"
+    }
+  ],
+  "paintColors": [
+    {
+      "key": "white",
+      "label": "Glacier white",
+      "color": "#F4F6FA"
+    },
+    {
+      "key": "black",
+      "label": "Onyx black",
+      "color": "#16171A"
+    },
+    {
+      "key": "slate",
+      "label": "Slate grey",
+      "color": "#7C95A3"
+    },
+    {
+      "key": "red",
+      "label": "Signal red",
+      "color": "#F2495A"
+    },
+    {
+      "key": "sky",
+      "label": "Sky blue",
+      "color": "#1E9BFF"
+    },
+    {
+      "key": "yellow",
+      "label": "Sunrise yellow",
+      "color": "#FFD21F"
+    },
+    {
+      "key": "teal",
+      "label": "Lagoon teal",
+      "color": "#0E8A98"
+    },
+    {
+      "key": "cobalt",
+      "label": "Cobalt blue",
+      "color": "#2F5BFF"
+    }
+  ],
+  "renderer": "Filament 1.66.0"
+}

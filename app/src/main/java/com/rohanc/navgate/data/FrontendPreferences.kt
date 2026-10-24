@@ -17,4 +17,11 @@ data class FrontendPreferences(
     val sendCrashReports: Boolean = false,
     val avoidTolls: Boolean = false,
     val avoidHighways: Boolean = false,
+    /** The vehicle drawn on the map while driving: "arrow", "sedan", "pickup", "suv", "hatch" or "coupe". */
+    val vehicleModel: String = "sedan",
+    /** One of the eight vehicle colours, by key (white, black, slate, red, sky, yellow, teal, cobalt). */
+    val vehicleColor: String = "white",
+    /** Set once the first-time walkthrough of AR or of the live camera-and-map view has been shown. */
+    val arIntroSeen: Boolean = false,
+    val vrIntroSeen: Boolean = false,
 )

@@ -1,21 +1,15 @@
 package com.rohanc.navgate.ui.map
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.rohanc.navgate.core.GeoPoint
@@ -98,7 +92,8 @@ private class MarkerState {
  * display frame, so the map glides at the screen's refresh rate rather than stepping with each sensor update.
  */
 @Composable
-fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route: RouteGeometry?, track: TrackInput?, driving: Boolean, following: Boolean, tilt: Double, bodyColor: Color) {
+fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route: RouteGeometry?, track: TrackInput?, driving: Boolean, following: Boolean, tilt: Double, bodyColor: Color,
+    vehicle: VehicleModel = VehicleModel.Sedan, vehiclePaint: Color = VehicleColor.White.paint, paddingFraction: Float = 0.34f) {
     val estimate by motion.collectAsStateWithLifecycle()
     val latestEstimate by rememberUpdatedState(estimate)
     val latestRoute by rememberUpdatedState(route); val latestTrack by rememberUpdatedState(track)
@@ -117,7 +112,7 @@ fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route
                 if (e != null) {
                     state.step(dt, e, latestRoute, latestTrack, latestTilt, camera.position.zoom, camera.position.tilt)
                     if (latestFollowing) camera.position = camera.position.copy(target = Position(longitude = state.point.longitude, latitude = state.point.latitude),
-                        bearing = state.cameraBearing, tilt = state.tilt, zoom = state.zoom, padding = PaddingValues(top = (screenHeightDp * 0.34f).dp))
+                        bearing = state.cameraBearing, tilt = state.tilt, zoom = state.zoom, padding = PaddingValues(top = (screenHeightDp * paddingFraction).dp))
                 }
                 frame = now
             }
@@ -129,38 +124,25 @@ fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route
     val mapBearing = camera.position.bearing.toFloat()
     val halo = (state.accuracy / camera.metersPerDpAtTarget).toFloat().coerceIn(10f, 90f)
     val heading = state.heading.toFloat()
-    Box(Modifier.offset(screen.x - 26.dp, screen.y - 26.dp).size(52.dp)) {
-        Canvas(Modifier.size(52.dp)) {
+    val canvasDp = 140.dp
+    val shownModel = if (driving) vehicle else VehicleModel.Arrow
+    val metresPerDp = camera.metersPerDpAtTarget.toFloat().takeIf { it.isFinite() && it > 0f } ?: 0.1f
+    val lengthDp = (shownModel.length / metresPerDp).coerceIn(if (driving) 44f else 48f, if (driving) 100f else 76f).dp
+    Box(Modifier.offset(screen.x - canvasDp / 2, screen.y - canvasDp / 2).size(canvasDp)) {
+        Canvas(Modifier.fillMaxSize()) {
             val c = Offset(size.width / 2, size.height / 2)
-            drawCircle(bodyColor.copy(alpha = 0.14f), radius = halo.dp.toPx().coerceAtMost(size.width * 1.6f), center = c)
-            rotate(heading - mapBearing, c) { if (driving) drawCar(bodyColor) else drawArrow(bodyColor) }
+            drawCircle(bodyColor.copy(alpha = 0.12f), radius = halo.dp.toPx().coerceAtMost(size.width * 0.5f), center = c)
         }
+        VehicleModelView(
+            model = shownModel,
+            paint = if (driving) vehiclePaint else bodyColor,
+            yawDegrees = heading - mapBearing,
+            pitchDegrees = camera.position.tilt.toFloat(),
+            length = lengthDp,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 
 /** Zoom for the speed: faster, further out. The tipped 3D view already shows far ahead, so it can stay a little closer. */
-private fun zoomFor(speedMps: Double, tipped: Boolean): Double = (when { speedMps > 22 -> 15.8; speedMps > 13 -> 16.4; speedMps > 6 -> 17.0; else -> 17.6 }) + if (tipped) 0.3 else 0.0
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCar(body: Color) {
-    val w = size.width * 0.46f; val l = size.height * 0.86f
-    val left = (size.width - w) / 2; val top = (size.height - l) / 2
-    drawRoundRect(Color(0x55000000), Offset(left + 2.5f, top + 4f), Size(w, l), CornerRadius(w * 0.42f))
-    drawRoundRect(Color.White, Offset(left - 2.2f, top - 2.2f), Size(w + 4.4f, l + 4.4f), CornerRadius(w * 0.46f))
-    drawRoundRect(body, Offset(left, top), Size(w, l), CornerRadius(w * 0.42f))
-    val glass = Color(0xCC0D1B2A)
-    val windshield = Path().apply {
-        moveTo(left + w * 0.16f, top + l * 0.30f); lineTo(left + w * 0.84f, top + l * 0.30f)
-        lineTo(left + w * 0.76f, top + l * 0.47f); lineTo(left + w * 0.24f, top + l * 0.47f); close()
-    }
-    drawPath(windshield, glass)
-    drawRoundRect(glass, Offset(left + w * 0.2f, top + l * 0.62f), Size(w * 0.6f, l * 0.13f), CornerRadius(3f))
-    drawCircle(Color(0xFFFFF3B0), radius = w * 0.07f, center = Offset(left + w * 0.2f, top + l * 0.1f))
-    drawCircle(Color(0xFFFFF3B0), radius = w * 0.07f, center = Offset(left + w * 0.8f, top + l * 0.1f))
-    drawRoundRect(Color(0x66FFFFFF), Offset(left + 3f, top + 3f), Size(w - 6f, l - 6f), CornerRadius(w * 0.38f), style = Stroke(1.2f))
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrow(body: Color) {
-    val c = Offset(size.width / 2, size.height / 2); val r = size.width * 0.34f
-    val path = Path().apply { moveTo(c.x, c.y - r); lineTo(c.x + r * 0.78f, c.y + r * 0.85f); lineTo(c.x, c.y + r * 0.45f); lineTo(c.x - r * 0.78f, c.y + r * 0.85f); close() }
-    drawPath(path, Color.White, style = Stroke(5f)); drawPath(path, body)
-}
+private fun zoomFor(speedMps: Double, tipped: Boolean): Double = (when { speedMps > 22 -> 15.8; speedMps > 13 -> 16.4; speedMps > 6 -> 17.0; else -> 17.6 }) + 0.8 + if (tipped) 0.3 else 0.0

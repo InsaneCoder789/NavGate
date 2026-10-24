@@ -181,7 +181,7 @@ fun distanceFrom(origin: Coordinate?, place: PlaceSearchResult): String? {
 fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier, vertical: Boolean = false, arAvailable: Boolean = true) {
     GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular) {
         val items: @Composable () -> Unit = {
-            listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "AR" to Icons.Rounded.ViewInAr).filter { it.first != "AR" || arAvailable }.forEach { (mode, icon) ->
+            listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "AR" to Icons.Rounded.ViewInAr, "VR" to Icons.Rounded.Videocam).filter { (it.first != "AR" && it.first != "VR") || arAvailable }.forEach { (mode, icon) ->
                 val on = mode == selected
                 val tint = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                 val shape = RoundedCornerShape(20.dp)
@@ -196,5 +196,34 @@ fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modif
         }
         if (vertical) Column(Modifier.padding(4.dp).selectableGroup(), verticalArrangement = Arrangement.spacedBy(2.dp)) { items() }
         else Row(Modifier.padding(4.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) { items() }
+    }
+}
+
+/** One button that jumps to the other camera view (VR from AR, AR from VR); the footer's map button already returns to 2D. */
+@Composable
+fun NgModeButton(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular, onClick = onClick) {
+        Column(Modifier.size(width = 64.dp, height = 68.dp).semantics { contentDescription = "$label navigation" }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(icon, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+        }
+    }
+}
+
+/** The app's own dialog: the same frosted glass, rounded pill buttons and type as every sheet, instead of the system alert. */
+@Composable
+fun NgDialog(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit, dismissLabel: String? = null,
+    confirmEnabled: Boolean = true, icon: ImageVector? = null) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        GlassPanel(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), weight = GlassWeight.Thick, minOpacity = 0.85f) {
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (icon != null) Icon(icon, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
+                Text(title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                NgPrimaryButton(confirmLabel, null, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled)
+                if (dismissLabel != null) NgTonalButton(dismissLabel, null, onDismiss, Modifier.fillMaxWidth())
+            }
+        }
     }
 }

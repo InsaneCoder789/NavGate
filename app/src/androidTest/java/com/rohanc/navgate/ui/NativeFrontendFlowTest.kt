@@ -127,7 +127,7 @@ class NativeFrontendFlowTest {
         compose.onNodeWithContentDescription("Stop navigation").assertExists()
         compose.runOnUiThread{fixture.time+=9000;vm.checkSignal()}
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.SignalLimited}
-        compose.onNodeWithText("Location fix is stale",substring=true).assertIsDisplayed()
+        compose.onNodeWithText("Location fix is stale",substring=true).assertDoesNotExist()
         compose.onNodeWithContentDescription("Steps").performClick()
         assertTrue(compose.onAllNodesWithText("Steps").fetchSemanticsNodes().isNotEmpty())
         compose.onNodeWithContentDescription("Back").performClick()

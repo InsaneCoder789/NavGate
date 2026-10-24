@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import android.os.SystemClock
 import com.rohanc.navgate.ui.map.VehicleMarker
+import com.rohanc.navgate.ui.map.VehicleModel
+import com.rohanc.navgate.ui.map.VehicleColor
 import com.rohanc.navgate.ui.map.TrackInput
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Job
@@ -97,7 +99,7 @@ import com.rohanc.navgate.ui.journey.JourneyScreens
 import com.rohanc.navgate.ui.journey.JourneyUi
 
 /** The MapLibre map with route, markers, vehicle and map controls. */
-@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit,onToggle3d:()->Unit={},nextTurn:Coordinate?=null,motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,showControls:Boolean=true,routeGeometry:com.rohanc.navgate.core.RouteGeometry?=null,trackInput:TrackInput?=null,onPlace:(PlaceSearchResult)->Unit){
+@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit,onToggle3d:()->Unit={},nextTurn:Coordinate?=null,live:Boolean=false,motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,showControls:Boolean=true,routeGeometry:com.rohanc.navgate.core.RouteGeometry?=null,trackInput:TrackInput?=null,onPlace:(PlaceSearchResult)->Unit){
     val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
@@ -131,7 +133,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
     fun fitRoute(){val points=ui.snapshot.route?.pathCoordinates.orEmpty();if(points.isEmpty())return
         val south=points.minOf{it.latitude};val north=points.maxOf{it.latitude};val west=points.minOf{it.longitude};val east=points.maxOf{it.longitude}
         following=false
-        scope.launch{camera.animateTo(BoundingBox(Position(latitude=south,longitude=west),Position(latitude=north,longitude=east)),bearing=0.0,tilt=0.0,padding=PaddingValues(start=24.dp,end=72.dp,top=(topInsetDp+28f).dp,bottom=(bottomInsetDp+24f).dp),duration=if(ui.frontendPreferences.reduceMotion)0.milliseconds else 400.milliseconds)}
+        scope.launch{camera.animateTo(BoundingBox(Position(latitude=south,longitude=west),Position(latitude=north,longitude=east)),bearing=0.0,tilt=0.0,padding=PaddingValues(start=24.dp,end=72.dp,top=(topInsetDp+28f).dp,bottom=(bottomInsetDp+24f).dp),duration=if(ui.frontendPreferences.reduceMotion)1.milliseconds else 400.milliseconds)}
     }
     // Frame the results (and the user) in the part of the map the list does not cover.
     LaunchedEffect(showPins,ui.places,(bottomInsetDp/60f).toInt(),(topInsetDp/40f).toInt()){
@@ -146,7 +148,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
         if(points.size==1){move(camera.position.copy(target=Position(latitude=points[0].latitude,longitude=points[0].longitude),zoom=16.0));return@LaunchedEffect}
         val south=points.minOf{it.latitude};val north=points.maxOf{it.latitude};val west=points.minOf{it.longitude};val east=points.maxOf{it.longitude}
         runCatching{camera.animateTo(BoundingBox(Position(latitude=south,longitude=west),Position(latitude=north,longitude=east)),bearing=0.0,tilt=0.0,
-            padding=PaddingValues(start=40.dp,end=40.dp,top=(topInsetDp+48f).dp,bottom=(bottomInsetDp+48f).dp),duration=if(ui.frontendPreferences.reduceMotion)0.milliseconds else 500.milliseconds)}
+            padding=PaddingValues(start=40.dp,end=40.dp,top=(topInsetDp+48f).dp,bottom=(bottomInsetDp+48f).dp),duration=if(ui.frontendPreferences.reduceMotion)1.milliseconds else 500.milliseconds)}
     }
     LaunchedEffect(inspectPoint){
         if(inspectPoint!=null){following=false;move(camera.position.copy(target=Position(latitude=inspectPoint.latitude,longitude=inspectPoint.longitude),zoom=18.0))}
@@ -238,14 +240,13 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             }
         }}
         if(active&&motion!=null){
-            VehicleMarker(camera,motion,routeGeometry,trackInput,ui.travelProfile==TravelProfile.Driving,following,guideTilt,if(dark)NavRouteDark else NavRouteLight)
+            VehicleMarker(camera,motion,routeGeometry,trackInput,ui.travelProfile==TravelProfile.Driving,following,if(live)58.0 else guideTilt,if(dark)NavRouteDark else NavRouteLight,VehicleModel.of(ui.frontendPreferences.vehicleModel),VehicleColor.of(ui.frontendPreferences.vehicleColor).paint,if(live)0.52f else 0.34f)
         }
         // Guidance gets the full set of map buttons; the home map keeps only the 3D button; everywhere else the map is left clear.
         if((showControls||screenIsExplore)&&(controlsBottomDp==null || controlsBottomDp<viewport.screenHeightDp*0.6f))Column(Modifier.align(if(controlsBottomDp!=null)Alignment.BottomEnd else Alignment.TopEnd).let{if(controlsBottomDp!=null)it.navigationBarsPadding().padding(bottom=controlsBottomDp.dp,end=16.dp) else it.statusBarsPadding().padding(top=topInsetDp.dp,end=16.dp)},verticalArrangement=Arrangement.spacedBy(8.dp)){
             if(showControls)MapControlButton(onClick={val fix=ui.displayLocation ?: ui.snapshot.userLocation;if(!permission)onRequestLocation()else if(fix==null)onFeedback("Looking for your location… You can also choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=maxOf(camera.position.zoom,16.0),bearing=0.0))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
             if(showControls)MapControlButton(onClick=onOpenLayers){Icon(Icons.Rounded.Layers,"Map details")}
             if(!showControls)MapControlButton(onClick=onToggle3d){Icon(if(flat)Icons.Rounded.LocationCity else Icons.Rounded.Map,if(flat)"Show 3D buildings" else "Show flat 2D map")}
-            if(showControls)MapControlButton(enabled=!loading&&!failed,onClick={following=false;scope.launch{move(camera.position.copy(bearing=0.0))}}){Icon(Icons.Rounded.Explore,"Orient map north")}
             // (3D toggle removed: guidance tilts the map itself)
             if(showControls&&ui.snapshot.route!=null)MapControlButton(enabled=!loading&&!failed,onClick={fitRoute()}){Icon(Icons.Rounded.ZoomOutMap,"Fit route")}
         }

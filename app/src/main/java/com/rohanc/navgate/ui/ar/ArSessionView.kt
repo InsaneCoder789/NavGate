@@ -100,7 +100,7 @@ internal fun resolveFps(context: Context, mode: ArFpsMode): Pair<Int, Boolean> {
  * If ARCore cannot start, [onStatus] reports why so the caller can fall back to the plain camera.
  */
 @Composable
-fun ArSessionView(inputs: ArInputs, fpsMode: ArFpsMode, onStatus: (ArSessionStatus) -> Unit, onHud: (ArHud) -> Unit, modifier: Modifier = Modifier) {
+fun ArSessionView(inputs: ArInputs, fpsMode: ArFpsMode, onStatus: (ArSessionStatus) -> Unit, onHud: (ArHud) -> Unit, modifier: Modifier = Modifier, domeTop: Float = 0f) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val latestStatus by rememberUpdatedState(onStatus)
@@ -118,7 +118,25 @@ fun ArSessionView(inputs: ArInputs, fpsMode: ArFpsMode, onStatus: (ArSessionStat
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) holder.resume()
         onDispose { lifecycle.removeObserver(observer); holder.release() }
     }
-    AndroidView(factory = { holder.surface }, modifier = modifier)
+    AndroidView(factory = {
+        holder.surface.also { v ->
+            if (domeTop > 0f && android.os.Build.VERSION.SDK_INT >= 30) {
+                // The picture keeps only the part above a round bite, so the live map shows through the lower part of the screen.
+                v.outlineProvider = object : android.view.ViewOutlineProvider() {
+                    override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                        val w = view.width.toFloat(); val h = view.height.toFloat(); val top = h * domeTop; val ry = (h - top) * 1.12f
+                        val path = android.graphics.Path().apply {
+                            fillType = android.graphics.Path.FillType.EVEN_ODD
+                            addRect(0f, 0f, w, h, android.graphics.Path.Direction.CW)
+                            addOval(-w * 0.5f, top, w * 1.5f, top + 2 * ry, android.graphics.Path.Direction.CW)
+                        }
+                        outline.setPath(path)
+                    }
+                }
+                v.clipToOutline = true
+            }
+        }
+    }, modifier = modifier)
 }
 
 private class PoseSample(val timeNanos: Long, val position: DoubleArray, val rotation: DoubleArray)
@@ -184,7 +202,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
                     updateMode = if (target.second) Config.UpdateMode.LATEST_CAMERA_IMAGE else Config.UpdateMode.BLOCKING
                     focusMode = Config.FocusMode.AUTO
                     lightEstimationMode = Config.LightEstimationMode.DISABLED
-                    depthMode = Config.DepthMode.DISABLED
+                    depthMode = if (created.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) Config.DepthMode.AUTOMATIC else Config.DepthMode.DISABLED
                 })
                 chooseCameraConfig(created)
                 session = created
@@ -258,7 +276,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         Matrix.multiplyMM(mvp, 0, proj, 0, view, 0)
 
         var turnX: Float? = null; var turnY: Float? = null
-        val scene = buildScene(last!!.position[1])
+        val scene = buildScene(last!!.position[1], GroundPoint(last!!.position[0], last!!.position[2]))
         GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         GLES20.glDisable(GLES20.GL_DEPTH_TEST); GLES20.glDisable(GLES20.GL_CULL_FACE)
         drawFeetMarker(now)
@@ -269,7 +287,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
             path.setHidden(if (inputs.objectAwareness && fpsPolicyAllowsObjects()) objects.latest.takeIf { now - it.atMillis < 1200 } else null, width, height)
             path.drawRibbon(mvp, scene.ribbon, seconds, scene.roadEnd, world.confidence.toFloat())
             scene.arrowOutline?.let { path.drawSolid(mvp, it, 0.04f, 0.07f, 0.12f, 0.92f) }
-            scene.arrow?.let { path.drawSolid(mvp, it, if (scene.turnIsArrival) 0.78f else 1.0f, if (scene.turnIsArrival) 1.0f else 0.62f, if (scene.turnIsArrival) 0.0f else 0.0f, 0.97f) }
+            scene.arrow?.let { path.drawSolid(mvp, it, if (scene.turnIsArrival) 1.0f else 0.66f, if (scene.turnIsArrival) 1.0f else 0.80f, 1.0f, 0.97f) }
             scene.turnPoint?.let { t ->
                 val clip = FloatArray(4); Matrix.multiplyMV(clip, 0, mvp, 0, floatArrayOf(t.x.toFloat(), scene.groundY + 2.6f, t.z.toFloat(), 1f), 0)
                 if (clip[3] > 0.1f) { val nx = clip[0] / clip[3]; val ny = clip[1] / clip[3]; if (nx in -1.2f..1.2f && ny in -1.2f..1.2f) { turnX = (nx + 1f) / 2f; turnY = (1f - ny) / 2f } }
@@ -292,9 +310,9 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         val centre = GroundPoint(plan.x, plan.z)
         val phase = ((now % 1800L) / 1800.0)
         val a = plan.alpha
-        path.drawSolid(mvp, ArMesh.disc(centre, y, plan.radius), 0.16f, 0.45f, 1.0f, 0.24f * a)
-        path.drawSolid(mvp, ArMesh.ring(centre, y + 0.004, plan.radius, 0.07), 0.35f, 0.65f, 1.0f, 0.95f * a)
-        path.drawSolid(mvp, ArMesh.ring(centre, y + 0.002, plan.radius + 0.4 * phase, 0.05), 0.35f, 0.65f, 1.0f, (0.5 * (1.0 - phase)).toFloat() * a)
+        path.drawSolid(mvp, ArMesh.disc(centre, y, plan.radius), 0.20f, 0.50f, 1.0f, 0.26f * a)
+        path.drawSolid(mvp, ArMesh.ring(centre, y + 0.004, plan.radius, 0.07), 0.30f, 0.60f, 1.0f, 0.95f * a)
+        path.drawSolid(mvp, ArMesh.ring(centre, y + 0.002, plan.radius + 0.4 * phase, 0.05), 0.30f, 0.60f, 1.0f, (0.5 * (1.0 - phase)).toFloat() * a)
     }
 
     /** A phone is held lower in a car mount than at a walker's chest; this only matters until the ground has been measured. */
@@ -311,7 +329,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         var hits = 0
         for ((fx, fy) in listOf(0.5f to 0.88f, 0.5f to 0.7f, 0.3f to 0.8f, 0.7f to 0.8f, 0.5f to 0.5f)) {
             val hit = frame.hitTest(width * fx, height * fy).firstOrNull { r ->
-                val t = r.trackable; t is Plane && t.type == Plane.Type.HORIZONTAL_UPWARD_FACING && t.isPoseInPolygon(r.hitPose)
+                val t = r.trackable
+                (t is Plane && t.type == Plane.Type.HORIZONTAL_UPWARD_FACING && t.isPoseInPolygon(r.hitPose)) || t is DepthPoint
             } ?: continue
             ground.addSample(hit.hitPose.ty().toDouble(), camY); hits++
         }
@@ -342,8 +361,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
 
     // ---- what to draw -------------------------------------------------------------------------------------------------------------------
 
-    private fun buildScene(cameraY: Double): ArScene? =
-        world.buildScene(inputs.path, inputs.roadEndMeters, inputs.turnKind, ground.groundY(cameraY, assumedPhoneHeight()))
+    private fun buildScene(cameraY: Double, cameraGround: GroundPoint): ArScene? =
+        world.buildScene(inputs.path, inputs.roadEndMeters, inputs.turnKind, ground.groundY(cameraY, assumedPhoneHeight()), cameraGround)
 
     /** Object awareness costs battery, so the 30 fps saver mode leaves it off. */
     private fun fpsPolicyAllowsObjects() = target.first >= 60 || fpsMode != ArFpsMode.Saver
@@ -399,17 +418,17 @@ private class ArPathRenderer {
               float visible = clearOfObjects();
               if (uMode == 1) { gl_FragColor = vec4(uColor.rgb, uColor.a * visible); return; }
               float side = abs(vUv.x);
-              float edge = smoothstep(0.80, 0.96, side);
-              // Chevrons point along the road and flow toward the turn.
-              float phase = fract((vUv.y - uTime * 4.5) / 5.0 + side * 0.18);
-              float chev = smoothstep(0.0, 0.05, phase) * (1.0 - smoothstep(0.09, 0.17, phase));
-              vec3 body = mix(vec3(0.0, 0.90, 1.0), vec3(0.78, 1.0, 0.0), edge);
-              vec3 col = mix(body, vec3(1.0), chev * 0.9 * (1.0 - edge));
-              float far = 1.0 - smoothstep(uEnd * 0.55, uEnd + 6.0, vUv.y);
-              float beyond = vUv.y > uEnd ? 0.35 : 1.0;
-              float near = smoothstep(0.8, 3.5, vUv.y);
-              float a = (0.58 + 0.30 * (1.0 - side)) * far * beyond * near;
-              a = max(a, edge * far * beyond * near * 0.95);
+              // The leading indicator: a solid blue band with bright rails and bold white chevrons that run toward the turn.
+              float rail = smoothstep(0.80, 0.88, side) * (1.0 - smoothstep(0.95, 1.0, side));
+              float phase = fract((vUv.y - uTime * 3.0) / 2.0 + side * 0.30);
+              float chev = smoothstep(0.0, 0.04, phase) * (1.0 - smoothstep(0.17, 0.30, phase));
+              vec3 blue = vec3(0.17, 0.50, 1.0); vec3 ice = vec3(0.66, 0.80, 1.0);
+              vec3 col = mix(mix(blue, ice, side * 0.35), vec3(1.0), chev * 0.92);
+              col = mix(col, ice, rail * 0.9);
+              float far = 1.0 - smoothstep(uEnd * 0.6, uEnd + 6.0, vUv.y);
+              float beyond = vUv.y > uEnd ? 0.4 : 1.0;
+              float near = smoothstep(0.5, 2.4, vUv.y);
+              float a = (0.80 + 0.15 * chev) * far * beyond * near;
               // Less sure of the alignment: fainter line, never a confident-looking one that may be wrong.
               gl_FragColor = vec4(col, a * visible * mix(0.45, 1.0, uConfidence));
             }""")

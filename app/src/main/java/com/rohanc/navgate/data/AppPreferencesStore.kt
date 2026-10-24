@@ -37,11 +37,15 @@ class SharedPrefsAppPreferencesStore(
         sendCrashReports=prefs.getBoolean("frontend_send_crashes",false),
         avoidTolls=prefs.getBoolean("frontend_avoid_tolls",false),
         avoidHighways=prefs.getBoolean("frontend_avoid_highways",false),
+        vehicleModel=prefs.getString("frontend_vehicle","sedan") ?: "sedan",
+        vehicleColor=prefs.getString("frontend_vehicle_color","white") ?: "white",
+        arIntroSeen=prefs.getBoolean("frontend_ar_intro",false),
+        vrIntroSeen=prefs.getBoolean("frontend_vr_intro",false),
     )
     override suspend fun setFrontendPreferences(value:FrontendPreferences) {
         check(prefs.edit().putString("frontend_appearance",value.appearance)
             .putBoolean("frontend_solid",value.reduceTransparency).putBoolean("frontend_motion",value.reduceMotion)
-            .putBoolean("frontend_voice",value.voiceEnabled).putBoolean("frontend_buildings",value.buildings3d).putFloat("frontend_glass",value.glassOpacity).putString("frontend_ar_fps",value.arFps).putBoolean("frontend_ar_objects",value.arObjects).putBoolean("frontend_send_crashes",value.sendCrashReports).putBoolean("frontend_avoid_tolls",value.avoidTolls).putBoolean("frontend_avoid_highways",value.avoidHighways).commit()) { "Preferences could not be saved" }
+            .putBoolean("frontend_voice",value.voiceEnabled).putBoolean("frontend_buildings",value.buildings3d).putFloat("frontend_glass",value.glassOpacity).putString("frontend_ar_fps",value.arFps).putBoolean("frontend_ar_objects",value.arObjects).putBoolean("frontend_send_crashes",value.sendCrashReports).putBoolean("frontend_avoid_tolls",value.avoidTolls).putBoolean("frontend_avoid_highways",value.avoidHighways).putString("frontend_vehicle",value.vehicleModel).putString("frontend_vehicle_color",value.vehicleColor).putBoolean("frontend_ar_intro",value.arIntroSeen).putBoolean("frontend_vr_intro",value.vrIntroSeen).commit()) { "Preferences could not be saved" }
     }
     override suspend fun isOnboardingSeen(): Boolean = prefs.getBoolean(KEY_ONBOARDING_SEEN, false)
 

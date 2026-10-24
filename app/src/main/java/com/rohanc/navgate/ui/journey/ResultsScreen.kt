@@ -65,7 +65,7 @@ fun BoxScope.ResultsScreen(ui: NavGateUiState, userLocation: Coordinate?, onInse
 }
 
 @Composable
-private fun ResultRow(place: PlaceSearchResult, userLocation: Coordinate?, onClick: () -> Unit) {
+internal fun ResultRow(place: PlaceSearchResult, userLocation: Coordinate?, onClick: () -> Unit) {
     val status = remember(place.hours) { OpeningHours.status(place.hours, LocalDateTime.now()) }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         Box(Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {

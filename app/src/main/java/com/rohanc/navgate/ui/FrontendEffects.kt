@@ -37,25 +37,21 @@ internal fun CrashReportPrompt(autoSend: Boolean) {
     }
     val quiet = autoSend && url.isNotBlank() && !failed
     crashReport?.takeUnless { quiet }?.let { report ->
-        AlertDialog(onDismissRequest = { CrashReporter.clear(context); crashReport = null },
-            title = { Text("NavGate closed unexpectedly") },
-            text = { Text("Sorry about that. You can share the technical details with the developer. They contain no places, routes or personal data.") },
-            confirmButton = { TextButton(onClick = {
-                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "NavGate crash report").putExtra(Intent.EXTRA_TEXT, report), "Share crash details"))
-                CrashReporter.clear(context); crashReport = null
-            }) { Text("Share details") } },
-            dismissButton = { TextButton(onClick = { CrashReporter.clear(context); crashReport = null }) { Text("Dismiss") } })
+        com.rohanc.navgate.ui.journey.NgDialog("NavGate closed unexpectedly", "Sorry about that. You can share the technical details with the developer. They contain no places, routes or personal data.", "Share details", {
+            context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "NavGate crash report").putExtra(Intent.EXTRA_TEXT, report), "Share crash details"))
+            CrashReporter.clear(context); crashReport = null
+        }, { CrashReporter.clear(context); crashReport = null }, "Dismiss")
     }
 }
 
 /** Sensors and GPS in, one fused estimate out: 10 Hz to the vehicle marker, 2 Hz to guidance. */
 @Composable
 internal fun LocationPipeline(vm: NavGateViewModel, fusion: MotionFusion, permission: Boolean, active: Boolean, screen: String, displayLocation: () -> GeoPoint?) {
-    BindMotionSensors(enabled = permission && (active || screen == "Camera"), fusion = fusion) { displayLocation() }
+    BindMotionSensors(enabled = permission && (active || (screen == "Camera" || screen == "Live")), fusion = fusion) { displayLocation() }
     BindLocationTracking(enabled = permission, navigating = active, onLocationSample = { fix ->
         fusion.onGps(GpsSample(fix.point, fix.accuracyMeters, fix.speedMps, fix.heading, fix.elapsedMillis)); vm.onRawFix(fix)
     }, onSignalTick = vm::checkSignal)
-    val motionBusy by rememberUpdatedState(active || screen == "Camera")
+    val motionBusy by rememberUpdatedState(active || (screen == "Camera" || screen == "Live"))
     LaunchedEffect(fusion, permission) {
         if (!permission) return@LaunchedEffect
         var lastFed = 0L
@@ -84,13 +80,13 @@ internal fun rememberTripRuntime(vm: NavGateViewModel, session: SessionSnapshot,
     val tripRoute = session.route
     // Save the map along the route while there is a connection, so it still draws if the signal drops mid-trip.
     LaunchedEffect(tripRoute?.id, online, screen) {
-        if (online && tripRoute != null && screen in listOf("Directions", "Route", "Navigation", "Camera"))
+        if (online && tripRoute != null && screen in listOf("Directions", "Route", "Navigation", "Camera", "Live"))
             RouteTilePrefetcher.prefetch(context, tripRoute.id, tripRoute.geometry)
     }
     // Keep the screen on while guiding, and give a touch cue before each turn.
     DisposableEffect(active, screen) {
         val window = (context as? Activity)?.window
-        if (active || screen == "Camera") window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (active || (screen == "Camera" || screen == "Live")) window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose { window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
     val drivingTrip = (tripRoute?.profile ?: "") == "driving"

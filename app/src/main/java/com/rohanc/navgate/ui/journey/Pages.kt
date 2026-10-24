@@ -98,7 +98,7 @@ fun BoxScope.RecentsScreen(ui: NavGateUiState, userLocation: Coordinate?, a: Jou
 }
 
 @Composable
-private fun TripRow(trip: RouteHistoryEntry, a: JourneyActions) {
+internal fun TripRow(trip: RouteHistoryEntry, a: JourneyActions) {
     Row(Modifier.fillMaxWidth().clickable { a.planAgain(trip.destinationTitle) }.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
             Icon(if (trip.travelMode == com.rohanc.navgate.model.TravelProfile.Driving) Icons.Rounded.DirectionsCar else Icons.Rounded.DirectionsWalk, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -126,7 +126,9 @@ data class SettingsModel(val prefs: com.rohanc.navgate.data.FrontendPreferences,
 @Composable
 fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
     var level by remember(model.prefs.glassOpacity) { mutableFloatStateOf(model.prefs.glassOpacity) }
+    var showVehicles by remember { mutableStateOf(false) }
     // The page restyles live while the slider moves; the value is saved when the finger lifts.
+    if (showVehicles) VehiclePickerSheet(model.prefs, a.setPrefs) { showVehicles = false }
     CompositionLocalProvider(LocalGlassOpacity provides level) { GlassPage("Settings", a.back) {
         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SettingsGroup("Appearance") {
@@ -162,7 +164,8 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
             if (com.rohanc.navgate.BuildConfig.CRASH_REPORT_URL.isNotBlank()) SettingsGroup("Help improve NavGate") {
                 SwitchRow("Send crash reports", "If the app closes unexpectedly, send the technical details automatically next time. They contain no places, routes or personal data.", model.prefs.sendCrashReports) { a.setPrefs(model.prefs.copy(sendCrashReports = it)) }
             }
-            SettingsGroup("Driving routes") {
+            SettingsGroup("Driving") {
+                VehicleRow(model.prefs) { showVehicles = true }
                 SwitchRow("Avoid tolls", "Prefer roads without tolls when a sensible route exists. Applies to the next route you plan.", model.prefs.avoidTolls) { a.setPrefs(model.prefs.copy(avoidTolls = it)) }
                 SwitchRow("Avoid highways", "Prefer city streets over motorways. Routes may take longer.", model.prefs.avoidHighways) { a.setPrefs(model.prefs.copy(avoidHighways = it)) }
             }

@@ -24,8 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
-private val Lime = Color(0xFFC6FF00)
-private val Ink = Color(0xFF0B1220)
+private val Lime = Color(0xFFFF8A65)   // coral: the AR accent
+private val Ink = Color(0xFF121B2E)    // deep navy glass
 
 /**
  * The whole AR navigation layer. The road line itself is drawn inside the ARCore GL frame (see [ArSessionView]); this feeds it the
@@ -33,7 +33,7 @@ private val Ink = Color(0xFF0B1220)
  * and action label over the turn, tracking help, and the live frame rates.
  */
 @Composable
-fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: TrackInput?, snapped: GeoPoint?, gps: GeoPoint?, distanceToTurnMeters: Double, driving: Boolean, fpsMode: ArFpsMode, modifier: Modifier = Modifier, objectAwareness: Boolean = true) {
+fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: TrackInput?, snapped: GeoPoint?, gps: GeoPoint?, distanceToTurnMeters: Double, driving: Boolean, fpsMode: ArFpsMode, modifier: Modifier = Modifier, objectAwareness: Boolean = true, sessionTurnKind: String? = null, domeTop: Float = 0f) {
     val inputs = remember { ArInputs() }
     var status by remember { mutableStateOf<ArSessionStatus>(ArSessionStatus.Starting) }
     var hud by remember { mutableStateOf<ArHud?>(null) }
@@ -69,43 +69,9 @@ fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: Track
             Text("AR guidance needs Google Play Services for AR, which this phone does not support. Use the map to navigate.",
                 Modifier.align(Alignment.Center).padding(32.dp).clip40().background(Ink.copy(alpha = 0.85f)).padding(horizontal = 20.dp, vertical = 14.dp), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         } else {
-            ArSessionView(inputs, fpsMode, { status = it; if (it is ArSessionStatus.Running) Unit }, { hud = it; if (status !is ArSessionStatus.Running) status = ArSessionStatus.Running }, Modifier.fillMaxSize())
-            ArTextLayer(hud, turnKind, turnLabel, distanceToTurnMeters, fpsMode)
+            ArSessionView(inputs, fpsMode, { status = it; if (it is ArSessionStatus.Running) Unit }, { hud = it; if (status !is ArSessionStatus.Running) status = ArSessionStatus.Running }, Modifier.fillMaxSize(), domeTop)
+            ArTextLayer(hud, sessionTurnKind ?: turnKind, turnLabel, distanceToTurnMeters, fpsMode, showStatus = domeTop == 0f)
         }
-    }
-}
-
-@Composable
-private fun BoxScope.ArTextLayer(hud: ArHud?, turnKind: String?, turnLabel: String?, distanceToTurnMeters: Double, fpsMode: ArFpsMode) {
-    var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
-    Box(Modifier.matchParentSize().onSizeChanged { size = it }) {
-        val x = hud?.turnX; val y = hud?.turnY
-        if (x != null && y != null && size.width > 0) {
-            val exit = turnLabel?.let { Regex("(\\d+(?:st|nd|rd|th)) exit").find(it)?.groupValues?.get(1) }
-            val title = when (turnKind) {
-                "Left" -> "Turn left"; "SlightLeft" -> "Bear left"; "SharpLeft" -> "Sharp left"; "KeepLeft" -> "Keep left"
-                "Right" -> "Turn right"; "SlightRight" -> "Bear right"; "SharpRight" -> "Sharp right"; "KeepRight" -> "Keep right"
-                "UTurn" -> "U-turn"; "Merge" -> "Merge"; "RoundaboutExit" -> "Leave roundabout"; "Arrive" -> "Arrive"
-                "Roundabout" -> if (exit != null) "Roundabout · $exit exit" else "Roundabout"
-                else -> "Continue"
-            }
-            val density = LocalDensity.current
-            var pill by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
-            Row(Modifier.offset { IntOffset((x * size.width - pill.width / 2f).roundToInt().coerceIn(8, (size.width - pill.width - 8).coerceAtLeast(8)), (y * size.height - pill.height).roundToInt().coerceAtLeast(8)) }
-                .onSizeChanged { pill = it }.clip40().background(Ink.copy(alpha = 0.92f)).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, Modifier.clip40().background(Lime).padding(horizontal = 14.dp, vertical = 8.dp), color = Ink, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
-                Text("${distanceToTurnMeters.toInt().coerceAtLeast(0)} m", Modifier.padding(horizontal = 12.dp), color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-        hud?.tracking?.let { message ->
-            // Under the turn banner, clear of the mode switch on the right.
-            Text(message, Modifier.align(Alignment.TopCenter).padding(top = 170.dp, start = 12.dp, end = 92.dp).clip40().background(Ink.copy(alpha = 0.85f)).padding(horizontal = 16.dp, vertical = 10.dp), color = Color.White, style = MaterialTheme.typography.titleSmall)
-        }
-        if (hud != null) Text(
-            "${fpsMode.name} · camera ${hud.cameraFps} fps · overlay ${hud.overlayFps} fps${if (hud.groundFound) " · phone %.2f m up".format(hud.phoneHeight) else " · finding ground"}${if (hud.objects > 0) " · ${hud.objects} in view" else ""}",
-            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 196.dp).clip40().background(Ink.copy(alpha = 0.55f)).padding(horizontal = 10.dp, vertical = 4.dp),
-            color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp,
-        )
     }
 }
 

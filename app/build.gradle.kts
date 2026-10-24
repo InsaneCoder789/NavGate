@@ -100,6 +100,10 @@ dependencies {
     implementation("org.maplibre.gl:android-sdk:11.13.5")
     implementation("org.maplibre.compose:maplibre-compose:0.11.1")
 
+    // Native GLB rendering for navigation vehicles, with transparent TextureView composition.
+    implementation("com.google.android.filament:filament-android:1.66.0")
+    implementation("com.google.android.filament:gltfio-android:1.66.0")
+
     // CameraX
     implementation("androidx.camera:camera-camera2:1.5.0")
     implementation("androidx.camera:camera-lifecycle:1.5.0")

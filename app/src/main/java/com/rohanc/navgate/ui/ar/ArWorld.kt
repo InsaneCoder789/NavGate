@@ -33,12 +33,14 @@ class ArWorld {
     fun relocalized() = aligner.reset()
 
     /** The ribbon, turn arrow and destination ring for the road ahead, or null until the world is aligned. */
-    fun buildScene(path: List<GeoPoint>, roadEndMeters: Double, turnKind: String?, groundY: Double): ArScene? {
+    fun buildScene(path: List<GeoPoint>, roadEndMeters: Double, turnKind: String?, groundY: Double, camera: GroundPoint? = null): ArScene? {
         if (path.size < 2 || !aligner.aligned) return null
-        val ground = path.mapNotNull { aligner.toGround(it) }
-        if (ground.size < 2) return null
+        val mapped = path.mapNotNull { aligner.toGround(it) }
+        if (mapped.size < 2) return null
+        // The line always starts under the phone, however far the alignment is off, and eases back onto the road ahead.
+        val ground = camera?.let { anchorToCamera(mapped, it) } ?: mapped
         val y = groundY + 0.02
-        val ribbon = ArMesh.ribbon(ground, y, 0.8)
+        val ribbon = ArMesh.ribbon(ground, y, 0.85)
         var turn: GroundPoint? = null; var arrow: ArMeshData? = null; var outline: ArMeshData? = null
         val arrival = turnKind == "Arrive"
         // Walk the path to the end of this road and read the direction in and out of it.
@@ -54,6 +56,33 @@ class ArWorld {
         }
         return ArScene(ribbon, arrow, outline, turn, arrival, roadEndMeters.toFloat(), y.toFloat())
     }
+}
+
+/**
+ * Re-bases [path] so it begins exactly at [camera] (the point on the ground under the phone). Vertices behind the phone are dropped, and
+ * the sideways error between the phone and the nearest point of the road is blended out over [blendMeters] so the line settles on the road.
+ */
+fun anchorToCamera(path: List<GroundPoint>, camera: GroundPoint, blendMeters: Double = 14.0, maxOffset: Double = 8.0): List<GroundPoint> {
+    if (path.size < 2) return path
+    var best = Double.MAX_VALUE; var bi = 0; var bt = 0.0
+    for (i in 0 until path.lastIndex) {
+        val ax = path[i].x; val az = path[i].z; val dx = path[i + 1].x - ax; val dz = path[i + 1].z - az
+        val len2 = dx * dx + dz * dz; val t = if (len2 < 1e-9) 0.0 else (((camera.x - ax) * dx + (camera.z - az) * dz) / len2).coerceIn(0.0, 1.0)
+        val d = hypot(camera.x - (ax + dx * t), camera.z - (az + dz * t))
+        if (d < best) { best = d; bi = i; bt = t }
+    }
+    val nx = path[bi].x + (path[bi + 1].x - path[bi].x) * bt; val nz = path[bi].z + (path[bi + 1].z - path[bi].z) * bt
+    var ox = camera.x - nx; var oz = camera.z - nz
+    val mag = hypot(ox, oz); if (mag > maxOffset) { ox *= maxOffset / mag; oz *= maxOffset / mag }
+    val out = ArrayList<GroundPoint>(path.size - bi + 1)
+    out.add(GroundPoint(nx + ox, nz + oz))
+    var along = 0.0; var px = nx; var pz = nz
+    for (k in bi + 1 until path.size) {
+        along += hypot(path[k].x - px, path[k].z - pz); px = path[k].x; pz = path[k].z
+        val w = (1.0 - along / blendMeters).coerceAtLeast(0.0)
+        out.add(GroundPoint(px + ox * w, pz + oz * w))
+    }
+    return out
 }
 
 /** Carries the camera pose forward between ARCore frames at the speed it was last moving, so the line can be redrawn at screen rate. */

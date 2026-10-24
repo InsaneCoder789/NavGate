@@ -22,10 +22,13 @@ private val Categories = listOf(
 
 /** The home map: search pill, category chips, Directions button and a short "what's here" sheet. */
 @Composable
-fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
+fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions, regionId: String = "mumbai", userLocation: com.rohanc.navgate.model.Coordinate? = null, recentTrips: List<com.rohanc.navgate.model.RouteHistoryEntry> = emptyList()) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
+    val screenDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.toFloat()
+    val sheet = remember { androidx.compose.animation.core.Animatable(COLLAPSED_DP) }
+    val fabVisible by remember { derivedStateOf { sheet.value < screenDp * 0.3f } }
     LaunchedEffect(topPx, bottomPx) { with(density) { onInsets(topPx.toDp().value, bottomPx.toDp().value) } }
     Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged { topPx = it.height }.statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -36,16 +39,14 @@ fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a:
             NgChip("My routes", Icons.Rounded.Route) { a.openMyRoutes() }
         }
     }
-    Column(Modifier.align(Alignment.BottomCenter).onSizeChanged { bottomPx = it.height }) {
-        Row(Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 12.dp), horizontalArrangement = Arrangement.End) {
+    Column(Modifier.align(Alignment.BottomCenter).onSizeChanged { if (sheet.value <= COLLAPSED_DP + 1f) bottomPx = it.height }) {
+        // The Directions button rides on top of the sheet and steps aside once the sheet has been pulled up over the map.
+        if (fabVisible) Row(Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 12.dp), horizontalArrangement = Arrangement.End) {
             NgDirectionsFab({ a.openSearch("to") })
         }
-        NgSheet {
-            Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(areaName ?: "Explore nearby", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
-                Text("Search for a place, or tap one on the map for directions.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        NearbySheet(sheet, screenDp, areaName, regionId, userLocation, recentTrips, a) { a.openPlace(it) }
         NgBottomBar("Explore", a.openTab)
     }
 }
+
+private const val COLLAPSED_DP = 150f

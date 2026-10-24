@@ -61,13 +61,9 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
         if (locationIssue != null) LocationNotice(locationIssue, a)
         val offlineOffRoute = !online && session.offRoute
         if (!online) OfflineNotice(offlineOffRoute, if (offlineOffRoute) rejoinHint(session) else null)
-        val status = session.status
-        if (!offlineOffRoute && (status == SessionStatus.SignalLimited || status == SessionStatus.GuidanceUnavailable || status == SessionStatus.Rerouting || session.offRoute)) {
-            GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, tint = Color(0xFFFFB74D)) {
-                Text(when {
-                    status == SessionStatus.Rerouting -> "Finding a new route…"
-                    else -> session.signalReason ?: "Waiting for a stronger location signal"
-                }, Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium, color = Color(0xFF3C1F00))
+        if (session.status == SessionStatus.Rerouting) GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text("Finding a new route…", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -93,7 +89,7 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
 /** Guidance cannot continue without a position, so say exactly why and how to fix it. */
 @Composable
 private fun LocationNotice(issue: String, a: JourneyActions) {
-    GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, tint = Color(0xFFFFB74D)) {
+    GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false) {
         Row(Modifier.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Rounded.LocationOff, null, Modifier.size(20.dp))
             Text("$issue Guidance pauses until it is back on.", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
@@ -105,7 +101,7 @@ private fun LocationNotice(issue: String, a: JourneyActions) {
 /** Shown while there is no internet. Guidance itself keeps running from the saved route, so this only reassures and, if needed, points back to the road. */
 @Composable
 private fun OfflineNotice(offRoute: Boolean, rejoin: String?) {
-    GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, tint = if (offRoute) Color(0xFFFFB74D) else null) {
+    GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, tint = null) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Icon(Icons.Rounded.CloudOff, null, Modifier.size(20.dp))
             Text(when {

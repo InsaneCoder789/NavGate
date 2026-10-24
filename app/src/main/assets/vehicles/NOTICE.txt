@@ -1,0 +1,9 @@
+NavGate navigation vehicles
+
+Sedan, pickup, SUV, hatchback and coupe: original models by Quaternius, downloaded from the individual Poly Pizza pages listed in catalog.json. Each source page identifies the model as CC0 1.0.
+
+Changes: uniform scale, ground-centred pivot, forward axis normalization, named body paint and PBR material adjustments. Source meshes and original download hashes are recorded in catalog.json.
+
+Navigation arrow: original NavGate geometry, dedicated under CC0 1.0.
+
+Filament is an Android Open Source Project renderer, licensed under Apache 2.0. Its Android libraries are supplied as versioned Maven dependencies.

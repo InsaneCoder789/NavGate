@@ -1,5 +1,8 @@
 package com.rohanc.navgate.ui.journey
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.ViewInAr
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
@@ -23,7 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /** Every screen the app can show. There is no second layout: all of them are drawn by [JourneyUi]. */
 val JourneyScreens = setOf("Explore", "Search", "Results", "Place", "Directions", "Route", "Navigation", "Arrival", "Saved", "Recents", "Settings", "Offline",
-    "Steps", "Camera", "My routes", "ManualPin", "MapPick", "Setup")
+    "Steps", "Camera", "Live", "My routes", "ManualPin", "MapPick", "Setup")
 
 /** All state the screens read, in one place. */
 class JourneyData(
@@ -44,7 +47,7 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
     val userLocation = ui.displayLocation ?: ui.snapshot.userLocation
     if (ui.showOnboarding && d.screen == "Explore") { Onboarding(d.permission, a); return }
     when (d.screen) {
-        "Explore" -> ExploreHome(d.areaName, onInsets, a)
+        "Explore" -> ExploreHome(d.areaName, onInsets, a, ui.cityMode.regionId, userLocation, ui.routeHistory)
         "Results" -> ResultsScreen(ui, userLocation, onInsets, a)
         "Search" -> SearchPage(ui.searchQuery, d.searchFor, d.searchResults, ui.recentPlaces, ui.isLoadingPlaces, ui.searchNotice.takeIf { d.searchFor != "saved" }, d.permission, userLocation, a)
         "Place" -> ui.focusedPlace?.let { place -> PlaceUi(place, ui.savedPlaces.any { it.id == place.id }, userLocation, d.tripActive, onInsets, a) }
@@ -56,7 +59,12 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
         "Settings" -> SettingsScreen(d.settings, a)
         "Offline" -> OfflineScreen(ui.regionStatus, d.tripActive, a)
         "Steps" -> StepsScreen(d.steps, d.session.maneuverIndex, ui.selectedOrigin?.title ?: "Your location", a)
-        "Camera" -> CameraScreen(d.hasCameraPermission, d.cuesAvailable, d.alignment, d.session.instruction, d.session.distanceToManeuver.asMetersLabel(), d.voiceOn, d.session.route?.maneuvers?.getOrNull(d.session.maneuverIndex)?.kind, a)
+        "Live" -> Unit
+        "Camera" -> CameraScreen(d.hasCameraPermission, d.cuesAvailable, d.alignment, d.session.instruction, d.session.distanceToManeuver.asMetersLabel(), d.voiceOn, d.session.route?.maneuvers?.getOrNull(d.session.maneuverIndex)?.kind, a,
+            nextKind = d.session.route?.maneuvers?.getOrNull(d.session.maneuverIndex + 1)?.kind?.takeIf { it != "Arrive" || d.session.maneuverIndex + 1 < (d.session.route?.maneuvers?.size ?: 0) },
+            tripEta = d.session.remainingSeconds.takeIf { it > 0 }?.let { java.time.LocalTime.now().plusSeconds(it.toLong()).format(java.time.format.DateTimeFormatter.ofPattern("h:mm a")) },
+            tripLeft = d.session.remainingSeconds.let { if (it >= 3600) "%d h %d min".format((it / 3600).toInt(), ((it % 3600) / 60).toInt()) else "${(it / 60).toInt().coerceAtLeast(1)} min" },
+            tripDistance = d.session.remainingMeters.asMetersLabel())
         "MapPick" -> PickPrompt(if (d.searchFor == "from") "Tap the map to choose a start" else "Tap the map to choose a destination", a)
         "ManualPin" -> PickPrompt("Tap the map to drop a pin", a)
         "Setup" -> Onboarding(d.permission, a)
@@ -68,6 +76,7 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
         ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = sheetDp.dp + 12.dp), arAvailable = d.session.route?.profile == "walking")
     }
     // While driving the vertical switch sits mid-left, clear of the car, the banner and the map buttons on the right.
+    if (routed && d.screen == "Camera" && d.hasCameraPermission) NgModeButton("VR", Icons.Rounded.Videocam, { a.setViewMode("VR") }, Modifier.align(Alignment.CenterEnd).padding(end = 14.dp).offset(y = (-90).dp))
+    if (routed && d.screen == "Live" && d.hasCameraPermission) NgModeButton("AR", Icons.Rounded.ViewInAr, { a.setViewMode("AR") }, Modifier.align(Alignment.CenterEnd).padding(end = 14.dp).offset(y = (-90).dp))
     if (routed && d.screen == "Navigation") ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterStart).offset(y = 6.dp).padding(start = 12.dp), vertical = true, arAvailable = d.session.route?.profile == "walking")
-    if (routed && d.screen == "Camera" && d.hasCameraPermission) ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterEnd).padding(end = 12.dp), vertical = true)
 }

@@ -33,21 +33,21 @@ private val NavGateColors =
     )
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFFD9482B), onPrimary = Color.White, primaryContainer = Color(0xFFFFDBD0), onPrimaryContainer = Color(0xFF4A1204),
-    secondary = Color(0xFF6B4FD8), onSecondary = Color.White, secondaryContainer = Color(0xFFE9DDFF), onSecondaryContainer = Color(0xFF260F66),
-    tertiary = Color(0xFFB26A00), background = Color(0xFFFBF7F5), onBackground = Color(0xFF201A1D),
-    surface = Color.White, onSurface = Color(0xFF201A1D), surfaceVariant = Color(0xFFF3ECEF), onSurfaceVariant = Color(0xFF665A62),
-    outline = Color(0xFF9A8E96), outlineVariant = Color(0xFFE2D9DE), error = Color(0xFFD93025), onError = Color.White,
-    inverseSurface = Color(0xFF33292F), inverseOnSurface = Color(0xFFF7EEF2),
+    primary = Color(0xFF2F6BE0), onPrimary = Color.White, primaryContainer = Color(0xFFDCE8FF), onPrimaryContainer = Color(0xFF0F2A66),
+    secondary = Color(0xFF2F6BE0), onSecondary = Color.White, secondaryContainer = Color(0xFFDCE8FF), onSecondaryContainer = Color(0xFF0F2A66),
+    tertiary = Color(0xFFB26A00), background = Color(0xFFFBF7F5), onBackground = Color(0xFF18202C),
+    surface = Color.White, onSurface = Color(0xFF18202C), surfaceVariant = Color(0xFFEEF2F8), onSurfaceVariant = Color(0xFF5A6678),
+    outline = Color(0xFF8793A6), outlineVariant = Color(0xFFD8E0EC), error = Color(0xFFD93025), onError = Color.White,
+    inverseSurface = Color(0xFF1F2937), inverseOnSurface = Color(0xFFEEF3FA),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = NavPrimary, onPrimary = NavOnPrimary, primaryContainer = Color(0xFF6B2F1D), onPrimaryContainer = Color(0xFFFFDBD0),
-    secondary = NavSecondary, onSecondary = Color(0xFF2A1457), secondaryContainer = NavSecondaryContainer, onSecondaryContainer = Color(0xFFE9DDFF),
+    primary = NavPrimary, onPrimary = NavOnPrimary, primaryContainer = NavPrimaryContainer, onPrimaryContainer = Color(0xFFDCE8FF),
+    secondary = NavSecondary, onSecondary = Color(0xFF0F2A57), secondaryContainer = NavSecondaryContainer, onSecondaryContainer = Color(0xFFDCE8FF),
     tertiary = NavTertiary, background = NavBackground, onBackground = NavOnSurface,
     surface = NavSurface, onSurface = NavOnSurface, surfaceVariant = NavSurfaceHigh, onSurfaceVariant = NavOnSurfaceVariant,
-    outline = Color(0xFF8C8096), outlineVariant = Color(0xFF3F3548), error = Color(0xFFFF8A80), onError = Color(0xFF601410),
-    inverseSurface = Color(0xFFF4EEF7), inverseOnSurface = Color(0xFF1A1422),
+    outline = Color(0xFF8191AB), outlineVariant = Color(0xFF33415C), error = Color(0xFFFF8A80), onError = Color(0xFF601410),
+    inverseSurface = Color(0xFFEEF3FA), inverseOnSurface = Color(0xFF121B2E),
 )
 
 @Composable
