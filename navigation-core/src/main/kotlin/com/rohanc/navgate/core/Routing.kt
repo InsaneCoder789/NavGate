@@ -68,7 +68,7 @@ data class CampusRoute(
     val label: String? = null,
     val fromCache: Boolean = false,
 ) {
-    val external: Boolean get() = source == "valhalla"
+    val external: Boolean get() = source == "valhalla" || source == "brouter"
     fun shapeToRouteMeters(meters: Double): Double =
         if (geometry.lengthMeters() > 0) meters / geometry.lengthMeters() * distanceMeters else 0.0
     fun routeToShapeMeters(meters: Double): Double =

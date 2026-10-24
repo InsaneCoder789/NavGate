@@ -219,8 +219,9 @@ fun BoxScope.OfflineScreen(region: RegionStatus?, updatesEnabled: Boolean, tripA
                     listOfNotNull(region.version?.let { "Version: $it" }, region.reviewedAt?.let { "Reviewed: $it" }, region.source?.let { "Source: $it" }, region.attribution, region.license?.let { "License: $it" })
                         .forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
-                Text("Map tiles need a connection. Routing data and saved places are stored on this phone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Without a saved offline map, map tiles need a connection. Campus data and saved places are stored on this phone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            OfflineMapAndRoutingGroups(tripActive)
             SettingsGroup("Updates") {
                 GmPrimaryButton("Install signed region files", Icons.Rounded.FileOpen, a.installRegion, Modifier.fillMaxWidth(), enabled = updatesEnabled && !tripActive && !importing)
                 if (!updatesEnabled) Text("External region updates are not enabled in this build. Your installed data remains available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

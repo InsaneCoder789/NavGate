@@ -267,6 +267,7 @@ class NavGateViewModel(
 
     /** Set by the screen from the connectivity monitor; routing refreshes are skipped while offline. */
     @Volatile var networkAvailable: Boolean = true
+        set(value) { field = value; com.rohanc.navgate.data.routing.offline.ConnectivityHint.online = value }
     fun onMotion(estimate: MotionEstimate?) { motionMutable.value = estimate }
 
     /** A raw receiver fix: used to show where the user is and to rank nearby search results; guidance only consumes fused fixes. */

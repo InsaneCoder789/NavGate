@@ -40,8 +40,12 @@ class NavGateServices private constructor(context: Context) {
     private val poiIndex = com.rohanc.navgate.data.search.PoiIndex(context)
     val searchData = WorldwideSearchData(repository,PhotonPlaceSearch(),india=indiaIndex,location=searchLocation,pois=poiIndex)
     init { CoroutineScope(SupervisorJob()+Dispatchers.IO).launch { runCatching { indiaIndex.warmUp() };runCatching { poiIndex.warmUp() } } }
-    val roadRouting = ValhallaRoutingProvider(cache=RoomRoadRouteCache(database))
+    private val onlineRouting = ValhallaRoutingProvider(cache=RoomRoadRouteCache(database))
+    val routingData = com.rohanc.navgate.data.routing.offline.RoutingDataStore(context)
+    /** Online routing first; the phone's own BRouter engine when the network or the server fails and the area's tiles are installed. */
+    val roadRouting: com.rohanc.navgate.core.RoutingProvider = com.rohanc.navgate.data.routing.offline.FailoverRoutingProvider(onlineRouting,com.rohanc.navgate.data.routing.offline.OfflineRoutingProvider.of(routingData))
     val routing = HybridRoutingProvider(regions,roadRouting)
+    val mapPacks = com.rohanc.navgate.data.maps.MapPackStore(context)
     val checkpoints = RoomSessionStore(database,regions)
     // Only a key shipped by the app publisher is trusted. Imported files cannot choose their own trust root.
     private val updateKey = runCatching {

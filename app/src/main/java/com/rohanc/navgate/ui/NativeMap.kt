@@ -112,7 +112,17 @@ import com.rohanc.navgate.ui.journey.JourneyUi
     var failed by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     val flat=!ui.frontendPreferences.buildings3d
-    val style=remember(dark,flat){BaseStyle.Uri("asset://navgate-map-${if(dark)"dark" else "daylight"}${if(flat)"-flat" else ""}.json")}
+    // With no connection (or when the user chose to always draw offline maps) the active downloaded map pack replaces the live tile server.
+    val appContext=androidx.compose.ui.platform.LocalContext.current
+    val mapPacks=remember(appContext){com.rohanc.navgate.data.local.NavGateServices.get(appContext).mapPacks}
+    val activePack by mapPacks.activeId.collectAsState()
+    val alwaysOffline by mapPacks.alwaysOffline.collectAsState()
+    val styleVersion by mapPacks.styleVersion.collectAsState()
+    val useOffline=!connection||alwaysOffline
+    val style=remember(dark,flat,useOffline,activePack,styleVersion){
+        val asset="navgate-map-${if(dark)"dark" else "daylight"}${if(flat)"-flat" else ""}.json"
+        BaseStyle.Uri((if(useOffline)mapPacks.offlineStyleUrl(asset) else null) ?: "asset://$asset")
+    }
     val options=remember(bottomInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(isLogoEnabled=false,isAttributionEnabled=false,padding=PaddingValues(bottom=(bottomInsetDp+4f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.BottomStart,attributionAlignment=Alignment.BottomCenter,isScaleBarEnabled=false))}
     suspend fun move(next:CameraPosition){if(ui.frontendPreferences.reduceMotion)camera.position=next else camera.animateTo(next,400.milliseconds)}
     fun fitRoute(){val points=ui.snapshot.route?.pathCoordinates.orEmpty();if(points.isEmpty())return
@@ -220,7 +230,7 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             // (3D toggle removed: guidance tilts the map itself)
             if(ui.snapshot.route!=null)MapControlButton(enabled=!loading&&!failed,onClick={fitRoute()}){Icon(Icons.Rounded.ZoomOutMap,"Fit route")}
         }
-        if(!connection&&!loading&&!failed)Text("No map connection. Cached tiles may remain visible; local places are still available.",Modifier.align(Alignment.TopStart).padding(top=132.dp,start=16.dp,end=80.dp).background(MaterialTheme.colorScheme.surface).padding(12.dp))
+        if(!connection&&!loading&&!failed)Text(if(activePack!=null)"No connection. Drawing your saved offline map; local places are still available." else "No map connection. Cached tiles may remain visible; local places are still available.",Modifier.align(Alignment.TopStart).padding(top=132.dp,start=16.dp,end=80.dp).background(MaterialTheme.colorScheme.surface).padding(12.dp))
         if(loading)Text("Loading map…",Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp))
         if(failed)NavGateGlass(Modifier.align(Alignment.Center).padding(24.dp)){Text("Map unavailable. Search and saved places remain available.");Button(onClick={failed=false;loading=true;retry++}){Text("Retry map")}}
     }

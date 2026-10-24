@@ -10,7 +10,7 @@ object RouteIntegrity {
         if (route.geometry.size !in 2..200_000 || route.geometry.any { !it.valid }) add("Invalid route geometry")
         if (!route.distanceMeters.isFinite() || route.distanceMeters < 0 || !route.estimatedSeconds.isFinite() || route.estimatedSeconds < 0) add("Invalid route costs")
         if (route.profile !in setOf("walking", "driving")) add("Unsupported route profile")
-        if (route.source !in setOf("local_campus_astar", "valhalla")) add("Unknown route source")
+        if (route.source !in setOf("local_campus_astar", "valhalla", "brouter")) add("Unknown route source")
         if (!route.external && route.profile != "walking") add("Campus graph only supports walking")
         val tolerance = if (route.external) max(30.0, route.distanceMeters * 0.05) else 0.05
         if (route.geometry.all { it.valid } && abs(route.geometry.lengthMeters()-route.distanceMeters)>tolerance) add("Geometry and route distance disagree")
