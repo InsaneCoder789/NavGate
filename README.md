@@ -1,151 +1,223 @@
-![NavGate — Campus navigation for Android](docs/assets/navgate-banner.png)
+<p align="center">
+  <img src="app/src/main/res/drawable-nodpi/navgate_brand_mark.png" alt="NavGate logo" width="96" />
+</p>
 
-# NavGate
+<h1 align="center">NavGate</h1>
+<p align="center"><strong>Find a place. Choose a route. See your next turn.</strong></p>
+<p align="center">Native Android navigation · Open map data · Map and augmented reality guidance</p>
 
-Native Android navigation built with **Kotlin, Jetpack Compose and Material 3**. India-wide offline place discovery and Photon search connect to real Valhalla walking/car routes. Bookmarks, personal itineraries and trip state are stored locally; no paid API key or cloud account is required.
+## The idea
 
-## Features
+NavGate is a native Android navigation project that connects place discovery, route planning and turn-by-turn guidance in one experience. Search for a destination, compare walking and driving routes, and follow the same trip on a map or through an augmented reality camera view.
 
-- MapLibre maps with liquid-glass panels (blurred map behind every sheet and banner), place discovery and editable route endpoints. A **Glass transparency** slider in Settings runs from clear to solid.
-- One Google-Maps-style journey UI: Explore, category chips (restaurants, petrol, hospitals, hotels, ATMs and more), results with map pins, place details, car and walking directions with times, and a **2D / 3D / AR** switch on routes (2D flat map, 3D solid buildings, AR camera).
-- **AR navigation** on ARCore, drawn inside the camera's own GL frame so the road line cannot lag the picture: a glowing ribbon on the road with chevrons flowing toward the turn, a bent turn arrow, and a floating label with the action and distance. The vehicle position is locked to the planned route and the road's own heading continuously aligns ARCore's world to the real one, with the compass as a fallback; the phone's height above the ground comes from plane detection. AR starts only when you are on the planned route and shows only the road you are on; the next road appears as you reach it. Tracking help ("too dark", "move slower") appears on screen. Settings has **AR smoothness**: 30 fps (saver), 60 fps (ARCore's camera maximum) or Max, which also redraws the line at the screen's refresh rate (up to 120 Hz) by predicting the camera pose between frames; Auto picks from battery, power saver and heat. Falls back to the plain camera if ARCore is unavailable.
-- Sensor-fused position: GPS plus accelerometer and gyroscope with continuous recalibration, an adaptive filter that learns how far to trust GPS, a car marker while driving (the only marker; the start dot is hidden), and a live sensor readout.
-- Route-locked navigation: once a route is assigned the vehicle's position is a single distance along that route (`RouteTracker`), so sideways GPS noise, parallel roads, 100 m multipath bursts and cars waiting at lights cannot make it jump or creep. Tunnels are bridged by dead reckoning along the route, including its turns. The simulated 5 km city drive in `DriveSimulationTest` stays within about 12 m of the truth and never drops guidance. GPS limits real-world accuracy to a few metres, so millimetre precision is not possible.
-- Route choices: when you preview a car route, the fastest, shortest and alternative routes load in the background and appear as chips; opening a place also warms the route cache, so Directions opens instantly and a reroute has them ready. Turns are classified from the route geometry (slight, normal, sharp, keep left/right, merge, U-turn), and roundabouts show the exit number.
-- Backup routes: as soon as a trip starts, alternative routes are fetched in the background; if you leave the road onto one of them guidance switches at once with no network. Other deviations reroute as before, and driving the wrong way along the route is detected.
-- Spoken heads-up before each turn ("In 400 metres, turn right onto..."), guidance that keeps running with the screen off (foreground service and notification), and notices when location is switched off or the permission is removed.
-- Offline resilience: guidance keeps running without internet, the map along a planned route is saved to the phone, an offline banner points back to the route if you leave it, and rerouting resumes when you reconnect.
-- Touch cues before each turn, screen kept awake while guiding, an arrival summary and a one-tap parking spot for car trips.
-- A 660,027-record India gazetteer, a 13,163-place offline Mumbai points-of-interest index built from OpenStreetMap (`scripts/build_poi_index.py`), worldwide Photon search, alias/category ranking, fresh local proximity bias and duplicate handling.
-- Saved places, labelled personal itineraries and trip history using Room; preferences using DataStore.
-- Valhalla pedestrian/car routing with validated geometry, distance, estimated time and a bounded persistent route cache.
-- A* for reviewed campus walking graphs; shared trip state, mode-preserving rerouting, GPS-quality checks and recovery.
-- Optional offline text-to-speech and ARCore camera guidance.
-- Versioned routing packs with signature validation and trip-pinned data.
+The central idea is to make directions easier to understand in context. A map gives the overview; AR brings the upcoming road and turn into the camera view. Both use the same route, progress and destination, so switching views keeps the trip connected.
 
-## App flow
+India is the focus for offline place discovery, Mumbai has a dedicated points-of-interest dataset, and online search and road routing extend beyond those regions wherever the providers have coverage.
+
+NavGate is being built with Kotlin, Jetpack Compose and open mapping tools, without requiring a paid API key or a cloud account to use its current navigation flow. It remains an actively developed prototype: physical navigation accuracy, AR placement and background reliability require field testing.
+
+## The experience
+
+| Stage | What the user can do |
+| --- | --- |
+| **Discover** | Search a place, browse nearby categories, revisit recent places or open a saved destination. |
+| **Choose** | Inspect a place, select route endpoints, switch between walking and driving, and compare available route choices. |
+| **Navigate** | Follow the route with distance, estimated arrival time, maneuver instructions, speech and turn vibrations. |
+| **Look ahead** | Switch between map views and optional AR guidance without creating another trip. |
+| **Keep** | Save places, label personal itinerary pins, review trip history and save a parking location on arrival. |
+
+```mermaid
+flowchart LR
+    Discover[Search or browse places] --> Place[Place details]
+    Place --> Plan[Choose endpoints and travel mode]
+    Plan --> Preview[Preview available routes]
+    Preview --> Ready{Usable location?}
+    Ready -->|Yes| Navigate[Shared navigation session]
+    Ready -->|No| Recover[Explain the issue and retry]
+    Recover --> Ready
+    Navigate --> Map[Map guidance]
+    Navigate --> AR[Optional AR guidance]
+    Map --> Arrive[Arrival and trip history]
+    AR --> Arrive
+```
+
+### A map that stays part of the journey
+
+The map remains the foundation of the interface. Search results, destination details, route previews and navigation controls appear over it through a shared glass design. Light, dark and system appearances are available, along with adjustable panel transparency and reduced-motion preferences.
+
+MapLibre renders the basemap and route layers. Building footprints can be extruded into 3D where the map data supplies heights. These are solid building shapes; detailed photorealistic building models are outside the current implementation.
+
+### Directions brought into the camera view
+
+The AR implementation draws a road ribbon, moving chevrons and turn markers inside the ARCore camera render frame. It combines camera tracking with geographic position and road heading to align the guidance with the planned route. A checkpoint-based track limits the path prepared ahead of the user.
+
+AR smoothness settings offer Auto, Saver, Smooth and Max modes. The implementation can request 30 or 60 fps camera configurations and use pose prediction for display-rate overlays; the actual rate depends on device support, tracking, temperature and power conditions. A plain-camera fallback is available when ARCore cannot run.
+
+AR alignment remains experimental. It depends on GPS, heading, camera tracking and ground-height estimation. Obstacle detection, depth occlusion and Google Geospatial placement are not implemented.
+
+## How the engineering fits together
 
 ```mermaid
 flowchart TD
-    Explore[Explore map] --> Search[Search or select a place]
-    Saved[Saved places] --> Details[Place details]
-    Recents[Recent places] --> Details
-    Search --> Details
-    Details -->|Save or remove bookmark| Saved
-    Details --> Endpoints[Choose endpoints and walking/car mode]
-    Endpoints --> Plan{Route available?}
-    Plan -->|Validated road route or reviewed campus path| Preview[Route preview]
-    Plan -->|Missing data or no route| Recovery[Explain issue and offer recovery]
-    Recovery --> Endpoints
-    Preview -->|Start with usable location| Guidance[Active guidance]
-    Preview -->|Edit endpoints| Endpoints
-    Guidance --> Steps[Turn-by-turn steps]
-    Steps --> Guidance
-    Guidance --> Camera[Optional AR camera guidance, only on the route]
-    Camera --> Guidance
-    Guidance -->|Arrival| Arrival[Trip complete]
-    Guidance -->|Stop| Explore
-    Arrival --> Explore
-    Explore --> Settings[Settings and region information]
-    Settings --> Explore
+    UI[Compose journey screens] --> VM[NavGateViewModel]
+    VM --> Core[NavigationBackend and NavigationSession]
+    GPS[Android location] --> Core
+    Sensors[GPS and inertial sensor fusion] --> Display[Position and heading display]
+    Display --> UI
+    Core --> Router[Hybrid routing provider]
+    Router --> Road[Valhalla walking and driving]
+    Router --> LocalGraph[Reviewed walking graph: local A*]
+    Search[Place search] --> Local[India and Mumbai SQLite indexes]
+    Search --> Photon[Photon online search]
+    VM --> Search
+    Core --> Store[Room trip state and route cache]
+    VM --> Prefs[DataStore preferences]
+    Core --> Views[Shared map, steps and AR trip state]
+    Views --> UI
 ```
 
-Map, steps and AR camera guidance share one navigation session. Saved places, recents and settings remain accessible without a planned route.
-
-## Technology
-
-| Area | Implementation |
+| Component | Responsibility |
 | --- | --- |
-| Interface | Kotlin, Jetpack Compose, Material 3; dark/daylight/system appearance; Haze backdrop blur for glass panels |
-| Maps | MapLibre with OpenFreeMap styles and online map resources |
-| Routing | Valhalla pedestrian/auto; local reviewed-campus A*; explicit failure states |
-| Persistence | Room bookmarks, itineraries, bounded route cache, history and checkpoints; India SQLite FTS/RTree; DataStore preferences |
-| Location | Android LocationManager with freshness/accuracy checks; Kalman fusion of GPS with accelerometer and gyroscope (`MotionFusion`) |
-| AR | ARCore motion tracking at 30 fps, compass and GPS alignment, a checkpoint track that keeps only the current road loaded |
-| Guidance | Shared navigation session, optional installed offline TTS, haptic turn cues, offline-safe routing |
-| Updates | Bounded signed routing-pack imports with atomic version activation |
+| **Journey UI** | Connected Explore, Search, Place, Directions, Navigation, Arrival and utility screens, using shared state and action contracts. |
+| **Navigation core** | Platform-independent route geometry, progress tracking, maneuver progression, GPS-quality checks, arrival, rerouting and recovery. |
+| **Route tracking** | Projects position onto the planned route, estimates progress and handles short signal gaps, suspicious fixes and wrong-way movement. |
+| **Routing providers** | Valhalla supplies pedestrian and car routes, metrics and maneuvers. Local A* serves eligible reviewed walking graphs. |
+| **Discovery** | Local place indexes, online geocoding, aliases, category matching, proximity ranking and duplicate handling. |
+| **Android adapters** | LocationManager, inertial sensors, installed offline speech, haptics, navigation notification and foreground service. |
+| **Persistence** | Room stores bookmarks, recents, itineraries, history, checkpoints and bounded route caches. DataStore stores preferences. |
+| **AR rendering** | ARCore tracking, geographic alignment, road mesh generation and camera-frame rendering; CameraX supports the fallback. |
 
-Panels blur the map behind them on Android 12 and later and fall back to a tinted surface of the same strength on older phones. The Settings slider controls how see-through they are.
+Routing and tracking use deterministic algorithms. The current app does **not** require an AI model to search its indexes, calculate local paths or advance a navigation session.
 
-## Build and test
+## Data, coverage and connectivity
 
-Requires Android SDK 35, Android 8.0+ (API 26), and a compatible JDK. AR navigation needs a phone that supports Google Play Services for AR. The project was verified with JDK 22 and targets Java 17 bytecode.
+| Source | Purpose | Coverage and limits |
+| --- | --- | --- |
+| **GeoNames India** | Offline names, alternate names and coordinates | The locally generated snapshot contains **660,027 records**. This is a gazetteer, not a complete list of every business or address. |
+| **OpenStreetMap Mumbai POIs** | Nearby categories and place details | The locally generated snapshot contains **13,163 places** in its Mumbai-area bounding box. Details such as hours, phone and website depend on source availability. |
+| **Photon** | Online place search and category fallback | Broader discovery wherever indexed data is available. |
+| **Valhalla** | Walking/car routes, distance, estimated time and alternatives | Online road routing using mapped roads and paths. Estimates do not include live traffic. |
+| **OpenFreeMap / OpenStreetMap** | Map display and building geometry | Tile availability and building detail vary by location. |
+| **Reviewed walking packs** | Local walking connectivity and entrances | A destination coordinate alone does not establish a reviewed, accessible walking route. |
 
-1. Clone the repository and open its root in Android Studio.
-2. Install Android SDK 35 and configure a compatible JDK for Gradle.
-3. Sync Gradle, select an Android device/emulator, and run the `app` configuration.
+The record counts above describe the existing local snapshots. Regenerating the indexes may produce different totals. Search indexes and their manifests are generated assets and are currently ignored by Git.
 
-From the repository root:
+### What works without a connection
 
-```sh
-./gradlew :app:assembleDebug
-./gradlew :navigation-core:test :app:testDebugUnitTest
-```
+Saved places, personal itineraries and installed place indexes are local. An already planned route can continue supplying guidance during a connection loss. Cached backup routes may help with a deviation when an applicable alternative is already available.
 
-With an emulator or device connected:
+The app also attempts to download map tiles around a planned route. This is a bounded, best-effort corridor download—up to 12 boxes, approximately the first 30 km—not a guarantee that an entire trip is available offline. New road-route requests and reroutes without a suitable cached alternative require a connection. Full offline road routing is future work.
 
-```sh
-./gradlew :app:connectedDebugAndroidTest
-```
+### What “free” means here
 
-Debug APK: `app/build/outputs/apk/debug/app-debug.apk`.
+The current flow uses open-source libraries and public services without a paid API key. Public routing, search and tile endpoints still have usage policies and availability limits. Their free access does not provide a production uptime guarantee, and operating independent servers would require hardware and maintenance resources.
 
-Generate the ignored India search asset before building a fresh checkout:
+Online searches and route requests send query or location information to their respective providers. Local storage does not make the online parts of navigation private to the device.
+
+## Run the project
+
+### Requirements
+
+- Android Studio and Android SDK **35**.
+- An Android **8.0+ / API 26+** device or emulator.
+- A compatible Gradle JDK. The project has used **JDK 22** and targets Java **17** bytecode; the wrapper uses Gradle **8.13**.
+- For tracked AR: a compatible physical device with Google Play Services for AR and camera permission.
+
+### Prepare the place data
+
+Generate the India index before building a fresh checkout:
 
 ```sh
 python3 scripts/build_india_index.py --download
 ```
 
-The Mumbai places index is committed. To rebuild it from a Geofabrik extract (no Overpass rate limits), use a Python environment with `osmium` installed:
+For the Mumbai POI index, install `osmium` in your Python environment and provide a suitable Geofabrik extract at the path below:
 
 ```sh
 python3 scripts/build_poi_index.py --pbf data/osm-extract/western-zone.osm.pbf
 ```
 
-For a storage-limited ARM64 emulator, `./gradlew -Pnavgate.abi=arm64-v8a :app:assembleDebug` omits unused native architectures. The default build remains multi-device.
+The POI builder also supports an Overpass-based build when run without `--pbf`; public endpoint availability and rate limits apply. Mumbai POI generation is optional for building the app, but its offline categories require the asset. Keep generated search databases under `app/src/main/assets/search/`.
 
-Live public routing tests are opt-in: `NAVGATE_LIVE_ROUTES=true ./gradlew :app:testDebugUnitTest`. The public Valhalla demo is fair-use infrastructure, not a production SLA. See [road navigation](docs/ROAD_NAVIGATION.md) for request limits, provider identification, privacy and self-hosting boundaries.
+### Build and launch
 
-Additional checks:
+Open the repository root in Android Studio, configure the SDK/JDK, sync Gradle and run the `app` configuration on your selected device.
 
 ```sh
+./gradlew :app:assembleDebug
+```
+
+APK output: `app/build/outputs/apk/debug/app-debug.apk`.
+
+For an ARM64-only debug build:
+
+```sh
+./gradlew -Pnavgate.abi=arm64-v8a :app:assembleDebug
+```
+
+Location is used for current-position guidance; browsing and manual endpoint selection remain available without it. Camera access is requested for AR, and notification permission supports navigation notifications on applicable Android versions. Offline speech requires an installed compatible voice.
+
+## Verification
+
+| Layer | What the tests exercise |
+| --- | --- |
+| **Core JVM** | Routing, route tracking, session transitions, signal loss/recovery, maneuver behavior and pack integrity. |
+| **Android JVM** | Provider parsing and failures, search ranking, ViewModel integration, recorded-route replay and AR geometry/alignment calculations. |
+| **Instrumentation** | Native screen actions, persistence, lifecycle behavior and opt-in live-provider/device checks. |
+| **Python** | Catalogue and index generation regressions. |
+
+```sh
+./gradlew :navigation-core:test :app:testDebugUnitTest
+./gradlew :app:connectedDebugAndroidTest
 ./gradlew :app:lintDebug
 python3 -m unittest discover -s scripts/tests -v
 ```
 
-Keep `local.properties` and signing keys private. Initial dependency resolution requires internet; use `--offline` only after dependencies are cached. Synthetic routing graphs are test fixtures only.
+Live routing checks are opt-in:
 
-### Verification scope
+```sh
+NAVGATE_LIVE_ROUTES=true ./gradlew :app:testDebugUnitTest
+```
 
-The latest local run passes **88 app JVM tests and 80 core JVM tests**, and the instrumentation suite and screenshot journey passed on a Galaxy S24+ (Android 16, 16 KB pages) before the final round of changes. The AR checkpoint path, offline map download, offline banner, haptic cues, arrival summary, route-locked tracking, backup routes, dead reckoning, spoken heads-ups and the background service were written after that run and have **not yet been exercised on a device**. The earlier frontend integration run recorded **38 app JVM tests, 34 core JVM tests and 13 Android instrumentation tests passing**. Coverage includes routing/session contracts, endpoint selection, bookmark state, trip utility navigation, stale-signal recovery, Room persistence and document-import boundaries. Independent API 34 emulator smoke checks exercised the real map, catalogue search, saved places and settings.
+AR rendering has a separate device smoke test requiring an unlocked, ARCore-compatible phone:
 
-These are results from that recorded run, not a guarantee that every device or future revision passes. Outdoor walking and driving, physical GPS/compass alignment, AR line placement and battery use, offline map coverage, camera faults, offline audio and complete accessibility acceptance remain outstanding. See [remaining work](docs/REMAINING_WORK.md).
+```sh
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.rohanc.navgate.ui.ArRenderSmokeTest \
+  -Pandroid.testInstrumentationRunnerArguments.ar=true
+```
 
-## Architecture and repository
+Recorded routes and simulated GPS test the implementation under controlled conditions. They do not establish outdoor accuracy, correct AR placement, reliable process-death recovery or acceptable battery use. Physical walking/driving acceptance, screen-off guidance, interrupted trips, audio and accessibility remain release checks.
 
-`Compose → NavGateViewModel → Kotlin NavigationBackend → local A* / Valhalla → Room / DataStore`
+## Where the project goes next
 
-| Directory | Purpose |
+| Priority | Scope |
 | --- | --- |
-| `app/` | Android UI, platform adapters, persistence and integration tests |
-| `navigation-core/` | Platform-independent geometry, routing, session and pack validation |
-| `data/` | Catalogue sources, OSM snapshot, provenance and generated reports |
-| `scripts/` | Catalogue generation, candidate extraction and Python regressions |
-| `docs/` | Backend contracts, implementation evidence and technical proposal |
-| `backend/` | Historical optional Go service; not required by the Android app |
+| **Navigation reliability** | Validate real walking and driving journeys, junctions, wrong turns, GPS gaps, background behavior and recovery. |
+| **AR quality** | Measure road alignment, turn stability, tracking recovery, slopes, thermal behavior and battery use on physical devices. |
+| **Offline clarity** | Expose tile-download progress, completion, retry and storage controls; investigate offline road routing. |
+| **Useful personal routes** | Connect saved itinerary pins to real multi-stop routing and expand maintained local POI coverage. |
+| **Release engineering** | Accessibility, privacy disclosures, signing, automated device checks and sustainable provider access. |
 
-### Data and update rules
+Live traffic, transit, cycling, detailed building models and account-based synchronization are outside the current navigation flow. Future features should build on a dependable walking/driving experience.
 
-- `python3 scripts/build_region_catalog.py` regenerates the information-only catalogue.
-- `python3 scripts/build_osm_candidates.py` extracts development graph candidates; it does not approve access or create reviewed entrances.
-- Imports validate size bounds, schema, topology, signature and region before switching the active version.
-- Local campus trips stay pinned to their graph version. Road trips retain validated provider metadata, mode and shape timing. Imported documents cannot supply their own trusted publisher key.
-- Routing packs and map tiles are separate. Installing routing data does not install an offline basemap.
+## Repository guide
 
-### Permissions and device behavior
+| Directory | Contents |
+| --- | --- |
+| `app/` | Native Android interface, AR rendering, platform adapters, persistence and integration tests. |
+| `navigation-core/` | Kotlin geometry, routing, tracking, session logic and validation independent of Android. |
+| `scripts/` | Place-index builders, catalogue tooling and import regressions. |
+| `data/` | Source material, mapping snapshots and provenance reports. |
+| `docs/` | Technical proposals, contracts, diagrams and implementation notes. |
+| `backend/` | Historical optional Go service; the current Android navigation flow does not require it. |
 
-Location permission supports current-position selection and foreground guidance. Users can browse and choose endpoints manually without granting it. Camera permission is requested only for optional AR guidance; camera hardware is not mandatory, and AR is offered only while you are on the planned route. Vibration is used for turn cues. Internet/network-state access supports map loading, route saving and connectivity feedback. Offline speech requires a compatible voice already installed on the device.
+[Routing and search](docs/ROAD_NAVIGATION.md) · [India discovery](docs/INDIA_SEARCH.md) · [Manual itineraries](docs/MANUAL_ROUTES.md) · [Backend contracts](docs/BACKEND_INTEGRATION.md) · [Engineering diagrams](docs/diagrams/README.md) · [Remaining work](docs/REMAINING_WORK.md)
 
-[Road navigation and search](docs/ROAD_NAVIGATION.md) · [Remaining work](docs/REMAINING_WORK.md) · [Backend contracts](docs/BACKEND_INTEGRATION.md) · [Implementation evidence](docs/IMPLEMENTATION_STATUS.md) · [Technical proposal](docs/TECHNICAL_PROPOSAL.md) · [OSM data and attribution](data/osm/README.md)
+Some technical documents describe earlier implementation phases. Check their dates and the current source when using them as implementation references.
 
-OSM data is © OpenStreetMap contributors, ODbL. Workbook provenance and redistribution require review. The historical Go service in `backend/` is optional and is not the Android engine's routing fallback.
+## Attribution
+
+Map and POI data: **© OpenStreetMap contributors**, ODbL. India gazetteer: **GeoNames**, CC BY 4.0. Source attribution and dataset provenance must be retained when generating or distributing data assets.
+
+NavGate builds on MapLibre, OpenFreeMap, Photon, Valhalla, ARCore and the Android/Kotlin ecosystem. Open-source component licenses and data licenses apply independently.
