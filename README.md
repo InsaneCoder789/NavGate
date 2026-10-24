@@ -217,3 +217,9 @@ Detailed research, architecture notes and working documents are maintained separ
 Map and POI data: **© OpenStreetMap contributors**, ODbL. India gazetteer: **GeoNames**, CC BY 4.0. Source attribution and dataset provenance must be retained when generating or distributing data assets.
 
 NavGate builds on MapLibre, OpenFreeMap, Photon, Valhalla, BRouter, ARCore and the Android/Kotlin ecosystem. BRouter is included under its MIT license (`brouter/LICENSE`); open-source component licenses and data licenses apply independently.
+
+## License
+
+NavGate's original source code is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**. See [`LICENSE`](LICENSE) for the complete license text. If you modify NavGate and make that modified version available for users to interact with over a network, AGPL-3.0 requires you to offer those users the corresponding source code under its terms.
+
+This license applies only to material owned by the NavGate copyright holder. Third-party libraries, bundled assets, map/place datasets and other external materials retain their own licenses and notices; see the relevant files and attribution above. The AGPL applies to the code, not to the general idea or concept of a navigation app. It does not prevent independent implementations of similar ideas.

@@ -59,6 +59,16 @@ __pycache__/
 # Local test reports/workspaces and browser automation state.
 /.qa/
 /.playwright-cli/
+/.playwright-mcp/
+
+# Generated test output and private device/browser captures. Keep test source,
+# deterministic fixtures, app assets, and checked-in branding resources versioned.
+**/test-results/
+**/androidTest-results/
+**/device-captures/
+**/screenshots/
+**/screen-recordings/
+*.xcresult/
 
 # Local-only frontend planning and HTML references; never publish these.
 /design/
