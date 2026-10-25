@@ -32,8 +32,15 @@ android {
         }
     }
 
+    // The release key never lives in the repository: put these four lines in ~/.gradle/gradle.properties on the machine that builds the store
+    // release (NAVGATE_STORE_FILE, NAVGATE_STORE_PASSWORD, NAVGATE_KEY_ALIAS, NAVGATE_KEY_PASSWORD). Without them the release build is unsigned.
+    val releaseKey = listOf("NAVGATE_STORE_FILE", "NAVGATE_STORE_PASSWORD", "NAVGATE_KEY_ALIAS", "NAVGATE_KEY_PASSWORD").map { providers.gradleProperty(it).orNull }
+    if (releaseKey.all { it != null }) signingConfigs.create("release") {
+        storeFile = file(releaseKey[0]!!); storePassword = releaseKey[1]; keyAlias = releaseKey[2]; keyPassword = releaseKey[3]
+    }
     buildTypes {
         release {
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             // Shrunk and obfuscated for users: smaller download, faster start, harder to reverse. Rules are in proguard-rules.pro.
             isMinifyEnabled = true
             isShrinkResources = true
@@ -69,6 +76,8 @@ android {
 }
 
 dependencies {
+    // Installs the baseline profile (app/src/main/baseline-prof.txt): the screens and map code start compiled instead of being interpreted.
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation(project(":navigation-core"))
     implementation(project(":brouter"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")

@@ -1,0 +1,11 @@
+# Classes and methods that run on every start and on every guided trip, so they are compiled ahead of time.
+HSPLcom/rohanc/navgate/MainActivity;->**(**)**
+HSPLcom/rohanc/navgate/ui/NavGateFrontend**;->**(**)**
+HSPLcom/rohanc/navgate/ui/NativeMap**;->**(**)**
+HSPLcom/rohanc/navgate/ui/journey/**;->**(**)**
+HSPLcom/rohanc/navgate/ui/map/**;->**(**)**
+HSPLcom/rohanc/navgate/ui/state/**;->**(**)**
+HSPLcom/rohanc/navgate/ui/theme/**;->**(**)**
+HSPLcom/rohanc/navgate/core/**;->**(**)**
+HSPLcom/rohanc/navgate/data/local/**;->**(**)**
+Lcom/rohanc/navgate/**;
