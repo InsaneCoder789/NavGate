@@ -1,7 +1,6 @@
 package com.rohanc.navgate.data.routing.offline
 
 import com.rohanc.navgate.core.CampusRoute
-import com.rohanc.navgate.core.GeoPoint
 import com.rohanc.navgate.core.PlanRequest
 import com.rohanc.navgate.core.RouteGeometry
 import com.rohanc.navgate.core.TurnExtractor

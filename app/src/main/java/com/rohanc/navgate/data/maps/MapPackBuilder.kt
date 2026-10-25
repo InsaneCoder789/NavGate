@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.PI
 import kotlin.math.asinh
 import kotlin.math.floor
-import kotlin.math.ln
 import kotlin.math.tan
 
 /** A rectangle of the world, in degrees. */

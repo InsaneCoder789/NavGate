@@ -3,7 +3,6 @@ package com.rohanc.navgate.data.maps
 import com.rohanc.navgate.core.GeoPoint
 import kotlin.math.PI
 import kotlin.math.atan
-import kotlin.math.exp
 
 /** One line feature from a vector tile, in longitude/latitude, with its text attributes. */
 class MvtLine(val points: List<GeoPoint>, val tags: Map<String, String>)

@@ -4,7 +4,6 @@ import androidx.room.withTransaction
 import com.rohanc.navgate.core.CampusRoute
 import com.rohanc.navgate.data.routing.RoadRouteCache
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 /** Bounded local-only route cache. TTL/validation is enforced by the routing provider on every read. */
 class RoomRoadRouteCache(private val database:NavGateDatabase):RoadRouteCache {

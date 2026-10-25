@@ -163,12 +163,6 @@ class NavGateViewModel(
         recomputePreview()
     }
 
-    fun selectEntrance(id: String?) {
-        if (!canEditTrip()) return
-        mutable.update { it.copy(selectedEntranceId=id) }
-        recomputePreview()
-    }
-
     fun setTravelProfile(profile: TravelProfile) {
         if (!canEditTrip()) return
         modeChosenByUser = true
@@ -374,7 +368,6 @@ class NavGateViewModel(
     } }
     fun replan() { if(canEditTrip()) recomputePreview() }
 
-    fun setCurrentLocationAsOrigin(location: Coordinate) = selectOrigin(livePlace(GeoPoint(location.latitude,location.longitude)))
     fun focusPlace(place: PlaceSearchResult) {
         mutable.update { it.copy(focusedPlace=place,activeTab=AppTab.Explore) }
         warmRoutesTo(place)
@@ -429,14 +422,12 @@ class NavGateViewModel(
             catch (e: Exception) { mutable.update { it.copy(statusMessage = e.message ?: "The itinerary could not be routed. Check your connection and retry.") }; onResult(false) }
         }
     }
-    fun dismissFocusedPlace() { mutable.update { it.copy(focusedPlace=null) } }
     fun searchSaved(query: String): List<PlaceSearchResult> {
         val term=query.trim()
         return mutable.value.savedPlaces.filter { place ->
             term.isEmpty() || listOfNotNull(place.title,place.subtitle,place.category,place.campusLabel).any { it.contains(term,ignoreCase=true) }
         }
     }
-    fun selectTab(tab: AppTab) { mutable.update { it.copy(activeTab=tab,searchQuery=if(tab==AppTab.Explore) it.searchQuery else "",focusedPlace=null) } }
     fun toggleSaved(place: PlaceSearchResult) {
         viewModelScope.launch { storeOperation { val saved=userPlacesStore.toggleSaved(place); mutable.update { it.copy(savedPlaces=saved) } } }
     }

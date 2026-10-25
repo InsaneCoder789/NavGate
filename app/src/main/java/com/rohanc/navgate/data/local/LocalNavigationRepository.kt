@@ -37,10 +37,7 @@ class LocalNavigationRepository(
 
     override suspend fun place(regionId: String, id: String): CampusPlace? { initialize(); return regions.place(regionId,id) }
 
-    suspend fun searchPlaces(query: String, cityHint: String?): List<PlaceSearchResult> {
-        initialize()
-        return regions.search(query,city=cityHint).map { it.toAppPlace() }
-    }
+
 }
 
 fun CampusPlace.toAppPlace(): PlaceSearchResult {

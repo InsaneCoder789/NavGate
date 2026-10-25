@@ -26,13 +26,6 @@ enum class ManeuverType {
     Arrive,
 }
 
-data class RouteRequest(
-    val origin: Coordinate,
-    val destination: Coordinate,
-    val profile: TravelProfile = TravelProfile.Walking,
-    val destinationPlaceId: String? = null,
-    val cityHint: String? = null,
-)
 
 data class RouteStep(
     val instruction: String,
