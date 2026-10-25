@@ -14,7 +14,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
@@ -57,11 +56,14 @@ fun BoxScope.LiveCameraLayer(bubble: LiveBubble?, tripEta: String?, tripLeft: St
         if (ar != null) ar(Modifier.fillMaxSize(), DOME_TOP) else CameraPreview(Modifier.fillMaxSize().clip(DomeShape))
         Canvas(Modifier.fillMaxSize()) {
             val o = DomeShape.oval(size.width, size.height)
+            // A soft shadow under the rim lifts the map off the camera picture instead of cutting it with a hard edge.
+            drawArc(Color.Black.copy(alpha = 0.10f), 180f, 180f, false, o.topLeft.copy(y = o.top + 3.dp.toPx()), o.size, style = Stroke(16.dp.toPx()))
+            drawArc(Color.Black.copy(alpha = 0.16f), 180f, 180f, false, o.topLeft.copy(y = o.top + 2.dp.toPx()), o.size, style = Stroke(9.dp.toPx()))
             drawArc(Color.White, 180f, 180f, false, o.topLeft, o.size, style = Stroke(5.dp.toPx()))
         }
         if (bubble != null && box.width > 0) {
             var w by remember { mutableStateOf(0) }
-            Column(Modifier.offset { IntOffset((bubble.xFraction * box.width - w / 2f).roundToInt().coerceIn(12, (box.width - w - 12).coerceAtLeast(12)), (box.height * 0.24f).roundToInt()) }
+            Column(Modifier.offset { IntOffset((bubble.xFraction * box.width - w / 2f).roundToInt().coerceIn(12, (box.width - w - 84).coerceAtLeast(12)), (box.height * 0.24f).roundToInt()) }
                 .onSizeChanged { w = it.width }, horizontalAlignment = Alignment.CenterHorizontally) {
                 Row(Modifier.clip(RoundedCornerShape(20.dp)).background(ArBlue).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Icon(turnIcon(bubble.kind), null, Modifier.size(28.dp), tint = Color.White)

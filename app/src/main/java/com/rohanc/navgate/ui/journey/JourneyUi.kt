@@ -8,13 +8,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.rohanc.navgate.core.MotionEstimate
-import com.rohanc.navgate.core.RegionStatus
 import com.rohanc.navgate.core.SessionSnapshot
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.RouteStep

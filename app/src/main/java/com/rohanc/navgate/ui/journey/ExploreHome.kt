@@ -26,6 +26,7 @@ fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a:
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
+    var barPx by remember { mutableIntStateOf(0) }
     val screenDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.toFloat()
     val sheet = remember { androidx.compose.animation.core.Animatable(COLLAPSED_DP) }
     val fabVisible by remember { derivedStateOf { sheet.value < screenDp * 0.3f } }
@@ -44,8 +45,9 @@ fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a:
         if (fabVisible) Row(Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 12.dp), horizontalArrangement = Arrangement.End) {
             NgDirectionsFab({ a.openSearch("to") })
         }
-        NearbySheet(sheet, screenDp, areaName, regionId, userLocation, recentTrips, a) { a.openPlace(it) }
-        NgBottomBar("Explore", a.openTab)
+        val roomDp = screenDp - with(density) { (topPx + barPx).toDp().value } - 8f
+        NearbySheet(sheet, screenDp, areaName, regionId, userLocation, recentTrips, a, { a.openPlace(it) }, maxDp = roomDp)
+        Box(Modifier.onSizeChanged { barPx = it.height }) { NgBottomBar("Explore", a.openTab) }
     }
 }
 

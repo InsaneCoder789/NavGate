@@ -26,7 +26,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.core.RegionStatus
 import com.rohanc.navgate.model.Coordinate
-import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.RouteHistoryEntry
 import com.rohanc.navgate.ui.ar.VoiceAvailability
 import com.rohanc.navgate.ui.state.CityMode
@@ -179,6 +178,10 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
             SettingsGroup("Map data") {
                 // The map's own info icon is gone; the required credits live here and on the directions screen.
                 Text("Map data © OpenStreetMap contributors (ODbL). Map tiles by OpenFreeMap. Routing by Valhalla. Places also from Photon.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            SettingsGroup("Privacy") {
+                Text("Precise live GPS is used on this phone to guide you. Searches send the words you type and an approximate area to Photon; route requests send the start and destination coordinates to Valhalla (OpenStreetMap Germany); map tiles are requested from OpenFreeMap. The camera is used only for AR and Live view: camera imagery is not recorded or uploaded by NavGate. Crash reports are sent only if you turn that on.",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsGroup("Region") {
                 CityMode.entries.forEach { city ->

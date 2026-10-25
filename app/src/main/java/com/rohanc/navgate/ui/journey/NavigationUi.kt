@@ -124,9 +124,6 @@ internal fun rejoinHint(session: SessionSnapshot): String? {
     return "The route is ${nearest.distanceMeters.toInt()} m $direction of you."
 }
 
-@Composable
-private fun ColorScheme.errorContainerFallback(): Color = Color(0xFFFFE0B2)
-
 /** Shown once guidance reaches the destination. */
 @Composable
 fun BoxScope.ArrivalUi(destinationTitle: String, driving: Boolean, tripSummary: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions) {

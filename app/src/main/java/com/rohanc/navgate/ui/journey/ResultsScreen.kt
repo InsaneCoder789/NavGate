@@ -72,10 +72,10 @@ internal fun ResultRow(place: PlaceSearchResult, userLocation: Coordinate?, onCl
             Icon(PoiCategory.fromSlug(place.category.orEmpty())?.let { categoryIcon(it) } ?: placeIcon(place), null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
         }
         Column(Modifier.weight(1f)) {
-            Text(place.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(place.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(place.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            status?.let { Text(it.label, style = MaterialTheme.typography.bodySmall, color = if (it.open) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error) }
+            status?.let { Text(it.label, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (it.open) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error) }
         }
-        distanceFrom(userLocation, place)?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        distanceFrom(userLocation, place)?.let { Text(it, style = MaterialTheme.typography.labelLarge, softWrap = false, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }

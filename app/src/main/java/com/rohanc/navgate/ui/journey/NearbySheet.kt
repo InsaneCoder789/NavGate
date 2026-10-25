@@ -1,5 +1,9 @@
 package com.rohanc.navgate.ui.journey
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.background
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.foundation.gestures.Orientation
@@ -11,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
@@ -37,10 +40,11 @@ import kotlinx.coroutines.launch
  * Pull it up over the map to see the nearest restaurants, fuel, hospitals and more, then tap one to open it.
  */
 @Composable
-internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: Float, areaName: String?, regionId: String, userLocation: Coordinate?, recentTrips: List<com.rohanc.navgate.model.RouteHistoryEntry>, a: JourneyActions, onPlace: (PlaceSearchResult) -> Unit) {
+internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: Float, areaName: String?, regionId: String, userLocation: Coordinate?, recentTrips: List<com.rohanc.navgate.model.RouteHistoryEntry>, a: JourneyActions, onPlace: (PlaceSearchResult) -> Unit, maxDp: Float = screenDp * 0.74f) {
     val density = LocalDensity.current.density
     val scope = rememberCoroutineScope()
-    val collapsed = 150f; val half = screenDp * 0.46f; val full = screenDp * 0.74f
+    // Never taller than the room between the search controls and the bottom bar, however large the text is set.
+    val full = minOf(screenDp * 0.74f, maxDp).coerceAtLeast(200f); val collapsed = minOf(150f, full - 40f); val half = minOf(screenDp * 0.46f, (collapsed + full) / 2f)
     val anchors = listOf(collapsed, half, full)
     fun settle(velocityDpPerSec: Float) {
         val here = sheet.value
@@ -101,7 +105,8 @@ internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: 
                     item(key = "recent-title") { SectionLabel("Recent trips") }
                     items(recentTrips.take(5), key = { "trip-${it.tripId}-${it.recordedAtEpochMillis}" }, contentType = { "trip" }) { TripRow(it, a) }
                 }
-                item(key = "nearby-title") { SectionLabel("Nearby") }
+                if (opened) item(key = "nearby-title") { SectionLabel("Nearby") }
+                if (loading && opened && places.isEmpty()) item(key = "skeleton") { SkeletonRows(4) }
                 if (!loading && places.isEmpty() && opened) item(key = "empty") { Text("Nothing found nearby right now.", Modifier.padding(20.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 items(places, key = { it.id }, contentType = { "place" }) { place -> ResultRow(place, userLocation) { onPlace(place) } }
             }
@@ -112,4 +117,21 @@ internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: 
 @Composable
 private fun SectionLabel(text: String) {
     Text(text, Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+}
+
+/** Grey placeholder rows with the shape of a place row, so the list does not jump when the places arrive. */
+@Composable
+private fun SkeletonRows(count: Int) {
+    val pulse by androidx.compose.animation.core.rememberInfiniteTransition(label = "skeleton").animateFloat(0.35f, 0.8f,
+        androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(800), androidx.compose.animation.core.RepeatMode.Reverse), label = "alpha")
+    val fill = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    repeat(count) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp).alpha(pulse), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Box(Modifier.size(44.dp).background(fill, androidx.compose.foundation.shape.CircleShape))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.fillMaxWidth(0.55f).height(14.dp).background(fill, androidx.compose.foundation.shape.RoundedCornerShape(7.dp)))
+                Box(Modifier.fillMaxWidth(0.35f).height(10.dp).background(fill, androidx.compose.foundation.shape.RoundedCornerShape(5.dp)))
+            }
+        }
+    }
 }

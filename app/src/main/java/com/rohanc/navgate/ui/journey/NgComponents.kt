@@ -1,7 +1,6 @@
 package com.rohanc.navgate.ui.journey
 
 import androidx.compose.ui.graphics.Color
-import com.rohanc.navgate.ui.components.NavGlassSurface
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -28,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.ManeuverType
 import com.rohanc.navgate.model.PlaceSearchResult
@@ -202,10 +200,11 @@ fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modif
 /** One button that jumps to the other camera view (VR from AR, AR from VR); the footer's map button already returns to 2D. */
 @Composable
 fun NgModeButton(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular, onClick = onClick) {
+    // Solid, so it reads the same over a bright street, a dark one or a map.
+    Surface(onClick = onClick, modifier = modifier, shape = RoundedCornerShape(24.dp), color = Color(0xE60B1426), contentColor = Color.White, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))) {
         Column(Modifier.size(width = 64.dp, height = 68.dp).semantics { contentDescription = "$label navigation" }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
+            Icon(icon, null, Modifier.size(24.dp), tint = Color(0xFF8AB4F8))
+            Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White)
         }
     }
 }
