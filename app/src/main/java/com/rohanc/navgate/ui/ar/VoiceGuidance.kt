@@ -73,10 +73,3 @@ internal fun rememberOfflineSpeech(): OfflineSpeech {
     DisposableEffect(speech) { onDispose { speech.close() } }
     return speech
 }
-
-@Composable
-fun VoiceGuidance(enabled: Boolean, utteranceKey: String, message: String?): VoiceAvailability {
-    val speech = rememberOfflineSpeech()
-    LaunchedEffect(enabled, utteranceKey, message, speech) { speech.update(enabled, utteranceKey, message) }
-    return speech.availability
-}

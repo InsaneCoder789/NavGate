@@ -1,7 +1,5 @@
 package com.rohanc.navgate.data
 
-import android.content.Context
-import androidx.core.content.edit
 import com.rohanc.navgate.ui.state.CityMode
 
 interface AppPreferencesStore {
@@ -20,66 +18,15 @@ interface AppPreferencesStore {
     suspend fun setKiitBetaAccess(enabled: Boolean)
 }
 
-class SharedPrefsAppPreferencesStore(
-    context: Context,
-) : AppPreferencesStore {
-    private val prefs = context.getSharedPreferences("navgate_app_preferences", Context.MODE_PRIVATE)
 
-    override suspend fun frontendPreferences() = FrontendPreferences(
-        appearance=prefs.getString("frontend_appearance","system") ?: "system",
-        reduceTransparency=prefs.getBoolean("frontend_solid",false),
-        reduceMotion=prefs.getBoolean("frontend_motion",false),
-        voiceEnabled=prefs.getBoolean("frontend_voice",true),
-        buildings3d=prefs.getBoolean("frontend_buildings",true),
-        glassOpacity=prefs.getFloat("frontend_glass",0.15f).coerceIn(0f,1f),
-        arFps=prefs.getString("frontend_ar_fps","auto") ?: "auto",
-        arObjects=prefs.getBoolean("frontend_ar_objects",true),
-        sendCrashReports=prefs.getBoolean("frontend_send_crashes",false),
-        avoidTolls=prefs.getBoolean("frontend_avoid_tolls",false),
-        avoidHighways=prefs.getBoolean("frontend_avoid_highways",false),
-        vehicleModel=prefs.getString("frontend_vehicle","sedan") ?: "sedan",
-        vehicleColor=prefs.getString("frontend_vehicle_color","white") ?: "white",
-        arIntroSeen=prefs.getBoolean("frontend_ar_intro",false),
-        vrIntroSeen=prefs.getBoolean("frontend_vr_intro",false),
-    )
-    override suspend fun setFrontendPreferences(value:FrontendPreferences) {
-        check(prefs.edit().putString("frontend_appearance",value.appearance)
-            .putBoolean("frontend_solid",value.reduceTransparency).putBoolean("frontend_motion",value.reduceMotion)
-            .putBoolean("frontend_voice",value.voiceEnabled).putBoolean("frontend_buildings",value.buildings3d).putFloat("frontend_glass",value.glassOpacity).putString("frontend_ar_fps",value.arFps).putBoolean("frontend_ar_objects",value.arObjects).putBoolean("frontend_send_crashes",value.sendCrashReports).putBoolean("frontend_avoid_tolls",value.avoidTolls).putBoolean("frontend_avoid_highways",value.avoidHighways).putString("frontend_vehicle",value.vehicleModel).putString("frontend_vehicle_color",value.vehicleColor).putBoolean("frontend_ar_intro",value.arIntroSeen).putBoolean("frontend_vr_intro",value.vrIntroSeen).commit()) { "Preferences could not be saved" }
-    }
-    override suspend fun isOnboardingSeen(): Boolean = prefs.getBoolean(KEY_ONBOARDING_SEEN, false)
-
-    override suspend fun markOnboardingSeen() {
-        prefs.edit { putBoolean(KEY_ONBOARDING_SEEN, true) }
-    }
-
-    override suspend fun cityMode(): CityMode =
-        runCatching { CityMode.valueOf(prefs.getString(KEY_CITY_MODE, CityMode.Mumbai.name) ?: CityMode.Mumbai.name) }
-            .getOrDefault(CityMode.Mumbai)
-
-    override suspend fun setCityMode(mode: CityMode) {
-        prefs.edit { putString(KEY_CITY_MODE, mode.name) }
-    }
-
-    override suspend fun kiitBetaAccess(): Boolean = prefs.getBoolean(KEY_KIIT_BETA_ACCESS, false)
-
-    override suspend fun setKiitBetaAccess(enabled: Boolean) {
-        prefs.edit { putBoolean(KEY_KIIT_BETA_ACCESS, enabled) }
-    }
-
-    companion object {
-        private const val KEY_ONBOARDING_SEEN = "onboarding_seen"
-        private const val KEY_CITY_MODE = "city_mode"
-        private const val KEY_KIIT_BETA_ACCESS = "kiit_beta_access"
-    }
-}
 
 class InMemoryAppPreferencesStore(
     private var onboardingSeen: Boolean = false,
     private var storedCityMode: CityMode = CityMode.Mumbai,
     private var storedKiitBetaAccess: Boolean = false,
+    initialFrontend: FrontendPreferences = FrontendPreferences(),
 ) : AppPreferencesStore {
-    private var frontend = FrontendPreferences()
+    private var frontend = initialFrontend
     override suspend fun frontendPreferences() = frontend
     override suspend fun setFrontendPreferences(value: FrontendPreferences) { frontend = value }
     override suspend fun isOnboardingSeen(): Boolean = onboardingSeen

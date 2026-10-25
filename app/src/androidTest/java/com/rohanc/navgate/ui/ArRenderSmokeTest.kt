@@ -56,7 +56,7 @@ class ArRenderSmokeTest {
                 val road=ValhallaRoutingProvider(cache=RoomRoadRouteCache(db))
                 val routing=road
                 vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,AndroidBackendClock,RoomSessionStore(db,regions),routingProvider=routing)},InMemoryUserPlacesStore(),
-                    InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta),estimator=road)
+                    InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta,initialFrontend=com.rohanc.navgate.data.FrontendPreferences(arIntroSeen=true,vrIntroSeen=true)),estimator=road)
                 stores.put("ar",vm)
             }
             compose.setContent{

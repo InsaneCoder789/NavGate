@@ -1,5 +1,7 @@
 package com.rohanc.navgate.ui.ar
 
+import androidx.compose.ui.draw.alpha
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -51,15 +53,20 @@ private fun turnTitle(kind: String?, exit: String?) = when (kind) {
 
 /** Everything drawn over the camera in 2D: the scanning reticle while the ground is found, and the beacon standing on the turn. */
 @Composable
-internal fun BoxScope.ArTextLayer(hud: ArHud?, turnKind: String?, turnLabel: String?, distanceToTurnMeters: Double, @Suppress("UNUSED_PARAMETER") fpsMode: ArFpsMode, showStatus: Boolean = true) {
+internal fun BoxScope.ArTextLayer(hud: ArHud?, turnKind: String?, turnLabel: String?, distanceToTurnMeters: Double, @Suppress("UNUSED_PARAMETER") fpsMode: ArFpsMode, showStatus: Boolean = true, showBeacon: Boolean = true) {
     var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
     Box(Modifier.matchParentSize().onSizeChanged { size = it }) {
         val x = hud?.turnX; val y = hud?.turnY
-        if (x != null && y != null && size.width > 0) {
+        if (showBeacon && x != null && y != null && size.width > 0) {
             val exit = turnLabel?.let { Regex("(\\d+(?:st|nd|rd|th)) exit").find(it)?.groupValues?.get(1) }
             TurnBeacon(x * size.width, y * size.height, size, turnKind, turnTitle(turnKind, exit), distanceToTurnMeters)
         }
         val message = hud?.tracking
+        // The road is where it is, not where the phone points: when it lies well to one side, say so at that edge of the screen.
+        val roadAngle = hud?.roadAngleDeg
+        if (roadAngle != null && kotlin.math.abs(roadAngle) > 32f && size.height > 0) {
+            RoadPointer(toRight = roadAngle > 0, Modifier.align(if (roadAngle > 0) Alignment.TopEnd else Alignment.TopStart).offset { IntOffset(0, (size.height * 0.42f).roundToInt()) })
+        }
         if (message != null && showStatus) StatusCard(message, Modifier.align(Alignment.TopCenter).padding(top = 178.dp).padding(horizontal = 16.dp))
     }
 }
@@ -86,6 +93,18 @@ private fun TurnBeacon(px: Float, py: Float, size: androidx.compose.ui.unit.IntS
     }
 }
 
+/** "The road is that way": a chevron on the edge of the screen the road lies toward, shown only while the line is out of view. */
+@Composable
+private fun RoadPointer(toRight: Boolean, modifier: Modifier = Modifier) {
+    val pulse by rememberInfiniteTransition(label = "road").animateFloat(0.55f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse), label = "alpha")
+    Row(modifier.padding(horizontal = 10.dp).alpha(pulse).clip(CircleShape).background(ArNavy.copy(alpha = 0.78f)).border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape).padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (!toRight) Icon(Icons.Rounded.ChevronLeft, null, Modifier.size(22.dp), tint = Color.White)
+        Text("Road", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        if (toRight) Icon(Icons.Rounded.ChevronRight, null, Modifier.size(22.dp), tint = Color.White)
+    }
+}
+
 /** Tracking help in the same language as the direction card above it: a blue badge, a short title and one line of what to do. */
 @Composable
 private fun StatusCard(message: String, modifier: Modifier = Modifier) {
@@ -95,6 +114,8 @@ private fun StatusCard(message: String, modifier: Modifier = Modifier) {
         message.startsWith("Too dark") -> "Too dark for AR" to "Add light, or use the map"
         message.startsWith("Moving too fast") -> "Hold steady" to "Move the phone more slowly"
         message.startsWith("Point the camera") -> "Not enough to see" to "Point at the road and its surroundings"
+        message.startsWith("Getting your bearings") -> "Getting your bearings" to "Move the phone slowly"
+        message.startsWith("The camera is in use") -> "Camera busy" to "Close the other app using it"
         else -> message to ""
     }
     Row(modifier.fillMaxWidth().widthIn(max = 420.dp).clip(RoundedCornerShape(22.dp)).background(ArNavy.copy(alpha = 0.72f)).border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(22.dp)).padding(horizontal = 12.dp, vertical = 10.dp),

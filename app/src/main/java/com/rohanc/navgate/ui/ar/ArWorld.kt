@@ -7,7 +7,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /** What is drawn on the road this frame, all in ARCore world coordinates. */
-class ArScene(val ribbon: ArMeshData, val arrow: ArMeshData?, val arrowOutline: ArMeshData?, val turnPoint: GroundPoint?, val turnIsArrival: Boolean, val roadEnd: Float, val groundY: Float)
+class ArScene(val ribbon: ArMeshData, val arrow: ArMeshData?, val arrowOutline: ArMeshData?, val turnPoint: GroundPoint?, val turnIsArrival: Boolean, val roadEnd: Float, val groundY: Float, val ahead: GroundPoint? = null)
 
 /**
  * The AR engine without any graphics: it ties ARCore's free-floating world to the real one and decides what to draw. The GL renderer
@@ -16,14 +16,25 @@ class ArScene(val ribbon: ArMeshData, val arrow: ArMeshData?, val arrowOutline: 
  * The road line is fixed in ARCore's world. Moving, waving or turning the phone moves the camera through that world, never the line;
  * only the slow, deliberate corrections from the route-locked position and the road's heading adjust it.
  */
-class ArWorld {
-    val aligner = ArGeoAligner()
+class ArWorld(val aligner: ArGeoAligner = ArGeoAligner()) {
+    private class Sample(val timeMillis: Long, val along: Double, val x: Double, val z: Double)
+    private val alongHistory = ArrayDeque<Sample>()
 
     /** Feeds one ARCore camera reading together with where the vehicle is on the route (the road's own position and direction). */
     fun align(reading: ArCameraReading, compass: Double?, compassUp: Double?, geometry: RouteGeometry?, alongNowMeters: Double, speedMps: Double) {
         val g = geometry ?: return
         val along = alongNowMeters.coerceIn(0.0, g.length)
-        aligner.update(reading, compass, g.pointAt(along), 3.0, g.bearingAt(along), speedMps, compassUp)
+        // The heading the aligner compares ARCore's travel with must cover the same stretch of road: the chord of the last few seconds, not
+        // the bearing at this instant, which differs on a bend and would make a steady walker look like a changing heading.
+        alongHistory.addLast(Sample(reading.timeMillis, along, reading.position[0], reading.position[2]))
+        while (alongHistory.size > 1 && reading.timeMillis - alongHistory.first().timeMillis > aligner.windowMillis) alongHistory.removeFirst()
+        val first = alongHistory.first()
+        // How far the phone really moved over that window is known precisely from ARCore; the position along the road is only as good as GPS.
+        // So the stretch of road compared is the one that distance long, ending where the road position says the user is now.
+        val walked = hypot(reading.position[0] - first.x, reading.position[2] - first.z)
+        val then = (along - walked).coerceAtLeast(0.0)
+        val chord = if (walked > 3.0 && along - then > 3.0) g.pointAt(then).bearingTo(g.pointAt(along)) else g.bearingAt(along)
+        aligner.update(reading, compass, g.pointAt(along), 3.0, chord, speedMps, compassUp)
     }
 
     /** How far to trust the alignment right now (0 to 1). */
@@ -40,7 +51,7 @@ class ArWorld {
         // The line always starts under the phone, however far the alignment is off, and eases back onto the road ahead.
         val ground = camera?.let { anchorToCamera(mapped, it) } ?: mapped
         val y = groundY + 0.02
-        val ribbon = ArMesh.ribbon(ground, y, 0.85)
+        val ribbon = ArMesh.ribbon(smoothGround(ground), y, 0.85)
         var turn: GroundPoint? = null; var arrow: ArMeshData? = null; var outline: ArMeshData? = null
         val arrival = turnKind == "Arrive"
         // Walk the path to the end of this road and read the direction in and out of it.
@@ -54,8 +65,40 @@ class ArWorld {
             if (arrival) { arrow = ArMesh.ring(turn, y + 0.03, 2.2, 0.55); outline = ArMesh.ring(turn, y + 0.025, 2.2, 1.0) }
             else { arrow = ArMesh.turnArrow(turn, incoming, outgoing, y + 0.03); outline = ArMesh.turnArrow(turn, incoming, outgoing, y + 0.025, 1.6) }
         }
-        return ArScene(ribbon, arrow, outline, turn, arrival, roadEndMeters.toFloat(), y.toFloat())
+        // A point about 8 m down the line, which says which way the road lies from where the phone is pointing.
+        var walked = 0.0; var aheadPoint: GroundPoint? = null
+        for (i in 1 until ground.size) { walked += hypot(ground[i].x - ground[i - 1].x, ground[i].z - ground[i - 1].z); if (walked >= 8.0) { aheadPoint = ground[i]; break } }
+        return ArScene(ribbon, arrow, outline, turn, arrival, roadEndMeters.toFloat(), y.toFloat(), aheadPoint ?: ground.last())
     }
+}
+
+/**
+ * The angle, in degrees, from where the phone points to [target] on the ground: positive when the target lies to the right.
+ * [forwardX]/[forwardZ] is the camera's horizontal heading in ground space (east-ish x, south-ish z), so "right" is (-z, x).
+ */
+fun bearingToTarget(camera: GroundPoint, forwardX: Double, forwardZ: Double, target: GroundPoint): Double {
+    val n = hypot(forwardX, forwardZ); if (n < 1e-6) return 0.0
+    val fx = forwardX / n; val fz = forwardZ / n
+    val dx = target.x - camera.x; val dz = target.z - camera.z
+    return Math.toDegrees(kotlin.math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz))
+}
+
+/**
+ * Rounds off the corners of [path] (corner cutting, two passes) so a ribbon built from it never folds over itself where the line bends
+ * sharply, for instance where the start is pulled under the phone. The ends stay where they are.
+ */
+fun smoothGround(path: List<GroundPoint>, passes: Int = 2): List<GroundPoint> {
+    var p = path
+    repeat(passes) {
+        if (p.size < 3) return p
+        val out = ArrayList<GroundPoint>(p.size * 2); out += p.first()
+        for (i in 0 until p.lastIndex) {
+            val a = p[i]; val b = p[i + 1]
+            out += GroundPoint(a.x * 0.75 + b.x * 0.25, a.z * 0.75 + b.z * 0.25); out += GroundPoint(a.x * 0.25 + b.x * 0.75, a.z * 0.25 + b.z * 0.75)
+        }
+        out += p.last(); p = out
+    }
+    return p
 }
 
 /**

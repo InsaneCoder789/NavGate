@@ -1,6 +1,5 @@
 package com.rohanc.navgate.navigation
 
-import com.rohanc.navgate.ar.ArAvailabilityState
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.ManeuverType
 import com.rohanc.navgate.model.RouteResponse
@@ -37,7 +36,6 @@ data class NavigationSnapshot(
     val locationConfidence: SignalConfidence = SignalConfidence(GuidanceConfidence.Low, "Waiting for live GPS"),
     val headingConfidence: SignalConfidence = SignalConfidence(GuidanceConfidence.Low, "Need heading lock"),
     val guidanceConfidence: SignalConfidence = SignalConfidence(GuidanceConfidence.Low, "No active route"),
-    val arAvailability: ArAvailabilityState = ArAvailabilityState.Checking,
     val presentationMode: PresentationMode = PresentationMode.MAP,
     val isNavigating: Boolean = false,
     val isArrived: Boolean = false,

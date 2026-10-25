@@ -1,6 +1,5 @@
 package com.rohanc.navgate.ui.ar
 
-import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.navigation.NavigationSnapshot
 import com.rohanc.navgate.navigation.GuidanceConfidence
 import kotlin.math.abs

@@ -6,15 +6,11 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CameraManager
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.rohanc.navgate.core.CampusRoute
 import com.rohanc.navgate.core.GeoPoint
 import com.rohanc.navgate.core.projectPath
-import kotlin.math.atan2
-import kotlin.math.max
 
 /** Live rear-camera axes from the rotation-vector sensor, in a true-north frame. Null until the first reading. */
 @Composable
@@ -42,22 +38,6 @@ fun rememberCameraBasis(enabled: Boolean, position: () -> GeoPoint?): State<Came
         onDispose { manager.unregisterListener(listener) }
     }
     return basis
-}
-
-/** Vertical (portrait long-side) field of view of the rear camera, from its sensor size and focal length; 65 degrees if unreadable. */
-@Composable
-fun rememberVerticalFov(): Double {
-    val context = LocalContext.current
-    return remember(context) {
-        runCatching {
-            val manager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val id = manager.cameraIdList.first { manager.getCameraCharacteristics(it).get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK }
-            val c = manager.getCameraCharacteristics(id)
-            val size = c.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)!!
-            val focal = c.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)!!.first()
-            Math.toDegrees(2 * atan2(max(size.width, size.height) / 2.0, focal.toDouble()))
-        }.getOrDefault(65.0).coerceIn(40.0, 90.0)
-    }
 }
 
 /** How close to the route the phone must be before AR guidance is offered. */

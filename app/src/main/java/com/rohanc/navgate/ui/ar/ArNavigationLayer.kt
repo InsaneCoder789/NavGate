@@ -3,17 +3,13 @@ package com.rohanc.navgate.ui.ar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rohanc.navgate.core.CampusRoute
@@ -22,7 +18,6 @@ import com.rohanc.navgate.core.RouteGeometry
 import com.rohanc.navgate.ui.map.TrackInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 private val Lime = Color(0xFFFF8A65)   // coral: the AR accent
 private val Ink = Color(0xFF121B2E)    // deep navy glass
@@ -70,7 +65,7 @@ fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: Track
                 Modifier.align(Alignment.Center).padding(32.dp).clip40().background(Ink.copy(alpha = 0.85f)).padding(horizontal = 20.dp, vertical = 14.dp), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         } else {
             ArSessionView(inputs, fpsMode, { status = it; if (it is ArSessionStatus.Running) Unit }, { hud = it; if (status !is ArSessionStatus.Running) status = ArSessionStatus.Running }, Modifier.fillMaxSize(), domeTop)
-            ArTextLayer(hud, sessionTurnKind ?: turnKind, turnLabel, distanceToTurnMeters, fpsMode, showStatus = domeTop == 0f)
+            ArTextLayer(hud, sessionTurnKind ?: turnKind, turnLabel, distanceToTurnMeters, fpsMode, showStatus = domeTop == 0f, showBeacon = domeTop == 0f)
         }
     }
 }

@@ -31,12 +31,7 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
-import kotlin.math.hypot
 import kotlin.math.max
-import kotlin.math.min
-
-/** What ARCore reports each frame (kept for the plain-camera fallback overlay). */
-class ArFrameState(val reading: ArCameraReading, val focalX: Double, val focalY: Double, val width: Int, val height: Int, val groundHeightMeters: Double?, val tracking: Boolean)
 
 sealed interface ArSessionStatus {
     data object Starting : ArSessionStatus
@@ -71,7 +66,9 @@ class ArInputs {
 }
 
 /** What the render thread reports back for the on-screen text and status. */
-data class ArHud(val turnX: Float?, val turnY: Float?, val tracking: String?, val aligned: Boolean, val groundFound: Boolean, val cameraFps: Int, val overlayFps: Int, val objects: Int = 0, val phoneHeight: Double = 0.0, val confidence: Double = 0.0)
+data class ArHud(val turnX: Float?, val turnY: Float?, val tracking: String?, val aligned: Boolean, val groundFound: Boolean, val cameraFps: Int, val overlayFps: Int, val objects: Int = 0, val phoneHeight: Double = 0.0, val confidence: Double = 0.0,
+    /** Degrees from where the phone points to where the road lies (positive = to the right); null when there is no line. */
+    val roadAngleDeg: Float? = null)
 
 private const val TAG = "NavGateAR"
 
@@ -152,11 +149,19 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     private val aligner get() = world.aligner
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
     @Volatile private var viewport = intArrayOf(0, 0)
-    private val target = resolveFps(context, fpsMode)
+    private var forceFullRate = false
+    private var restarts = 0
+    private var target = resolveFps(context, fpsMode)
+    private var resumedAt = 0L
     private val ground = GroundEstimator()
     private var groundSamples = 0
     private var phoneHeightNow = 0.0
     private var planesOff = false
+    private var groundFrame = 0
+    private var settledAt = 0L
+    private fun now0() = SystemClock.elapsedRealtime()
+    private var cachedScene: ArScene? = null; private var sceneBuiltAt = 0L; private var sceneKey: List<Any?> = emptyList()
+    private val clip = FloatArray(4); private val turnIn = FloatArray(4)
     private var lastTimestamp = 0L
     private var last: PoseSample? = null
     private var previous: PoseSample? = null
@@ -170,7 +175,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     init {
         surface.preserveEGLContextOnPause = true
         surface.setEGLContextClientVersion(3)
-        surface.setEGLConfigChooser(8, 8, 8, 8, 16, 0)
+        surface.setEGLConfigChooser(8, 8, 8, 8, 0, 0)     // nothing here uses a depth buffer
         surface.setRenderer(object : GLSurfaceView.Renderer {
             override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) { background.create(); path.create(); session?.setCameraTextureName(background.textureId) }
             override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -192,6 +197,11 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     private fun displayRotation() = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.rotation
 
     fun resume() {
+        // Battery saver, charging or a warm phone may have changed while the app was away: the camera rate is chosen again, and the session
+        // restarted only if the choice really differs.
+        resumedAt = SystemClock.elapsedRealtime()
+        lostAtMillis = 0L
+        resolveFps(context, fpsMode).let { if (forceFullRate) 60 to it.second else it }.let { fresh -> if (fresh != target) { session?.let { runCatching { it.close() } }; session = null; planesOff = false; groundFrame = 0; target = fresh } }
         if (session == null) {
             try {
                 if (ArCoreApk.getInstance().requestInstall(context as android.app.Activity, true) == ArCoreApk.InstallStatus.INSTALL_REQUESTED) return
@@ -254,6 +264,12 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         if (newImage && inputs.objectAwareness && fpsPolicyAllowsObjects()) objects.maybeDetect(frame, now, width, height)
 
         if (!tracking) {
+            // The camera sometimes starts with a black picture (seen on this phone at the 30 fps setting): if nothing usable has appeared
+            // five seconds after starting, restart the session, up to three times, at the full camera rate.
+            if (restarts < 3 && now - resumedAt > 5000 && cameraFrames + overlayFps >= 0) {
+                restarts++; Log.i(TAG, "No usable picture at ${target.first} fps (${camera.trackingFailureReason}): restart $restarts at full camera rate")
+                forceFullRate = true; main.post { pause(); resume() }
+            }
             if (lostAtMillis == 0L) lostAtMillis = now
             publishHud(now, null, null, trackingMessage(camera))
             return
@@ -276,7 +292,13 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         Matrix.multiplyMM(mvp, 0, proj, 0, view, 0)
 
         var turnX: Float? = null; var turnY: Float? = null
-        val scene = buildScene(last!!.position[1], GroundPoint(last!!.position[0], last!!.position[2]))
+        // The line is fixed in the world, so it is rebuilt a few times a second (and at once when its inputs change), not at every frame:
+        // the new camera pose moves it on screen between rebuilds, and its mesh is only sent to the GPU when it is rebuilt.
+        val key = listOf(inputs.path, inputs.roadEndMeters, inputs.turnKind, inputs.driving)
+        if (cachedScene == null || key != sceneKey || now - sceneBuiltAt >= if (target.second) 33 else 66) {
+            cachedScene = buildScene(last!!.position[1], GroundPoint(last!!.position[0], last!!.position[2])); sceneBuiltAt = now; sceneKey = key
+        }
+        val scene = cachedScene
         GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         GLES20.glDisable(GLES20.GL_DEPTH_TEST); GLES20.glDisable(GLES20.GL_CULL_FACE)
         drawFeetMarker(now)
@@ -286,16 +308,19 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
             val seconds = (now % 100_000L) / 1000f
             path.setHidden(if (inputs.objectAwareness && fpsPolicyAllowsObjects()) objects.latest.takeIf { now - it.atMillis < 1200 } else null, width, height)
             path.drawRibbon(mvp, scene.ribbon, seconds, scene.roadEnd, world.confidence.toFloat())
-            scene.arrowOutline?.let { path.drawSolid(mvp, it, 0.04f, 0.07f, 0.12f, 0.92f) }
-            scene.arrow?.let { path.drawSolid(mvp, it, if (scene.turnIsArrival) 1.0f else 0.66f, if (scene.turnIsArrival) 1.0f else 0.80f, 1.0f, 0.97f) }
+            scene.arrowOutline?.let { path.drawSolid(mvp, it, 0.04f, 0.07f, 0.12f, 0.92f, slot = 1) }
+            scene.arrow?.let { path.drawSolid(mvp, it, if (scene.turnIsArrival) 1.0f else 0.66f, if (scene.turnIsArrival) 1.0f else 0.80f, 1.0f, 0.97f, slot = 2) }
             scene.turnPoint?.let { t ->
-                val clip = FloatArray(4); Matrix.multiplyMV(clip, 0, mvp, 0, floatArrayOf(t.x.toFloat(), scene.groundY + 2.6f, t.z.toFloat(), 1f), 0)
+                turnIn[0] = t.x.toFloat(); turnIn[1] = scene.groundY + 2.6f; turnIn[2] = t.z.toFloat(); turnIn[3] = 1f
+                Matrix.multiplyMV(clip, 0, mvp, 0, turnIn, 0)
                 if (clip[3] > 0.1f) { val nx = clip[0] / clip[3]; val ny = clip[1] / clip[3]; if (nx in -1.2f..1.2f && ny in -1.2f..1.2f) { turnX = (nx + 1f) / 2f; turnY = (1f - ny) / 2f } }
             }
             GLES20.glDisable(GLES20.GL_BLEND)
         }
         drawnFrames++
-        publishHud(now, turnX, turnY, when { !aligner.aligned -> "Aligning with the road: hold the phone up and look along it"; world.confidence < 0.5 -> "Lining up with the road: walk a few steps forward"; else -> null })
+        val roadAngle = scene?.ahead?.let { ahead -> val fw = camera.displayOrientedPose.getTransformedAxis(2, -1.0f); bearingToTarget(GroundPoint(last!!.position[0], last!!.position[2]), fw[0].toDouble(), fw[2].toDouble(), ahead).toFloat() }
+            ?: compassRoadAngle()
+        publishHud(now, turnX, turnY, when { !aligner.aligned -> "Aligning with the road: hold the phone up and look along it"; world.confidence < 0.5 -> "Lining up with the road: walk a few steps forward"; else -> null }, roadAngle)
     }
 
     /**
@@ -327,7 +352,11 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     private fun updateGround(frame: Frame, active: Session, pose: Pose, width: Int, height: Int) {
         val camY = pose.ty().toDouble()
         var hits = 0
-        for ((fx, fy) in listOf(0.5f to 0.88f, 0.5f to 0.7f, 0.3f to 0.8f, 0.7f to 0.8f, 0.5f to 0.5f)) {
+        // Five ray casts per camera frame (against planes and depth) is the price of finding the ground; once it is found and steady, one
+        // look in ten keeps it honest and the rest of the time the phone's height simply follows from the camera's own height.
+        val settled = ground.found && groundSamples > 120
+        if (settled && (groundFrame++ % 10) != 0) { phoneHeightNow = ground.phoneHeight(camY, assumedPhoneHeight()); return }
+        for ((fx, fy) in GROUND_PROBES) {
             val hit = frame.hitTest(width * fx, height * fy).firstOrNull { r ->
                 val t = r.trackable
                 (t is Plane && t.type == Plane.Type.HORIZONTAL_UPWARD_FACING && t.isPoseInPolygon(r.hitPose)) || t is DepthPoint
@@ -337,7 +366,14 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         if (hits > 0) groundSamples++
         phoneHeightNow = ground.phoneHeight(camY, assumedPhoneHeight())
         // Once the ground has settled, stop plane detection: it is the most expensive part of tracking. The height is kept as a world value.
-        if (!planesOff && ground.found && groundSamples > 120) { planesOff = true; runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.DISABLED }) } }
+        // Plane detection and depth are the most expensive parts of ARCore tracking; the ground is known now, so both are switched off.
+        if (planesOff && ground.found && now0() - settledAt > GROUND_REFRESH_MILLIS) {
+            // A slope, a step or a new floor changes the ground: look again for a few seconds, then settle once more.
+            planesOff = false; groundSamples = 0; groundFrame = 0; ground.reset()
+            runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.HORIZONTAL; depthMode = if (active.isDepthModeSupported(Config.DepthMode.AUTOMATIC) && !power.isPowerSaveMode) Config.DepthMode.AUTOMATIC else Config.DepthMode.DISABLED }) }
+            return
+        }
+        if (!planesOff && settled) { settledAt = now0(); planesOff = true; runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.DISABLED; depthMode = Config.DepthMode.DISABLED }) } }
     }
 
     /** Feeds ARCore's camera and the route-locked vehicle position to the AR engine. The road's own direction aligns the world once moving. */
@@ -365,7 +401,18 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         world.buildScene(inputs.path, inputs.roadEndMeters, inputs.turnKind, ground.groundY(cameraY, assumedPhoneHeight()), cameraGround)
 
     /** Object awareness costs battery, so the 30 fps saver mode leaves it off. */
-    private fun fpsPolicyAllowsObjects() = target.first >= 60 || fpsMode != ArFpsMode.Saver
+    private val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    /** Before the line can be placed (aligning, or recovering after tracking was lost) the compass still says which way the road lies. */
+    private fun compassRoadAngle(): Float? {
+        val azimuth = inputs.compassAzimuth ?: return null
+        val path = inputs.path; if (path.size < 2) return null
+        val ahead = path.firstOrNull { it.distanceTo(path.first()) >= 8.0 } ?: path.last()
+        val bearing = path.first().bearingTo(ahead)
+        return (((bearing - azimuth + 540.0) % 360.0) - 180.0).toFloat()
+    }
+
+    private fun fpsPolicyAllowsObjects() = (target.first >= 60 || fpsMode != ArFpsMode.Saver) && !power.isPowerSaveMode &&
+        !(Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= PowerManager.THERMAL_STATUS_MODERATE)
 
     private fun trackingMessage(camera: Camera): String? = when (camera.trackingFailureReason) {
         TrackingFailureReason.INSUFFICIENT_LIGHT -> "Too dark for AR: turn on more light or use the map"
@@ -375,19 +422,24 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         else -> "Getting your bearings: move the phone slowly"
     }
 
-    private fun publishHud(now: Long, turnX: Float?, turnY: Float?, tracking: String?) {
+    private fun publishHud(now: Long, turnX: Float?, turnY: Float?, tracking: String?, roadAngle: Float? = null) {
         if (now - windowStart >= 1000) { cameraFps = cameraFrames; overlayFps = drawnFrames; cameraFrames = 0; drawnFrames = 0; windowStart = now }
         if (now - lastHudAt < 60) return
         lastHudAt = now
-        val hud = ArHud(turnX, turnY, tracking, aligner.aligned, ground.found, cameraFps, overlayFps, objects.latest.takeIf { now - it.atMillis < 1200 }?.count ?: 0, phoneHeightNow, world.confidence)
+        val hud = ArHud(turnX, turnY, tracking, aligner.aligned, ground.found, cameraFps, overlayFps, objects.latest.takeIf { now - it.atMillis < 1200 }?.count ?: 0, phoneHeightNow, world.confidence, roadAngle)
         ArDiagnostics.record(now, hud)
         main.post { onHud(hud) }
     }
 }
 
+private const val SLOTS = 4
+private const val GROUND_REFRESH_MILLIS = 90_000L
+private val GROUND_PROBES = listOf(0.5f to 0.88f, 0.5f to 0.7f, 0.3f to 0.8f, 0.7f to 0.8f, 0.5f to 0.5f)
+
 /** Draws the ribbon and arrow meshes with a small shader: fade with distance, glowing edges, chevrons that flow toward the turn. */
 private class ArPathRenderer {
-    private var program = 0; private var buffer = 0
+    private var program = 0
+    private val buffers = IntArray(SLOTS); private val uploaded = arrayOfNulls<ArMeshData>(SLOTS)
     private var aPos = 0; private var aUv = 0; private var uMvp = 0; private var uMode = 0; private var uTime = 0; private var uEnd = 0; private var uColor = 0; private var uBox = 0; private var uViewport = 0; private var uConfidence = 0
     private val boxes = FloatArray(32); private var viewW = 1f; private var viewH = 1f
     private var staging: FloatBuffer = ByteBuffer.allocateDirect(4 * 5 * 6 * 400).order(ByteOrder.nativeOrder()).asFloatBuffer()
@@ -407,9 +459,10 @@ private class ArPathRenderer {
                 vec4 b = uBox[i];
                 if (b.z > b.x) {
                   float top = b.y + (b.w - b.y) * 0.18;
-                  float inX = smoothstep(b.x - 0.01, b.x + 0.015, p.x) * (1.0 - smoothstep(b.z - 0.015, b.z + 0.01, p.x));
-                  float inY = smoothstep(top - 0.01, top + 0.02, p.y) * (1.0 - smoothstep(b.w - 0.01, b.w + 0.02, p.y));
-                  keep *= 1.0 - inX * inY;
+                  // A wide feather and a partial fade, so the line dims behind a person instead of being cut by a hard rectangle.
+                  float inX = smoothstep(b.x - 0.04, b.x + 0.06, p.x) * (1.0 - smoothstep(b.z - 0.06, b.z + 0.04, p.x));
+                  float inY = smoothstep(top - 0.04, top + 0.08, p.y) * (1.0 - smoothstep(b.w - 0.04, b.w + 0.06, p.y));
+                  keep *= 1.0 - 0.85 * inX * inY;
                 }
               }
               return keep;
@@ -439,7 +492,7 @@ private class ArPathRenderer {
         uMvp = GLES20.glGetUniformLocation(program, "uMvp"); uMode = GLES20.glGetUniformLocation(program, "uMode")
         uTime = GLES20.glGetUniformLocation(program, "uTime"); uEnd = GLES20.glGetUniformLocation(program, "uEnd"); uColor = GLES20.glGetUniformLocation(program, "uColor")
         uBox = GLES20.glGetUniformLocation(program, "uBox"); uViewport = GLES20.glGetUniformLocation(program, "uViewport"); uConfidence = GLES20.glGetUniformLocation(program, "uConfidence")
-        val ids = IntArray(1); GLES20.glGenBuffers(1, ids, 0); buffer = ids[0]
+        GLES20.glGenBuffers(SLOTS, buffers, 0); uploaded.fill(null)
     }
 
     /** Rectangles (view-normalized) the line must stay behind; null clears them. */
@@ -451,22 +504,26 @@ private class ArPathRenderer {
 
     fun drawRibbon(mvp: FloatArray, mesh: ArMeshData, seconds: Float, roadEnd: Float, confidence: Float) {
         GLES20.glUseProgram(program); GLES20.glUniform1i(uMode, 0); GLES20.glUniform1f(uConfidence, confidence); GLES20.glUniform1f(uTime, seconds); GLES20.glUniform1f(uEnd, max(roadEnd, 10f))
-        draw(mvp, mesh)
+        draw(mvp, mesh, 0)
     }
 
-    fun drawSolid(mvp: FloatArray, mesh: ArMeshData, r: Float, g: Float, b: Float, a: Float) {
+    /** [slot] says which buffer holds this mesh: the road line and the two turn-arrow meshes keep their own, so they are sent to the GPU only when rebuilt. */
+    fun drawSolid(mvp: FloatArray, mesh: ArMeshData, r: Float, g: Float, b: Float, a: Float, slot: Int = 3) {
         GLES20.glUseProgram(program); GLES20.glUniform1i(uMode, 1); GLES20.glUniform4f(uColor, r, g, b, a)
-        draw(mvp, mesh)
+        draw(mvp, mesh, slot)
     }
 
-    private fun draw(mvp: FloatArray, mesh: ArMeshData) {
+    private fun draw(mvp: FloatArray, mesh: ArMeshData, slot: Int) {
         if (mesh.vertexCount == 0) return
         GLES20.glUniformMatrix4fv(uMvp, 1, false, mvp, 0)
         GLES20.glUniform4fv(uBox, 8, boxes, 0); GLES20.glUniform2f(uViewport, viewW, viewH)
-        if (staging.capacity() < mesh.vertices.size) staging = ByteBuffer.allocateDirect(mesh.vertices.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
-        staging.clear(); staging.put(mesh.vertices, 0, mesh.vertexCount * 5); staging.flip()
-        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, buffer)
-        GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, mesh.vertexCount * 5 * 4, staging, GLES20.GL_DYNAMIC_DRAW)
+        GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, buffers[slot])
+        if (uploaded[slot] !== mesh) {
+            if (staging.capacity() < mesh.vertices.size) staging = ByteBuffer.allocateDirect(mesh.vertices.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+            staging.clear(); staging.put(mesh.vertices, 0, mesh.vertexCount * 5); staging.flip()
+            GLES20.glBufferData(GLES20.GL_ARRAY_BUFFER, mesh.vertexCount * 5 * 4, staging, GLES20.GL_DYNAMIC_DRAW)
+            uploaded[slot] = mesh
+        }
         GLES20.glEnableVertexAttribArray(aPos); GLES20.glEnableVertexAttribArray(aUv)
         GLES20.glVertexAttribPointer(aPos, 3, GLES20.GL_FLOAT, false, 20, 0); GLES20.glVertexAttribPointer(aUv, 2, GLES20.GL_FLOAT, false, 20, 12)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, mesh.vertexCount)

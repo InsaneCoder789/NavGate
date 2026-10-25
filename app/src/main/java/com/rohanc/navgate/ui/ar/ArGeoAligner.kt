@@ -1,6 +1,7 @@
 package com.rohanc.navgate.ui.ar
 
 import com.rohanc.navgate.core.GeoPoint
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
@@ -20,7 +21,21 @@ class GeoCamera(val position: GeoPoint, val basis: CameraBasis)
  *    drawn line does not jitter yet cannot drift away from the road.
  * Call [reset] when ARCore loses tracking, because its world frame restarts.
  */
-class ArGeoAligner {
+class ArGeoAligner(
+    private val trailMillis: Long = 6000L,
+    private val minTravelMeters: Double = 5.0,
+    /** The first seconds of walking use a shorter stretch, so a wrong compass is put right in about four seconds rather than six. */
+    private val startTrailMillis: Long = 4000L,
+    private val startMinTravelMeters: Double = 3.5,
+    private val travelTau: Double = 1.0,
+    /** Once the road's heading has been followed for a while the alignment is good, so it changes slowly: a weaving walker must not swing the line. */
+    private val settledTau: Double = 25.0,
+    private val maxCourseDisagreementDeg: Double = 30.0,
+    private val compassStartTau: Double = 0.8,
+) {
+    /** How far back the travel direction is measured; the road heading it is compared with must cover the same stretch. */
+    val windowMillis: Long get() = if (roadHeadingSeconds < SETTLE_SECONDS) startTrailMillis else trailMillis
+    private val travelNeeded: Double get() = if (roadHeadingSeconds < SETTLE_SECONDS) startMinTravelMeters else minTravelMeters
     private var theta: Double? = null // radians, AR azimuth -> true azimuth
     private var anchorAr = DoubleArray(2)
     private var anchorEast = 0.0
@@ -82,16 +97,23 @@ class ArGeoAligner {
             // The compass is noisy and magnetically disturbed near cars, so it carries less weight once the road itself gives a heading.
             compassSeconds += frameDt
             // Quick to settle at the start, then very slow: standing still, the compass is all there is and it must not shake the line.
-            val tau = if (travelling) 40.0 else if (compassSeconds < 4.0) 0.8 else 15.0
-            theta = theta?.let { blend(it, sample, 1.0 - Math.exp(-frameDt / tau)) } ?: sample
+            val tau = if (travelling) 40.0 else if (compassSeconds < 4.0) compassStartTau else 15.0
+            // Once the road's own heading has been followed for a few seconds the compass, which is biased near cars and buildings, stops pulling.
+            val compassIgnored = travelling && roadHeadingSeconds >= SETTLE_SECONDS && theta != null
+            if (!compassIgnored) theta = theta?.let { blend(it, sample, 1.0 - Math.exp(-frameDt / tau)) } ?: sample
         }
         // Refine yaw from travel: ARCore's displacement over the last seconds against the GPS course.
         trail.addLast(Triple(reading.timeMillis, reading.position[0], reading.position[2]))
-        while (trail.size > 1 && reading.timeMillis - trail.first().first > 3000) trail.removeFirst()
+        while (trail.size > 1 && reading.timeMillis - trail.first().first > windowMillis) trail.removeFirst()
         if (travelling && trail.size > 2) {
             val dx = reading.position[0] - trail.first().second; val dz = reading.position[2] - trail.first().third
-            if (hypot(dx, dz) > 2.5) { roadHeadingSeconds = minOf(8.0, roadHeadingSeconds + frameDt) }
-            if (hypot(dx, dz) > 2.5) theta = theta?.let { blend(it, Math.toRadians(courseDegrees!!) - atan2(dx, -dz), 1.0 - Math.exp(-frameDt / 1.2)) } ?: (Math.toRadians(courseDegrees) - atan2(dx, -dz))
+            if (hypot(dx, dz) > travelNeeded) { roadHeadingSeconds = minOf(8.0, roadHeadingSeconds + frameDt) }
+            if (hypot(dx, dz) > travelNeeded) {
+                val sample = Math.toRadians(courseDegrees!!) - atan2(dx, -dz)
+                // A step that disagrees wildly with the current alignment is the walker weaving or crossing the road, not a better heading.
+                val off = theta?.let { Math.toDegrees(abs(atan2(sin(sample - it), cos(sample - it)))) } ?: 0.0
+                if (off <= maxCourseDisagreementDeg || roadHeadingSeconds < SETTLE_SECONDS) theta = theta?.let { blend(it, sample, 1.0 - Math.exp(-frameDt / (if (roadHeadingSeconds < SETTLE_SECONDS) travelTau else settledTau))) } ?: sample
+            }
         }
         if (!(travelling && trail.size > 2)) roadHeadingSeconds = maxOf(0.0, roadHeadingSeconds - frameDt * 0.05)
         lastGpsAccuracy = gpsAccuracy
@@ -124,6 +146,8 @@ class ArGeoAligner {
         camGeo = position; camX = reading.position[0]; camZ = reading.position[2]; lastTimeMs = reading.timeMillis
         return GeoCamera(position, CameraBasis(toWorld(reading.forward), toWorld(reading.right), toWorld(reading.up)))
     }
+
+    private companion object { const val SETTLE_SECONDS = 6.0 }
 
     private fun rotate(east: Double, north: Double, t: Double) = (east * cos(t) + north * sin(t)) to (-east * sin(t) + north * cos(t))
 
