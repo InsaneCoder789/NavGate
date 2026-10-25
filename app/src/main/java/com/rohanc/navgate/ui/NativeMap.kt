@@ -1,69 +1,36 @@
 package com.rohanc.navgate.ui
 
-import android.Manifest
-import android.app.Activity
-import androidx.core.view.WindowCompat
-import android.app.Application
-import android.content.Intent
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import android.net.Uri
-import android.provider.Settings
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import android.os.SystemClock
 import com.rohanc.navgate.ui.map.VehicleMarker
 import com.rohanc.navgate.ui.map.VehicleModel
 import com.rohanc.navgate.ui.map.VehicleColor
 import com.rohanc.navgate.ui.map.TrackInput
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
 import com.rohanc.navgate.data.local.NavGateServices
-import android.content.pm.PackageManager
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rohanc.navgate.core.*
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.TravelProfile
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import androidx.compose.ui.platform.LocalConfiguration
 import io.github.dellisd.spatialk.geojson.BoundingBox
-import com.rohanc.navgate.navigation.PresentationMode
 import com.rohanc.navgate.ui.ar.*
 import com.rohanc.navgate.ui.components.*
 import com.rohanc.navgate.ui.location.*
@@ -94,13 +61,18 @@ import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
 import io.github.dellisd.spatialk.geojson.Position
-import com.rohanc.navgate.ui.journey.JourneyActions
-import com.rohanc.navgate.ui.journey.JourneyScreens
-import com.rohanc.navgate.ui.journey.JourneyUi
 
 /** The MapLibre map with route, markers, vehicle and map controls. */
-@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit,onToggle3d:()->Unit={},nextTurn:Coordinate?=null,live:Boolean=false,motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,showControls:Boolean=true,routeGeometry:com.rohanc.navgate.core.RouteGeometry?=null,trackInput:TrackInput?=null,onPlace:(PlaceSearchResult)->Unit){
+@Composable internal fun NativeMap(ui:NavGateUiState,dark:Boolean,permission:Boolean,active:Boolean,sessionId:String?,accuracyMeters:Double?,inspectPoint:Coordinate?,onFeedback:(String)->Unit,onRequestLocation:()->Unit={},screenIsExplore:Boolean=false,bottomInsetDp:Float=0f,topInsetDp:Float=80f,controlsBottomDp:Float?=null,showPins:Boolean=false,onOpenLayers:()->Unit,onToggle3d:()->Unit={},nextTurn:Coordinate?=null,live:Boolean=false,liveHeading:Double?=null,onLaneSide:(String)->Unit={},motion:StateFlow<MotionEstimate?>?=null,alongMeters:Double=0.0,manualPins:List<RoutePin> = emptyList(),onPin:((GeoPoint)->Unit)?=null,showControls:Boolean=true,routeGeometry:com.rohanc.navgate.core.RouteGeometry?=null,trackInput:TrackInput?=null,onPlace:(PlaceSearchResult)->Unit){
     val camera=rememberCameraState(firstPosition=CameraPosition(target=Position(latitude=20.0,longitude=0.0),zoom=2.0))
+    // The route is drawn down the middle of the road; the vehicle and the line ahead sit in the lane the user is really in.
+    val lane=remember(sessionId,ui.travelProfile){com.rohanc.navgate.core.LaneTracker(ui.travelProfile==TravelProfile.Driving)}
+    val laneFix=ui.displayLocation
+    var laneOffset by remember(sessionId){mutableStateOf(lane.offsetMeters)}
+    LaunchedEffect(lane,ui.frontendPreferences.laneSide){lane.force(when(ui.frontendPreferences.laneSide){"left"->com.rohanc.navgate.core.LaneTracker.Lane.Left;"right"->com.rohanc.navgate.core.LaneTracker.Lane.Right;else->null})}
+    LaunchedEffect(lane,active,laneFix?.let{(it.latitude*1e5).toLong() to (it.longitude*1e5).toLong()}){
+        if(active&&laneFix!=null&&routeGeometry!=null&&trackInput!=null)laneOffset=lane.update(com.rohanc.navgate.core.GeoPoint(laneFix.latitude,laneFix.longitude),routeGeometry,trackInput.alongShapeMeters,trackInput.speedMps,android.os.SystemClock.elapsedRealtime())
+    }
     val scope=rememberCoroutineScope()
     val viewport=LocalConfiguration.current
     val connection=rememberMapConnection()
@@ -202,14 +174,19 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             // While guiding, the road behind is dimmed and only the road ahead is bright. Cut every ~8 m, not on every 10 Hz update.
             // The bright line starts where the vehicle is drawn (last fix plus the distance covered since), not at the last fix.
             val alongNow=if(trackInput!=null)trackInput.alongShapeMeters+trackInput.speedMps*((android.os.SystemClock.elapsedRealtime()-trackInput.fixElapsedMillis)/1000.0).coerceIn(0.0,8.0) else 0.0
-            val alongStep=if(active&&routeGeometry!=null&&trackInput!=null)(alongNow/4.0).toInt() else -1
-            val progress=remember(routeGeometry,alongStep){if(alongStep>=0)MapRouteGeoJson.progressSplit(routeGeometry,alongStep*4.0) else null}
+            val alongStep=if(active&&routeGeometry!=null&&trackInput!=null)(alongNow/8.0).toInt() else -1
+            // Only the stretch around the vehicle goes to the map (120 m behind, 700 m ahead), rebuilt every 8 m: the cost does not grow with the trip.
+            val laneStep=Math.round(laneOffset*5.0)
+            val progress=remember(routeGeometry,alongStep,laneStep){if(alongStep>=0)MapRouteGeoJson.progressSplit(routeGeometry,alongStep*8.0,120.0,700.0,laneStep/5.0) else null}
             val route=rememberGeoJsonSource(GeoJsonData.JsonString(progress?.second ?: MapRouteGeoJson.lineString(if(screenIsExplore)null else ui.snapshot.route)))
             val routeDone=rememberGeoJsonSource(GeoJsonData.JsonString(progress?.first ?: """{"type":"FeatureCollection","features":[]}"""))
             val routeColor=if(dark)NavRouteDark else NavRouteLight
             LineLayer(id="walking-route-done",source=routeDone,color=const(if(dark)Color(0xFF5F6B7A) else Color(0xFFB0B6C0)),width=const(7.dp))
             LineLayer(id="walking-route-casing",source=route,color=const(if(dark)Color(0xFF0B1B33) else Color.White),width=const(11.dp))
-            LineLayer(id="walking-route",source=route,color=const(routeColor),width=const(7.dp))
+            LineLayer(
+                id="walking-route", source=route, color=const(routeColor), width=const(if(live)9.dp else 7.dp),
+                cap=const(org.maplibre.compose.expressions.value.LineCap.Round), dasharray=if(live)const(listOf(0.1f,1.8f)) else const(listOf(1f,0f))
+            )
             val nextTurnSource=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(active)nextTurn else null,null)))
             CircleLayer(id="next-turn-ring",source=nextTurnSource,radius=const(13.dp),color=const(Color.Transparent),strokeColor=const(routeColor),strokeWidth=const(4.dp))
             CircleLayer(id="next-turn-dot",source=nextTurnSource,radius=const(5.dp),color=const(Color.White))
@@ -240,12 +217,21 @@ import com.rohanc.navgate.ui.journey.JourneyUi
             }
         }}
         if(active&&motion!=null){
-            VehicleMarker(camera,motion,routeGeometry,trackInput,ui.travelProfile==TravelProfile.Driving,following,if(live)58.0 else guideTilt,if(dark)NavRouteDark else NavRouteLight,VehicleModel.of(ui.frontendPreferences.vehicleModel),VehicleColor.of(ui.frontendPreferences.vehicleColor).paint,if(live)0.52f else 0.34f)
+            VehicleMarker(
+                camera, motion, routeGeometry, trackInput, ui.travelProfile==TravelProfile.Driving, following, if(live)58.0 else guideTilt,
+                if(dark)NavRouteDark else NavRouteLight, VehicleModel.of(ui.frontendPreferences.vehicleModel),
+                VehicleColor.of(ui.frontendPreferences.vehicleColor).paint, if(live)0.60f else 0.34f, if(live)-1.0 else 0.0, if(live)liveHeading else null,
+                laneOffset
+            )
         }
         // Guidance gets the full set of map buttons; the home map keeps only the 3D button; everywhere else the map is left clear.
         if((showControls||screenIsExplore)&&(controlsBottomDp==null || controlsBottomDp<viewport.screenHeightDp*0.6f))Column(Modifier.align(if(controlsBottomDp!=null)Alignment.BottomEnd else Alignment.TopEnd).let{if(controlsBottomDp!=null)it.navigationBarsPadding().padding(bottom=controlsBottomDp.dp,end=16.dp) else it.statusBarsPadding().padding(top=topInsetDp.dp,end=16.dp)},verticalArrangement=Arrangement.spacedBy(8.dp)){
             if(showControls)MapControlButton(onClick={val fix=ui.displayLocation ?: ui.snapshot.userLocation;if(!permission)onRequestLocation()else if(fix==null)onFeedback("Looking for your location… You can also choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=maxOf(camera.position.zoom,16.0),bearing=0.0))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
             if(showControls)MapControlButton(onClick=onOpenLayers){Icon(Icons.Rounded.Layers,"Map details")}
+            // GPS cannot always tell lanes apart, so the user can say which one they are in: Auto, then Left, then Right.
+            if(showControls&&active){val side=ui.frontendPreferences.laneSide
+                MapControlButton(onClick={onLaneSide(when(side){"auto"->"left";"left"->"right";else->"auto"})}){
+                    Text(when(side){"left"->"L";"right"->"R";else->"A"},fontWeight=androidx.compose.ui.text.font.FontWeight.Bold,modifier=Modifier.semantics{contentDescription="Lane: "+when(side){"left"->"left";"right"->"right";else->"automatic"}+". Tap to change"})}}
             if(!showControls)MapControlButton(onClick=onToggle3d){Icon(if(flat)Icons.Rounded.LocationCity else Icons.Rounded.Map,if(flat)"Show 3D buildings" else "Show flat 2D map")}
             // (3D toggle removed: guidance tilts the map itself)
             if(showControls&&ui.snapshot.route!=null)MapControlButton(enabled=!loading&&!failed,onClick={fitRoute()}){Icon(Icons.Rounded.ZoomOutMap,"Fit route")}

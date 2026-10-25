@@ -24,4 +24,6 @@ data class FrontendPreferences(
     /** Set once the first-time walkthrough of AR or of the live camera-and-map view has been shown. */
     val arIntroSeen: Boolean = false,
     val vrIntroSeen: Boolean = false,
+    /** Which lane the vehicle is drawn in: "auto" (worked out from the position), "left" or "right". */
+    val laneSide: String = "auto",
 )

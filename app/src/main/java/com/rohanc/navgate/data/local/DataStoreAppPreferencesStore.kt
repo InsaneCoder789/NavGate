@@ -21,10 +21,10 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
     private val data = context.applicationContext.navGatePreferences
     override suspend fun frontendPreferences(): FrontendPreferences {
         val p = data.data.first()
-        return FrontendPreferences(p[APPEARANCE] ?: "system",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true,p[BUILDINGS] ?: true,(p[GLASS] ?: 0.15f).coerceIn(0f,1f),p[AR_FPS] ?: "auto",p[AR_OBJECTS] ?: true,p[SEND_CRASHES] ?: false,p[AVOID_TOLLS] ?: false,p[AVOID_HIGHWAYS] ?: false,p[VEHICLE] ?: "sedan",p[VEHICLE_COLOR] ?: "white",p[AR_INTRO] ?: false,p[VR_INTRO] ?: false)
+        return FrontendPreferences(p[APPEARANCE] ?: "system",p[SOLID] ?: false,p[MOTION] ?: false,p[VOICE] ?: true,p[BUILDINGS] ?: true,(p[GLASS] ?: 0.15f).coerceIn(0f,1f),p[AR_FPS] ?: "auto",p[AR_OBJECTS] ?: true,p[SEND_CRASHES] ?: false,p[AVOID_TOLLS] ?: false,p[AVOID_HIGHWAYS] ?: false,p[VEHICLE] ?: "sedan",p[VEHICLE_COLOR] ?: "white",p[AR_INTRO] ?: false,p[VR_INTRO] ?: false,p[LANE] ?: "auto")
     }
     override suspend fun setFrontendPreferences(value: FrontendPreferences) { data.edit {
-        it[APPEARANCE]=value.appearance;it[SOLID]=value.reduceTransparency;it[MOTION]=value.reduceMotion;it[VOICE]=value.voiceEnabled;it[BUILDINGS]=value.buildings3d;it[GLASS]=value.glassOpacity;it[AR_FPS]=value.arFps;it[AR_OBJECTS]=value.arObjects;it[SEND_CRASHES]=value.sendCrashReports;it[AVOID_TOLLS]=value.avoidTolls;it[AVOID_HIGHWAYS]=value.avoidHighways;it[VEHICLE]=value.vehicleModel;it[VEHICLE_COLOR]=value.vehicleColor;it[AR_INTRO]=value.arIntroSeen;it[VR_INTRO]=value.vrIntroSeen
+        it[APPEARANCE]=value.appearance;it[SOLID]=value.reduceTransparency;it[MOTION]=value.reduceMotion;it[VOICE]=value.voiceEnabled;it[BUILDINGS]=value.buildings3d;it[GLASS]=value.glassOpacity;it[AR_FPS]=value.arFps;it[AR_OBJECTS]=value.arObjects;it[SEND_CRASHES]=value.sendCrashReports;it[AVOID_TOLLS]=value.avoidTolls;it[AVOID_HIGHWAYS]=value.avoidHighways;it[VEHICLE]=value.vehicleModel;it[VEHICLE_COLOR]=value.vehicleColor;it[AR_INTRO]=value.arIntroSeen;it[VR_INTRO]=value.vrIntroSeen;it[LANE]=value.laneSide
     } }
     override suspend fun isOnboardingSeen(): Boolean = data.data.first()[ONBOARDING] ?: false
     override suspend fun markOnboardingSeen() { data.edit { it[ONBOARDING] = true } }
@@ -44,6 +44,7 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
         private val VEHICLE_COLOR=stringPreferencesKey("frontend_vehicle_color")
         private val AR_INTRO=booleanPreferencesKey("frontend_ar_intro")
         private val VR_INTRO=booleanPreferencesKey("frontend_vr_intro")
+        private val LANE=stringPreferencesKey("frontend_lane")
         private val AR_FPS=stringPreferencesKey("frontend_ar_fps")
         private val GLASS=floatPreferencesKey("frontend_glass_opacity")
         private val SOLID=booleanPreferencesKey("frontend_reduce_transparency")

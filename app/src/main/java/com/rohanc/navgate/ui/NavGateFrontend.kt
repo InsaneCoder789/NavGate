@@ -7,28 +7,14 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import android.os.SystemClock
-import com.rohanc.navgate.ui.map.VehicleMarker
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.CancellationException
 import com.rohanc.navgate.data.local.NavGateServices
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -39,14 +25,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -56,45 +37,19 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rohanc.navgate.core.*
 import com.rohanc.navgate.model.PlaceSearchResult
 import com.rohanc.navgate.model.Coordinate
-import com.rohanc.navgate.model.TravelProfile
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import androidx.compose.ui.platform.LocalConfiguration
-import io.github.dellisd.spatialk.geojson.BoundingBox
 import com.rohanc.navgate.navigation.PresentationMode
 import com.rohanc.navgate.ui.ar.*
 import com.rohanc.navgate.ui.components.*
 import com.rohanc.navgate.ui.location.*
-import com.rohanc.navgate.ui.map.MapRouteGeoJson
-import com.rohanc.navgate.ui.map.rememberMapConnection
 import com.rohanc.navgate.ui.state.*
 import com.rohanc.navgate.ui.theme.*
-import org.maplibre.compose.camera.CameraMoveReason
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.math.*
-import org.maplibre.compose.camera.CameraPosition
-import org.maplibre.compose.camera.rememberCameraState
-import org.maplibre.compose.expressions.dsl.const
-import org.maplibre.compose.layers.SymbolLayer
-import org.maplibre.compose.expressions.dsl.feature
-import org.maplibre.compose.expressions.dsl.asString
 import org.maplibre.compose.expressions.dsl.format
-import org.maplibre.compose.expressions.dsl.span
-import com.rohanc.navgate.ui.map.ManualRouteGeoJson
-import org.maplibre.compose.layers.CircleLayer
-import org.maplibre.compose.layers.LineLayer
-import org.maplibre.compose.map.MaplibreMap
-import org.maplibre.compose.util.ClickResult
-import org.maplibre.compose.map.MapOptions
-import org.maplibre.compose.map.RenderOptions
-import org.maplibre.compose.map.OrnamentOptions
-import org.maplibre.compose.sources.GeoJsonData
-import org.maplibre.compose.sources.rememberGeoJsonSource
-import org.maplibre.compose.style.BaseStyle
-import io.github.dellisd.spatialk.geojson.Position
 import com.rohanc.navgate.ui.journey.JourneyActions
 import com.rohanc.navgate.ui.journey.NgDialog
-import com.rohanc.navgate.ui.journey.JourneyScreens
 import com.rohanc.navgate.ui.journey.JourneyUi
 
 import com.rohanc.navgate.ui.journey.GlassPage
@@ -309,7 +264,8 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             Box(Modifier.fillMaxSize()){
                 Box(Modifier.fillMaxSize().hazeSource(hazeState)){
                     val mapUi=if(screen in listOf("Search","Results")&&searchFor=="saved")ui.copy(places=vm.searchSaved(ui.searchQuery))else ui
-                    if(renderMap) NativeMap(mapUi,dark,permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},onToggle3d={vm.updateFrontendPreferences(prefs.copy(buildings3d=!prefs.buildings3d))},nextTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)?.target?.let{Coordinate(it.latitude,it.longitude)},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),showControls=screen=="Navigation",live=screen=="Live",routeGeometry=navGeometry,trackInput=navTrack,onPin=when(screen){
+                    // Under the AR camera the map is never seen, so it is not drawn at all (VR shows it, and keeps it).
+                    if(renderMap&&screen!="Camera") NativeMap(mapUi,dark||(screen=="Live"&&isNightHour(java.time.LocalTime.now().hour)),permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},onToggle3d={vm.updateFrontendPreferences(prefs.copy(buildings3d=!prefs.buildings3d))},nextTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)?.target?.let{Coordinate(it.latitude,it.longitude)},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),showControls=screen=="Navigation",live=screen=="Live",liveHeading=if(screen=="Live")heading else null,onLaneSide={vm.updateFrontendPreferences(prefs.copy(laneSide=it))},routeGeometry=navGeometry,trackInput=navTrack,onPin=when(screen){
                         "ManualPin"->({point->manualPointJson=Json.encodeToString(point);inspectManualPoint=Coordinate(point.latitude,point.longitude);screen="My routes"})
                         "MapPick"->({point->choose(PlaceSearchResult("pin:${java.util.UUID.randomUUID()}","Dropped pin","Selected on map",point.latitude,point.longitude,com.rohanc.navgate.model.PlaceType.Landmark))})
                         else->null
@@ -331,11 +287,23 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                     // Where the turn lies across the picture: its bearing from here against where the phone points, over the lens's field of view.
                     val across=if(liveTarget!=null&&liveHere!=null&&heading!=null)(0.5f+(((liveHere.bearingTo(liveTarget)-heading!!+540.0)%360.0)-180.0).toFloat()/65f).coerceIn(0.14f,0.86f) else 0.5f
                     val instruction=backend.session.instruction
-                    val road=Regex("(?:to stay on|onto|on)\\s+(.+?)\\.?$").find(instruction)?.groupValues?.get(1) ?: instruction
+                    val liveStep=liveRoute?.maneuvers?.getOrNull(liveIndex)
+                    val full=instruction.trimEnd('.')
+                    val road=when{
+                        liveStep?.kind=="Arrive"->liveRoute.destinationTitle ?: "Your destination"
+                        liveStep?.kind=="Roundabout"->liveStep.exitNumber?.let{"Take the ${com.rohanc.navgate.core.ManeuverKinds.ordinal(it)} exit"} ?: "Roundabout"
+                        full.length<=26->full
+                        else->Regex("(?:to stay on|onto)\\s+(.+)$").find(full)?.groupValues?.get(1) ?: full
+                    }
                     val bubble=if(liveRoute!=null)com.rohanc.navgate.ui.journey.LiveBubble(road,backend.session.distanceToManeuver.asMetersLabel(),liveRoute.maneuvers.getOrNull(liveIndex)?.kind,across) else null
                     val secs=backend.session.remainingSeconds
                     val arSlot:(@Composable (Modifier,Float)->Unit)?=if(liveRoute!=null){{mod:Modifier,dome:Float->
-                        com.rohanc.navgate.ui.ar.ArNavigationLayer(liveRoute,navGeometry,navTrack ?: com.rohanc.navgate.ui.map.TrackInput(liveRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,true),backend.session.snappedLocation,liveHere,backend.session.distanceToManeuver,false,com.rohanc.navgate.ui.ar.ArFpsMode.Auto,mod,prefs.arObjects,liveRoute.maneuvers.getOrNull(liveIndex)?.kind,dome)}}else null
+                        com.rohanc.navgate.ui.ar.ArNavigationLayer(
+                            liveRoute, navGeometry,
+                            navTrack ?: com.rohanc.navgate.ui.map.TrackInput(liveRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,true),
+                            backend.session.snappedLocation, liveHere, backend.session.distanceToManeuver, false, com.rohanc.navgate.ui.ar.ArFpsMode.Auto, mod, false,
+                            liveRoute.maneuvers.getOrNull(liveIndex)?.kind, dome
+                        )}}else null
                     Box(Modifier.fillMaxSize()){LiveCameraLayer(bubble,
                         secs.takeIf{it>0}?.let{java.time.LocalTime.now().plusSeconds(it.toLong()).format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))},
                         if(secs>=3600)"%d h %d min".format((secs/3600).toInt(),((secs%3600)/60).toInt()) else "${(secs/60).toInt().coerceAtLeast(1)} min",
@@ -364,3 +332,6 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         if(clearDialog)NgDialog("Clear recent places?","Your saved places will remain available.","Clear",{vm.clearRecents();clearDialog=false},{clearDialog=false},"Cancel")
     }}
 }
+
+/** Dusk to dawn, by the clock: the map under the VR camera turns dark so it does not glare against a dim street. */
+internal fun isNightHour(hour: Int) = hour >= 18 || hour < 6

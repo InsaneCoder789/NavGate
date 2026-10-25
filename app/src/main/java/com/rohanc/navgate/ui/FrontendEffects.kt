@@ -3,9 +3,6 @@ package com.rohanc.navgate.ui
 import android.app.Activity
 import android.content.Intent
 import android.os.SystemClock
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.rohanc.navgate.app.CrashReporter
@@ -47,6 +44,7 @@ internal fun CrashReportPrompt(autoSend: Boolean) {
 /** Sensors and GPS in, one fused estimate out: 10 Hz to the vehicle marker, 2 Hz to guidance. */
 @Composable
 internal fun LocationPipeline(vm: NavGateViewModel, fusion: MotionFusion, permission: Boolean, active: Boolean, screen: String, displayLocation: () -> GeoPoint?) {
+    val saver = (LocalContext.current.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager)
     BindMotionSensors(enabled = permission && (active || (screen == "Camera" || screen == "Live")), fusion = fusion) { displayLocation() }
     BindLocationTracking(enabled = permission, navigating = active, onLocationSample = { fix ->
         fusion.onGps(GpsSample(fix.point, fix.accuracyMeters, fix.speedMps, fix.heading, fix.elapsedMillis)); vm.onRawFix(fix)
@@ -57,7 +55,8 @@ internal fun LocationPipeline(vm: NavGateViewModel, fusion: MotionFusion, permis
         var lastFed = 0L
         while (true) {
             // Smooth 10 Hz only while the car marker or AR needs it; a relaxed 2 Hz otherwise.
-            delay(if (motionBusy) 100L else 500L)
+            // 10 Hz only at driving speed (the marker glides between samples); half that on foot, and slower again in battery saver.
+            delay(MotionRate.intervalMillis(motionBusy, fusion.estimate(SystemClock.elapsedRealtime())?.speedMps ?: 0.0, saver.isPowerSaveMode))
             val now = SystemClock.elapsedRealtime()
             val estimate = fusion.estimate(now)
             vm.onMotion(estimate)
@@ -69,6 +68,9 @@ internal fun LocationPipeline(vm: NavGateViewModel, fusion: MotionFusion, permis
     }
 }
 
+private const val PREFETCH_STEP_METERS = 2_000.0
+private const val PREFETCH_AHEAD_METERS = 4_200.0
+
 internal class TripRuntime(val online: Boolean, val tripSummary: String?)
 
 /** Connectivity, route-tile warming, screen wake, turn haptics and the arrival summary. */
@@ -79,9 +81,17 @@ internal fun rememberTripRuntime(vm: NavGateViewModel, session: SessionSnapshot,
     SideEffect { vm.networkAvailable = online }
     val tripRoute = session.route
     // Save the map along the route while there is a connection, so it still draws if the signal drops mid-trip.
-    LaunchedEffect(tripRoute?.id, online, screen) {
-        if (online && tripRoute != null && screen in listOf("Directions", "Route", "Navigation", "Camera", "Live"))
-            RouteTilePrefetcher.prefetch(context, tripRoute.id, tripRoute.geometry)
+    // Only the next few kilometres at a time, ahead of where the trip has got to, and not at all in battery saver: downloading and
+    // caching tiles for a whole long route up front costs radio and CPU time the user may never need.
+    val line = remember(tripRoute?.id) { tripRoute?.let { RouteGeometry(it.geometry) } }
+    val checkpoint = if (tripRoute != null && screen == "Navigation") (tripRoute.routeToShapeMeters(session.alongMeters) / PREFETCH_STEP_METERS).toInt() else 0
+    LaunchedEffect(tripRoute?.id, online, screen, checkpoint) {
+        val power = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        if (online && line != null && tripRoute != null && !power.isPowerSaveMode && screen in listOf("Directions", "Route", "Navigation", "Camera", "Live")) {
+            val from = checkpoint * PREFETCH_STEP_METERS - 200.0; val to = from + PREFETCH_AHEAD_METERS
+            val window = line.points.filterIndexed { i, _ -> line.cumulative[i] in from..to }
+            if (window.size >= 2) RouteTilePrefetcher.prefetch(context, "${tripRoute.id}#$checkpoint", window)
+        }
     }
     // Keep the screen on while guiding, and give a touch cue before each turn.
     DisposableEffect(active, screen) {
@@ -109,4 +119,12 @@ internal fun rememberTripRuntime(vm: NavGateViewModel, session: SessionSnapshot,
             topSpeedMps.takeIf { drivingTrip && it > 1 }?.let { "top %d km/h".format((it * 3.6).toInt()) }).joinToString(" · ")
     } else null
     return TripRuntime(online, summary)
+}
+
+/** How often the fused position is handed to the rest of the app. */
+internal object MotionRate {
+    fun intervalMillis(busy: Boolean, speedMps: Double, powerSave: Boolean): Long {
+        val base = if (!busy) 500L else if (speedMps > 5.0) 100L else 200L
+        return if (powerSave) maxOf(base, 250L) else base
+    }
 }

@@ -90,7 +90,15 @@ class MapPackStore(context: Context, private val client: OkHttpClient = defaultC
         index.namesAlong(points)
     }
 
-    fun totalBytes() = mutablePacks.value.sumOf { it.bytes }
+    /** One stored tile from the active pack, or null when there is no pack or it does not hold that tile. */
+    suspend fun packTile(z: Int, x: Int, y: Int): ByteArray? = withContext(Dispatchers.IO) {
+        val pack = active() ?: return@withContext null
+        runCatching {
+            val index = synchronized(this@MapPackStore) { cachedReader?.takeIf { it.first == pack.id }?.second ?: Pmtiles.Reader(file(pack)).also { cachedReader = pack.id to it } }
+            index.tile(z, x, y)
+        }.getOrNull()
+    }
+    private var cachedReader: Pair<String, Pmtiles.Reader>? = null
 
     /** Downloads tiles for [area] and installs them as a new pack, which becomes the active one. */
     fun download(area: MapArea, builder: MapPackBuilder = MapPackBuilder()) {

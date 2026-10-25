@@ -10,7 +10,6 @@ import com.rohanc.navgate.data.search.WorldwideSearchData
 import android.os.SystemClock
 import com.rohanc.navgate.core.BackendClock
 import com.rohanc.navgate.core.NavigationBackend
-import com.rohanc.navgate.core.RegionPackInstaller
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,7 +40,10 @@ class NavGateServices private constructor(context: Context) {
     val routingData = com.rohanc.navgate.data.routing.offline.RoutingDataStore(context)
     /** Online routing first; the phone's own BRouter engine when the network or the server fails and the area's tiles are installed. */
     val roadRouting: com.rohanc.navgate.core.RoutingProvider = com.rohanc.navgate.data.routing.offline.FailoverRoutingProvider(onlineRouting,com.rohanc.navgate.data.routing.offline.OfflineRoutingProvider.of(routingData) { points -> mapPacks.streetNamesFor(points) })
-    val routing: com.rohanc.navgate.core.RoutingProvider = roadRouting
+    private val roadTiles = com.rohanc.navgate.data.maps.RoadTileSource(pack = { z, x, y -> mapPacks.packTile(z, x, y) }, cacheDir = java.io.File(context.cacheDir, "road-tiles"))
+    private val roundabouts = com.rohanc.navgate.data.maps.RoundaboutFinder { z, x, y -> roadTiles.tile(z, x, y) }
+    /** Every route, from either router, with its roundabouts drawn and spoken the way they are on the ground. */
+    val routing: com.rohanc.navgate.core.RoutingProvider = com.rohanc.navgate.core.RoundaboutRoutingProvider(roadRouting) { roundabouts.near(it) }
     val checkpoints = RoomSessionStore(database,regions)
     fun backend(scope: CoroutineScope): NavigationBackend = NavigationBackend(scope,searchData,regions,AndroidBackendClock,checkpoints,routingProvider=routing)
 
