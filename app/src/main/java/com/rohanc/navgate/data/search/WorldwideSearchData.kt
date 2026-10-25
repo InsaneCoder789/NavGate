@@ -22,7 +22,17 @@ class WorldwideSearchData(private val local:BackendData,private val worldwide:Wo
     override suspend fun initialize()=local.initialize()
     override suspend fun place(regionId:String,id:String)=local.place(regionId,id)
     override suspend fun search(query:String,regionId:String)=searchPage(query,regionId).places
+    private val cache=SearchCache<PlaceSearchPage>(capacity=24,lifetimeMillis=90_000)
+
+    /** The same question asked again within a minute and a half (the Nearby sheet, a retyped query) is answered from memory, not the network. */
     override suspend fun searchPage(query:String,regionId:String):PlaceSearchPage {
+        val where=location()?.usable()
+        val key="${query.trim().lowercase()}|$regionId|${where?.let{"${Math.round(it.latitude*200)},${Math.round(it.longitude*200)}"}}"
+        cache.get(key)?.let{return it}
+        return searchUncached(query,regionId).also{if(it.places.isNotEmpty())cache.put(key,it)}
+    }
+
+    private suspend fun searchUncached(query:String,regionId:String):PlaceSearchPage {
         val normalized=query.trim().take(256)
         var nationalUnavailable=false
         var regionalUnavailable=false
@@ -44,4 +54,13 @@ class WorldwideSearchData(private val local:BackendData,private val worldwide:Wo
         }catch(cancelled:CancellationException){throw cancelled}
         catch(_:Exception){PlaceSearchPage(installed,"Worldwide search is unavailable. Check your connection and retry; only installed local matches are shown."+attribution+localNotice)}
     }
+}
+
+/** A few recent answers, each good for [lifetimeMillis]; the oldest is dropped first. */
+class SearchCache<T : Any>(private val capacity: Int, private val lifetimeMillis: Long, private val clock: () -> Long = System::currentTimeMillis) {
+    private val entries = object : LinkedHashMap<String, Pair<Long, T>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, T>>?) = size > capacity
+    }
+    @Synchronized fun get(key: String): T? = entries[key]?.takeIf { clock() - it.first <= lifetimeMillis }?.second
+    @Synchronized fun put(key: String, value: T) { entries[key] = clock() to value }
 }
