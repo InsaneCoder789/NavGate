@@ -48,6 +48,15 @@ data class CampusPlace(
     val website: String? = null,
     val hours: String? = null,
     val detail: String? = null,
+    /** More of what is known about a place (all optional): street address, e-mail, social page, a photo, where the data comes from and how sure the source is. */
+    val address: String? = null,
+    val email: String? = null,
+    val social: String? = null,
+    val photo: String? = null,
+    val source: String? = null,
+    val confidence: Double? = null,
+    /** Labelled facts such as "Cuisine: North Indian", "Wheelchair access: yes", "Takeaway: yes". */
+    val facts: Map<String, String> = emptyMap(),
 )
 
 @Serializable

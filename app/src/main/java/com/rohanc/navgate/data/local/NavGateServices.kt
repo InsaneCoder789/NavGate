@@ -32,7 +32,9 @@ class NavGateServices private constructor(context: Context) {
     fun updateSearchLocation(fix:LocationFix){if(latestSearchFix?.let{fix.elapsedMillis>it.elapsedMillis}!=false)latestSearchFix=fix}
     private val searchLocation:()->SearchLocation?={latestSearchFix?.let{SearchLocation(it.point,AndroidBackendClock.elapsedMillis()-it.elapsedMillis,it.accuracyMeters)}}
     private val indiaIndex = IndiaPlaceIndex(context,location=searchLocation)
-    private val poiIndex = com.rohanc.navgate.data.search.PoiIndex(context)
+    // Offline places for every region that has an index in the APK: Mumbai and Odisha (Bhubaneswar, KIIT, Cuttack, Puri and the rest of the state).
+    val poiIndex = com.rohanc.navgate.data.search.PoiIndexSet(listOf(
+        com.rohanc.navgate.data.search.PoiIndex(context, "mumbai_pois", "Mumbai"), com.rohanc.navgate.data.search.PoiIndex(context, "odisha_pois", "Odisha")))
     val searchData = WorldwideSearchData(repository,PhotonPlaceSearch(),india=indiaIndex,location=searchLocation,pois=poiIndex)
     init { CoroutineScope(SupervisorJob()+Dispatchers.IO).launch { runCatching { indiaIndex.warmUp() };runCatching { poiIndex.warmUp() } } }
     private val onlineRouting = ValhallaRoutingProvider(cache=RoomRoadRouteCache(database))

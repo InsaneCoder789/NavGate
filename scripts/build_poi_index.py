@@ -37,6 +37,10 @@ CATEGORIES = {
     'attraction': ('Things to do', ['"tourism"~"^(attraction|museum|gallery|viewpoint|zoo|theme_park)$"', '"historic"~"^(monument|memorial|fort|castle|ruins)$"']),
     'entertainment': ('Cinemas & theatres', ['"amenity"~"^(cinema|theatre|nightclub|arts_centre)$"']),
     'services': ('Services', ['"amenity"~"^(police|post_office|fire_station|townhall|courthouse)$"']),
+    'locality': ('Localities & villages', ['"place"~"^(city|town|village|suburb|neighbourhood|quarter|hamlet|locality|isolated_dwelling)$"']),
+    'library': ('Libraries', ['"amenity"="library"']),
+    'government': ('Government offices', ['"office"="government"', '"amenity"~"^(public_building|community_centre)$"']),
+    'coaching': ('Coaching & training', ['"amenity"~"^(language_school|driving_school|music_school|prep_school)$"', '"office"="educational_institution"']),
     'toilets': ('Toilets', ['"amenity"="toilets"']),
     'parking': ('Parking', ['"amenity"="parking"']),
 }
@@ -61,7 +65,7 @@ def tiles(south, west, north, east, rows=3, cols=3):
             yield (south + (north - south) * r / rows, west + (east - west) * c / cols, south + (north - south) * (r + 1) / rows, west + (east - west) * (c + 1) / cols)
 
 def subtype(tags):
-    for key in ('amenity', 'shop', 'tourism', 'leisure', 'railway', 'historic', 'healthcare', 'natural', 'public_transport'):
+    for key in ('amenity', 'shop', 'tourism', 'leisure', 'railway', 'historic', 'healthcare', 'natural', 'public_transport', 'office', 'place'):
         if key in tags: return tags[key]
     return ''
 

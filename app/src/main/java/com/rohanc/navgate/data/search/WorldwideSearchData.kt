@@ -5,7 +5,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 /** Online search is global regardless of which offline region is selected. Routing remains a separate contract. */
-class WorldwideSearchData(private val local:BackendData,private val worldwide:WorldwidePlaceSearch,private val debounceMillis:Long=600,private val india:WorldwidePlaceSearch?=null,private val location:()->SearchLocation?={null},private val pois:PoiIndex?=null):BackendData {
+class WorldwideSearchData(private val local:BackendData,private val worldwide:WorldwidePlaceSearch,private val debounceMillis:Long=600,private val india:WorldwidePlaceSearch?=null,private val location:()->SearchLocation?={null},private val pois:PoiSource?=null):BackendData {
     /** Nearest places of a category: offline index first, the online geocoder outside the indexed region. */
     private suspend fun categoryPage(category:PoiCategory,near:GeoPoint?):PlaceSearchPage {
         if(near==null)return PlaceSearchPage(emptyList(),"Turn on location to see ${category.label.lowercase()} near you.")
@@ -18,6 +18,17 @@ class WorldwideSearchData(private val local:BackendData,private val worldwide:Wo
             PlaceSearchPage(PlaceSearchRanking.merge(category.query,found,near),"${category.label} near you · © OpenStreetMap contributors · Photon")
         }catch(cancelled:CancellationException){throw cancelled}
         catch(_:Exception){PlaceSearchPage(emptyList(),"Could not load ${category.label.lowercase()}. Check your connection and try again.")}
+    }
+    /** What is nearest to [near], of every kind: the offline index when it covers the position, otherwise the nearest restaurants from the online geocoder. */
+    /** The nearest hospital, police station and fire station: shown first in Nearby, since they matter most when something goes wrong. */
+    suspend fun emergencyNear(near:GeoPoint):List<com.rohanc.navgate.core.CampusPlace> =
+        try{pois?.takeIf{it.covers(near)}?.emergency(near,6).orEmpty()}catch(cancelled:CancellationException){throw cancelled}catch(_:Exception){emptyList()}
+
+    suspend fun nearbyPage(near:GeoPoint?):PlaceSearchPage {
+        if(near==null)return PlaceSearchPage(emptyList(),"Turn on location to see what is around you.")
+        val offline=if(pois?.covers(near)==true)try{pois.nearbyAll(near,40)}catch(cancelled:CancellationException){throw cancelled}catch(_:Exception){emptyList()}else emptyList()
+        if(offline.isNotEmpty())return PlaceSearchPage(offline,"Nearby · © OpenStreetMap contributors · Overture Maps")
+        return categoryPage(PoiCategory.Food,near)
     }
     override suspend fun initialize()=local.initialize()
     override suspend fun place(regionId:String,id:String)=local.place(regionId,id)

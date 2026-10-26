@@ -85,11 +85,11 @@ class LocalBackendPersistenceTest {
 
     @Test fun datastorePreferencesMigrateAndDoNotResetTheChosenRegion()=runBlocking {
         context.getSharedPreferences("navgate_app_preferences",Context.MODE_PRIVATE).edit()
-            .putString("city_mode",CityMode.Mumbai.name).putBoolean("onboarding_seen",true).commit()
+            .putString("city_mode",CityMode.PanIndia.name).putBoolean("onboarding_seen",true).commit()
         val prefs=DataStoreAppPreferencesStore(context)
-        assertEquals(CityMode.Mumbai,prefs.cityMode());assertTrue(prefs.isOnboardingSeen())
-        prefs.setCityMode(CityMode.KiitBeta)
-        assertEquals(CityMode.KiitBeta,DataStoreAppPreferencesStore(context).cityMode())
+        assertEquals(CityMode.PanIndia,prefs.cityMode());assertTrue(prefs.isOnboardingSeen())
+        prefs.setCityMode(CityMode.Kiit)
+        assertEquals(CityMode.Kiit,DataStoreAppPreferencesStore(context).cityMode())
     }
 
     @Test fun checkpointAndTripSurviveReopenThenStopClearsOnlyCheckpoint()=runBlocking {
@@ -151,8 +151,8 @@ class LocalBackendPersistenceTest {
             backend.search("","kiit")
             val searched=withTimeout(15_000){backend.state.first{!it.searching && it.places.size==40}}
             val installed=requireNotNull(regions.active("kiit"))
-            assertEquals(175,installed.places.size)
-            assertEquals(84,installed.places.count{it.point==null})
+            assertEquals(311,installed.places.size)
+            assertEquals(66,installed.places.count{it.point==null})
             assertEquals(RegionReadiness.Catalogue,backend.regionStatus("kiit").readiness)
             assertNull(RoomSessionStore(database,regions).loadCheckpoint())
             assertTrue(database.user().trips(10).isEmpty())

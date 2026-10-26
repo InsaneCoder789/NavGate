@@ -37,6 +37,12 @@ class LocalNavigationRepository(
 
     override suspend fun place(regionId: String, id: String): CampusPlace? { initialize(); return regions.place(regionId,id) }
 
+    /** Every place of a region that has a position, nearest to [near] first (the KIIT directory for Nearby). */
+    suspend fun regionPlacesNear(regionId: String, near: GeoPoint, limit: Int = 80): List<CampusPlace> {
+        initialize()
+        return regions.all(regionId).filter { it.point != null }.sortedBy { it.point!!.distanceTo(near) }.take(limit)
+    }
+
 
 }
 
@@ -57,7 +63,7 @@ fun CampusPlace.toAppPlace(): PlaceSearchResult {
         "rail"->"Railway station";"airport"->"Airport";"worship"->"Place of worship";"settlement"->"City or locality";
         else->if(category.startsWith("ADM"))"Administrative area"else"Place"
     }else category
-    return PlaceSearchResult(id,title,subtitle,point?.latitude,point?.longitude,type,city,campus,label,phone,website,hours,detail,sourceUrl)
+    return PlaceSearchResult(id,title,subtitle,point?.latitude,point?.longitude,type,city,campus,label,phone,website,hours,detail,sourceUrl,address,email,social,photo,source,confidence,facts)
 }
 
 internal fun maneuverTypeForKind(kind:String):ManeuverType=when(kind){

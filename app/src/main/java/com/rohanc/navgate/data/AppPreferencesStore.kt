@@ -22,7 +22,7 @@ interface AppPreferencesStore {
 
 class InMemoryAppPreferencesStore(
     private var onboardingSeen: Boolean = false,
-    private var storedCityMode: CityMode = CityMode.Mumbai,
+    private var storedCityMode: CityMode = CityMode.PanIndia,
     private var storedKiitBetaAccess: Boolean = false,
     initialFrontend: FrontendPreferences = FrontendPreferences(),
 ) : AppPreferencesStore {

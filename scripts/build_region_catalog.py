@@ -35,7 +35,7 @@ def build_catalog(rows: list[dict], version: str, generated_at: str) -> tuple[di
             'category': row.get('categoryNormalized', ''), 'city': row.get('city', 'Bhubaneswar'),
             'campus': row.get('campusLabel'), 'point': point,
             'aliases': [value for value in row.get('searchTags', []) if value],
-            'reviewed': False, 'sourceRow': row.get('sourceRow'), 'sourceUrl': row.get('googleMapsUrl'),
+            'reviewed': False, 'sourceRow': row.get('sourceRow'), 'sourceUrl': None,
         })
     if invalid:
         raise ValueError(f'Invalid coordinates require source review: {invalid}')
@@ -46,8 +46,8 @@ def build_catalog(rows: list[dict], version: str, generated_at: str) -> tuple[di
             {'latitude': 20.33, 'longitude': 85.79}, {'latitude': 20.33, 'longitude': 85.84},
             {'latitude': 20.38, 'longitude': 85.84}, {'latitude': 20.38, 'longitude': 85.79},
         ]},
-        'source': 'Existing NavGate KIIT workbook import; coordinates and access not field verified',
-        'attribution': 'NavGate campus source workbook; original Maps links retained per place for review',
+        'source': 'NavGate KIIT campus workbook, every row (campuses, hostels, cafeterias, sports, KIMS, KISS, guest houses, unassigned); a few coordinates matched by name to OpenStreetMap; none field verified',
+        'attribution': 'NavGate campus source workbook; coordinate sources are recorded per place in the import report; OpenStreetMap contributors (ODbL) for name-matched places',
         'license': 'Source workbook redistribution and coordinate provenance require review before public data release',
         'generatedAt': generated_at, 'reviewedAt': None,
         'nodes': [], 'edges': [], 'entrances': [], 'places': sorted(places, key=lambda item: item['id']),

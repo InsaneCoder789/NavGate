@@ -28,7 +28,7 @@ class DataStoreAppPreferencesStore(context: Context) : AppPreferencesStore {
     } }
     override suspend fun isOnboardingSeen(): Boolean = data.data.first()[ONBOARDING] ?: false
     override suspend fun markOnboardingSeen() { data.edit { it[ONBOARDING] = true } }
-    override suspend fun cityMode(): CityMode = data.data.first()[CITY]?.let { runCatching { CityMode.valueOf(it) }.getOrNull() } ?: CityMode.KiitBeta
+    override suspend fun cityMode(): CityMode = CityMode.fromStored(data.data.first()[CITY]) ?: CityMode.PanIndia
     override suspend fun setCityMode(mode: CityMode) { data.edit { it[CITY] = mode.name } }
     override suspend fun kiitBetaAccess(): Boolean = data.data.first()[BETA] ?: false
     override suspend fun setKiitBetaAccess(enabled: Boolean) { data.edit { it[BETA] = enabled } }

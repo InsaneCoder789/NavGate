@@ -38,5 +38,9 @@ class RoomRegionStore(private val database: NavGateDatabase) : RegionStore {
     suspend fun search(query: String, regionId: String? = null, city: String? = null, limit: Int = 40): List<CampusPlace> =
         dao.search(query.trim().take(256).lowercase(Locale.ROOT), regionId, city, limit.coerceIn(1,100)).map { json.decodeFromString<CampusPlace>(it.payload) }
 
+    /** All the places of a region's active pack. */
+    suspend fun all(regionId: String, limit: Int = 5000): List<CampusPlace> =
+        dao.search("", regionId, null, limit).map { json.decodeFromString<CampusPlace>(it.payload) }
+
     suspend fun place(regionId: String, id: String): CampusPlace? = dao.place(regionId,id)?.let { json.decodeFromString<CampusPlace>(it.payload) }
 }

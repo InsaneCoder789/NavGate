@@ -18,6 +18,13 @@ data class PlaceSearchResult(
     val hours: String? = null,
     val detail: String? = null,
     val sourceUrl: String? = null,
+    val address: String? = null,
+    val email: String? = null,
+    val social: String? = null,
+    val photo: String? = null,
+    val source: String? = null,
+    val confidence: Double? = null,
+    val facts: Map<String, String> = emptyMap(),
 ) {
     val coordinate: Coordinate?
         get() = if (latitude != null && longitude != null && latitude.isFinite() && longitude.isFinite() && latitude in -90.0..90.0 && longitude in -180.0..180.0) Coordinate(latitude, longitude) else null
@@ -36,3 +43,6 @@ enum class PlaceType {
     Medical,
     Landmark,
 }
+
+/** A line of text as a person should read it: literal "\\n" and real line breaks become spaces, runs of spaces collapse. Data from the places sources sometimes carries them. */
+fun String.tidy(): String = replace("\\r\\n", " ").replace("\\n", " ").replace("\\r", " ").replace(Regex("\\s+"), " ").trim()

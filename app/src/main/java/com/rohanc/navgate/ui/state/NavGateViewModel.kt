@@ -29,9 +29,18 @@ import kotlinx.coroutines.sync.withLock
 
 // Existing shell vocabulary is retained solely as an adapter for the forthcoming Stitch UI.
 enum class AppTab { Explore, Go, Saved, Recents }
-enum class CityMode(val label: String, val backendCity: String?, val regionId: String) {
-    Mumbai("Mumbai", "Mumbai", "mumbai"),
-    KiitBeta("KIIT Beta", "Bhubaneswar", "kiit"),
+/**
+ * The two regions in Settings. PAN INDIA searches and lists what is nearby anywhere (with offline places for Mumbai and Odisha). KIIT does the same and, when
+ * the user is on or near the KIIT campuses, lists the campus directory (hostels, cafeterias, sports, KIMS ...) in Nearby instead.
+ */
+enum class CityMode(val label: String, val summary: String, val backendCity: String?, val regionId: String) {
+    PanIndia("PAN INDIA", "Search and Nearby work everywhere. Offline places are built in for Mumbai and Odisha.", null, "india"),
+    Kiit("KIIT", "Everything in PAN INDIA, and when you are on or near the KIIT campuses Nearby lists the campus directory: hostels, cafeterias, sports, KIMS and more.", "Bhubaneswar", "kiit");
+
+    companion object {
+        /** The mode stored by this or an older version ("Mumbai" and "KiitBeta" were the two before). */
+        fun fromStored(name: String?): CityMode? = when (name) { null -> null; "KiitBeta", "Kiit" -> Kiit; "Mumbai", "PanIndia" -> PanIndia; else -> null }
+    }
 }
 
 class NavGateViewModel(
@@ -368,6 +377,9 @@ class NavGateViewModel(
     } }
     fun replan() { if(canEditTrip()) recomputePreview() }
 
+    /** Closing a place card takes its pin off the map too. */
+    fun clearFocusedPlace() { mutable.update { it.copy(focusedPlace = null) } }
+
     fun focusPlace(place: PlaceSearchResult) {
         mutable.update { it.copy(focusedPlace=place,activeTab=AppTab.Explore) }
         warmRoutesTo(place)
@@ -490,7 +502,7 @@ data class NavGateUiState(
     val preview:RoutePreview?=null,val snapshot:NavigationSnapshot=NavigationSnapshot(),val isLoadingRoute:Boolean=false,
     val isPreviewVisible:Boolean=false,val activeTab:AppTab=AppTab.Explore,val travelProfile:TravelProfile=TravelProfile.Walking,
     val savedPlaces:List<PlaceSearchResult> = emptyList(),val recentPlaces:List<PlaceSearchResult> = emptyList(),
-    val routeHistory:List<RouteHistoryEntry> = emptyList(),val cityMode:CityMode=CityMode.KiitBeta,val kiitBetaAccess:Boolean=false,
+    val routeHistory:List<RouteHistoryEntry> = emptyList(),val cityMode:CityMode=CityMode.PanIndia,val kiitBetaAccess:Boolean=false,
     val showOnboarding:Boolean=true,val selectedEntranceId:String?=null,val statusMessage:String?=null,
     val routeFailure:RouteFailure?=null,val canResume:Boolean=false,val startPending:Boolean=false,
     val voiceAnnouncement:String?=null,val voiceSequence:Long=0,
