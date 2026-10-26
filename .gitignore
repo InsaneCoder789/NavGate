@@ -100,3 +100,6 @@ __pycache__/
 
 # Active QA captures stay local; archived reference copies live outside Git.
 /scratch/
+
+# Collected place data (Mumbai, Odisha, KIIT sheet) stays on this machine; only the code that builds it is tracked.
+/data/reports/kiit-missing-coordinates.csv
