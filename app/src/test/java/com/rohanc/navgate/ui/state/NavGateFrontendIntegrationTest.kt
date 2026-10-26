@@ -48,7 +48,7 @@ class NavGateFrontendIntegrationTest {
     @Test fun `loaded flag prevents onboarding defaults escaping delayed preference read`()=runTest {
         val h=BackendTestHarness(dispatcher)
         val ready=CompletableDeferred<Unit>()
-        val base=InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta)
+        val base=InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.Kiit)
         val prefs=object:AppPreferencesStore by base {
             override suspend fun cityMode():CityMode { ready.await();return base.cityMode() }
         }
@@ -100,7 +100,7 @@ class NavGateFrontendIntegrationTest {
 
     @Test fun `failed settings write reverts optimistic value and exposes failure`()=runTest {
         val h=BackendTestHarness(dispatcher)
-        val prefs=object:AppPreferencesStore by InMemoryAppPreferencesStore(storedCityMode=CityMode.KiitBeta) {
+        val prefs=object:AppPreferencesStore by InMemoryAppPreferencesStore(storedCityMode=CityMode.Kiit) {
             override suspend fun setFrontendPreferences(value:FrontendPreferences) { error("Disk unavailable") }
         }
         val vm=h.viewModel(prefs)

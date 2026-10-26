@@ -22,6 +22,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.withContext
+import com.rohanc.navgate.data.local.toAppPlace
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +52,8 @@ import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.layers.SymbolLayer
+import org.maplibre.compose.expressions.dsl.image
+import org.maplibre.compose.expressions.dsl.eq
 import org.maplibre.compose.expressions.dsl.feature
 import org.maplibre.compose.expressions.dsl.asString
 import org.maplibre.compose.expressions.dsl.format
@@ -127,7 +136,7 @@ import io.github.dellisd.spatialk.geojson.Position
         else if(active)following=true
     }
     LaunchedEffect(active,sessionId){if(active&&followingSession!=sessionId){followingSession=sessionId;following=true}}
-    LaunchedEffect(camera.moveReason){if(camera.moveReason==CameraMoveReason.GESTURE)following=false}
+    LaunchedEffect(camera.moveReason){if(camera.moveReason==CameraMoveReason.GESTURE&&!active)following=false}
     LaunchedEffect(ui.focusedPlace?.id,ui.cityMode,(bottomInsetDp/40f).toInt()){val target=ui.focusedPlace?.coordinate
         if(target!=null){following=false;move(camera.position.copy(target=Position(latitude=target.latitude,longitude=target.longitude),zoom=16.5,padding=PaddingValues(top=topInsetDp.dp,bottom=bottomInsetDp.dp)))}
     }
@@ -159,14 +168,57 @@ import io.github.dellisd.spatialk.geojson.Position
         }
         if(motion==null&&active&&following&&permission&&ui.currentLocationUsable&&fix!=null&&ui.snapshot.locationConfidence.label!=com.rohanc.navgate.navigation.GuidanceConfidence.Low)move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=17.5))
     }
+    // Places around the part of the map on screen: read per small cell once and kept, only while browsing close in, so panning stays cheap.
+    val services=remember(appContext){NavGateServices.get(appContext)}
+    val pinLoader=remember(services){com.rohanc.navgate.ui.map.PlacePinLoader(services.poiIndex)}
+    var areaPins by remember{mutableStateOf<List<com.rohanc.navgate.data.search.MapPin>>(emptyList())}
+    var areaJson by remember{mutableStateOf(com.rohanc.navgate.ui.map.PlacePinLoader.geoJson(emptyList()))}
+    val browsing=!active&&!loading&&ui.selectedDestination==null&&ui.preview==null
+    LaunchedEffect(browsing,ui.cityMode,viewport.screenWidthDp,viewport.screenHeightDp){
+        if(!browsing){areaPins=emptyList();areaJson=com.rohanc.navgate.ui.map.PlacePinLoader.geoJson(emptyList());return@LaunchedEffect}
+        snapshotFlow{val p=camera.position;Triple(Math.round(p.target.latitude*2000),Math.round(p.target.longitude*2000),Math.round(p.zoom*2))}
+            .distinctUntilChanged().debounce(300).collectLatest{
+                val p=camera.position
+                val pins=withContext(kotlinx.coroutines.Dispatchers.Default){
+                    if(p.zoom<com.rohanc.navgate.ui.map.PlacePinLoader.MIN_ZOOM||!camera.metersPerDpAtTarget.isFinite())emptyList() else {
+                        val b=com.rohanc.navgate.ui.map.PlacePinLoader.box(p.target.latitude,p.target.longitude,camera.metersPerDpAtTarget,viewport.screenWidthDp.toFloat(),viewport.screenHeightDp.toFloat())
+                        val indexed=pinLoader.around(b[0],b[1],b[2],b[3])
+                        val here=com.rohanc.navgate.core.GeoPoint(p.target.latitude,p.target.longitude)
+                        val campus=if(ui.cityMode==com.rohanc.navgate.ui.state.CityMode.Kiit&&com.rohanc.navgate.core.KiitArea.contains(here))
+                            runCatching{services.repository.regionPlacesNear("kiit",here,200)}.getOrDefault(emptyList()).mapNotNull{com.rohanc.navgate.ui.map.PlacePinLoader.pinOf(it)}.filter{it.latitude in b[0]..b[2]&&it.longitude in b[1]..b[3]} else emptyList()
+                        com.rohanc.navgate.ui.map.PlacePinLoader.merge(indexed,campus)
+                    }
+                }
+                val json=withContext(kotlinx.coroutines.Dispatchers.Default){com.rohanc.navgate.ui.map.PlacePinLoader.geoJson(pins)}
+                if(json!=areaJson){areaPins=pins;areaJson=json}
+            }
+    }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)){
         key(retry){MaplibreMap(modifier=Modifier.fillMaxSize(),baseStyle=style,options=options,cameraState=camera,onMapClick={position,_->
             if(onPin!=null){onPin(GeoPoint(position.latitude,position.longitude));ClickResult.Consume}else {
             val nearest=ui.places.filter{it.coordinate!=null}.minByOrNull{val c=it.coordinate!!;hypot((c.latitude-position.latitude)*111000,(c.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))}
             val c=nearest?.coordinate;val radius=(camera.metersPerDpAtTarget*24).takeIf{it.isFinite()}?.coerceIn(8.0,100.0) ?: 40.0
-            if(c!=null&&hypot((c.latitude-position.latitude)*111000,(c.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))<radius){onPlace(nearest);ClickResult.Consume}else ClickResult.Pass
+            if(c!=null&&hypot((c.latitude-position.latitude)*111000,(c.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))<radius){onPlace(nearest);ClickResult.Consume}else {
+                val pin=areaPins.minByOrNull{hypot((it.latitude-position.latitude)*111000,(it.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))}
+                if(pin!=null&&hypot((pin.latitude-position.latitude)*111000,(pin.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))<radius){
+                    scope.launch{(pin.full ?: services.poiIndex.placeById(pin.id))?.let{onPlace(it.toAppPlace())}};ClickResult.Consume
+                }else ClickResult.Pass
+            }
             }
         },onMapLoadFailed={failed=true;loading=false},onMapLoadFinished={failed=false;loading=false}){
+            val area=rememberGeoJsonSource(GeoJsonData.JsonString(areaJson))
+            // Every place kind has its own icon (hospital, restaurant, fuel ...); the urgent ones are never hidden by crowding.
+            // Only while browsing: during guidance there are no place icons to build, rasterize or re-register at every step.
+            if(browsing)com.rohanc.navgate.data.search.PinKind.entries.forEach{kind->
+                val badge=com.rohanc.navgate.ui.map.rememberBadgePainter(kind,dark)
+                val big=kind.urgent
+                val image=remember(badge,big){image(badge,androidx.compose.ui.unit.DpSize(if(big)26.dp else 22.dp,if(big)26.dp else 22.dp))}
+                SymbolLayer(id="area-kind-${kind.slug}",source=area,filter=feature.get("kind").asString() eq const(kind.slug),
+                    iconImage=image,iconAllowOverlap=const(big),iconIgnorePlacement=const(big))
+            }
+            SymbolLayer(id="area-place-names",source=area,minZoom=16.3f,textField=format(span(feature.get("name").asString())),
+                textFont=const(listOf("Noto Sans Regular")),textSize=const(11.sp),textColor=const(if(dark)Color(0xFFBFDBFE) else Color(0xFF1E3A8A)),
+                textHaloColor=const(if(dark)Color.Black else Color.White),textHaloWidth=const(1.dp),textRadialOffset=const(12.sp),textAnchor=const(org.maplibre.compose.expressions.value.SymbolAnchor.Top))
             val points=(if(showPins)ui.places else emptyList()).mapNotNull{it.coordinate}.joinToString(","){"""{"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[${it.longitude},${it.latitude}]}}"""}
             val places=rememberGeoJsonSource(GeoJsonData.JsonString("""{"type":"FeatureCollection","features":[$points]}"""))
             CircleLayer(id="campus-places",source=places,radius=const(9.dp),color=const(Color(0xFFD93025)),strokeColor=const(Color.White),strokeWidth=const(2.5.dp))
@@ -174,22 +226,33 @@ import io.github.dellisd.spatialk.geojson.Position
             // While guiding, the road behind is dimmed and only the road ahead is bright. Cut every ~8 m, not on every 10 Hz update.
             // The bright line starts where the vehicle is drawn (last fix plus the distance covered since), not at the last fix.
             val alongNow=if(trackInput!=null)trackInput.alongShapeMeters+trackInput.speedMps*((android.os.SystemClock.elapsedRealtime()-trackInput.fixElapsedMillis)/1000.0).coerceIn(0.0,8.0) else 0.0
-            val alongStep=if(active&&routeGeometry!=null&&trackInput!=null)(alongNow/8.0).toInt() else -1
-            // Only the stretch around the vehicle goes to the map (120 m behind, 700 m ahead), rebuilt every 8 m: the cost does not grow with the trip.
-            val laneStep=Math.round(laneOffset*5.0)
-            val progress=remember(routeGeometry,alongStep,laneStep){if(alongStep>=0)MapRouteGeoJson.progressSplit(routeGeometry,alongStep*8.0,120.0,700.0,laneStep/5.0) else null}
-            val route=rememberGeoJsonSource(GeoJsonData.JsonString(progress?.second ?: MapRouteGeoJson.lineString(if(screenIsExplore)null else ui.snapshot.route)))
-            val routeDone=rememberGeoJsonSource(GeoJsonData.JsonString(progress?.first ?: """{"type":"FeatureCollection","features":[]}"""))
+            val alongStep=if(active&&routeGeometry!=null&&trackInput!=null)(alongNow/CUT_STEP_METERS).toInt() else -1
+            // 2D, 3D and the VR map draw the whole road still to go (far stretches thinned, see progressSplit); only the AR camera loads checkpoints.
+            // The cut is made every 2 m and starts a few metres behind the vehicle so the car always sits on the line, never ahead of its start.
+            val laneStep=if(live)Math.round(laneOffset*5.0) else 0L
+            // Two pieces drawn as one line: a short stretch from the car (rebuilt every 2 m, a few dozen points) and the rest of the road to go (rebuilt every 150 m).
+            // Rebuilding the whole road at every step is what made guidance heavy; this keeps the work per step tiny however long the trip is.
+            val farStep=if(alongStep>=0)((alongStep*CUT_STEP_METERS)/FAR_STEP_METERS).toInt() else -1
+            val farStart=(farStep+1)*FAR_STEP_METERS
+            val nearJson=remember(routeGeometry,alongStep,laneStep){if(alongStep>=0)MapRouteGeoJson.progressSplit(routeGeometry,maxOf(0.0,alongStep*CUT_STEP_METERS-CUT_OVERLAP_METERS),0.0,farStart-alongStep*CUT_STEP_METERS+6.0,laneStep/5.0).second else null}
+            val farJson=remember(routeGeometry,farStep){if(farStep>=0)MapRouteGeoJson.progressSplit(routeGeometry,farStart,0.0,Double.POSITIVE_INFINITY,0.0).second else null}
+            val route=rememberGeoJsonSource(GeoJsonData.JsonString(nearJson ?: MapRouteGeoJson.lineString(if(screenIsExplore)null else ui.snapshot.route)))
+            val routeFar=rememberGeoJsonSource(GeoJsonData.JsonString(farJson ?: """{"type":"FeatureCollection","features":[]}"""))
             val routeColor=if(dark)NavRouteDark else NavRouteLight
-            LineLayer(id="walking-route-done",source=routeDone,color=const(if(dark)Color(0xFF5F6B7A) else Color(0xFFB0B6C0)),width=const(7.dp))
-            LineLayer(id="walking-route-casing",source=route,color=const(if(dark)Color(0xFF0B1B33) else Color.White),width=const(11.dp))
+            val casing=if(dark)Color(0xFF0B1B33) else Color.White
+            // 3D only: the route glows over the buildings, so the two views no longer look alike.
+            if(!flat&&active){
+                LineLayer(id="route-glow-far",source=routeFar,color=const(routeColor.copy(alpha=.30f)),width=const(20.dp))
+                LineLayer(id="route-glow",source=route,color=const(routeColor.copy(alpha=.30f)),width=const(20.dp))
+            }
+            LineLayer(id="walking-route-far-casing",source=routeFar,color=const(casing),width=const(11.dp))
+            LineLayer(id="walking-route-casing",source=route,color=const(casing),width=const(11.dp))
+            LineLayer(id="walking-route-far",source=routeFar,color=const(routeColor),width=const(if(live)9.dp else 7.dp),cap=const(org.maplibre.compose.expressions.value.LineCap.Round))
             LineLayer(
                 id="walking-route", source=route, color=const(routeColor), width=const(if(live)9.dp else 7.dp),
                 cap=const(org.maplibre.compose.expressions.value.LineCap.Round), dasharray=if(live)const(listOf(0.1f,1.8f)) else const(listOf(1f,0f))
             )
-            val nextTurnSource=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(active)nextTurn else null,null)))
-            CircleLayer(id="next-turn-ring",source=nextTurnSource,radius=const(13.dp),color=const(Color.Transparent),strokeColor=const(routeColor),strokeWidth=const(4.dp))
-            CircleLayer(id="next-turn-dot",source=nextTurnSource,radius=const(5.dp),color=const(Color.White))
+            // Ordinary turns carry no marker on the map: the green banner says where to turn. A roundabout is drawn as the route sweeping round it (RoundaboutRewriter).
             val customPoints=manualPins.map{Coordinate(it.point.latitude,it.point.longitude)}
             val customLine=if(customPoints.size>=2)"""{"type":"LineString","coordinates":[${customPoints.joinToString(","){"[${it.longitude},${it.latitude}]"}}]}"""else """{"type":"FeatureCollection","features":[]}"""
             val manualLine=rememberGeoJsonSource(GeoJsonData.JsonString(customLine))
@@ -199,13 +262,16 @@ import io.github.dellisd.spatialk.geojson.Position
             SymbolLayer(id="manual-itinerary-labels",source=manualDots,textField=format(span(feature.get("label").asString())),
                 textFont=const(listOf("Noto Sans Regular")),textSize=const(14.sp),textColor=const(NavMapAccent),
                 textHaloColor=const(if(dark)Color.Black else Color.White),textHaloWidth=const(1.dp),textRadialOffset=const(16.sp),textAnchor=const(org.maplibre.compose.expressions.value.SymbolAnchor.Bottom))
-            val tripOrigin=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(active)null else ui.selectedOrigin?.coordinate,null)))
+            val tripOrigin=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(if(active)null else ui.selectedOrigin?.coordinate?.takeIf{o->val here=ui.displayLocation ?: ui.snapshot.userLocation;here==null||!permission||hypot((o.latitude-here.latitude)*111000,(o.longitude-here.longitude)*111000*cos(Math.toRadians(here.latitude)))>60.0},null)))
             CircleLayer(id="trip-origin",source=tripOrigin,radius=const(8.dp),color=const(Color(0xFF1A73E8)),strokeColor=const(Color.White),strokeWidth=const(3.dp))
             // Destination and the place being looked at share one red marker.
-            val pinned=ui.selectedDestination?.coordinate ?: ui.focusedPlace?.coordinate
+            // The destination dot lives only while a route is being looked at or followed, or a place is open: it is gone once the trip is finished or closed.
+            val pinned=if(active||ui.preview!=null||ui.snapshot.route!=null||ui.focusedPlace!=null)(ui.selectedDestination?.coordinate ?: ui.focusedPlace?.coordinate) else null
             val destination=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(null,pinned)))
-            CircleLayer(id="trip-destination",source=destination,radius=const(11.dp),color=const(Color(0xFFD93025)),strokeColor=const(Color.White),strokeWidth=const(3.dp))
-            CircleLayer(id="trip-destination-dot",source=destination,radius=const(4.dp),color=const(Color.White))
+            val dropPin=com.rohanc.navgate.ui.map.rememberDropPinPainter()
+            val dropImage=remember(dropPin){image(dropPin,androidx.compose.ui.unit.DpSize(44.dp,44.dp))}
+            if(pinned!=null)SymbolLayer(id="trip-destination",source=destination,iconImage=dropImage,
+                iconAnchor=const(org.maplibre.compose.expressions.value.SymbolAnchor.Bottom),iconAllowOverlap=const(true),iconIgnorePlacement=const(true))
             val inspection=rememberGeoJsonSource(GeoJsonData.JsonString(MapRouteGeoJson.endpoints(inspectPoint,null)))
             CircleLayer(id="inspected-maneuver",source=inspection,radius=const(10.dp),color=const(NavMapAccent),strokeColor=const(Color.White),strokeWidth=const(2.dp))
             val shownLocation=ui.displayLocation ?: ui.snapshot.userLocation
@@ -216,12 +282,15 @@ import io.github.dellisd.spatialk.geojson.Position
                 CircleLayer(id="current-position",source=location,radius=const(7.dp),color=const(NavMapPosition),strokeColor=const(Color.White),strokeWidth=const(2.dp))
             }
         }}
+        // 3D only: haze at the horizon, so the far buildings fade into the sky.
+        if(!flat&&active)Box(Modifier.fillMaxWidth().height(260.dp).align(Alignment.TopCenter).background(androidx.compose.ui.graphics.Brush.verticalGradient(
+            listOf(if(dark)Color(0xE60B2A5B) else Color(0xE6C3DBFF),if(dark)Color(0x7F0B2A5B) else Color(0x7FC3DBFF),Color.Transparent))))
         if(active&&motion!=null){
             VehicleMarker(
                 camera, motion, routeGeometry, trackInput, ui.travelProfile==TravelProfile.Driving, following, if(live)58.0 else guideTilt,
                 if(dark)NavRouteDark else NavRouteLight, VehicleModel.of(ui.frontendPreferences.vehicleModel),
-                VehicleColor.of(ui.frontendPreferences.vehicleColor).paint, if(live)0.60f else 0.34f, if(live)-1.0 else 0.0, if(live)liveHeading else null,
-                laneOffset
+                VehicleColor.of(ui.frontendPreferences.vehicleColor).paint, if(live)0.60f else 0.46f, if(live)-1.0 else 0.0, if(live)liveHeading else null,
+                if(live)laneOffset else 0.0, onUserPan={following=false}
             )
         }
         // Guidance gets the full set of map buttons; the home map keeps only the 3D button; everywhere else the map is left clear.
@@ -242,3 +311,6 @@ import io.github.dellisd.spatialk.geojson.Position
     }
 }
 
+private const val CUT_STEP_METERS=2.0
+private const val CUT_OVERLAP_METERS=-2.0
+private const val FAR_STEP_METERS=150.0

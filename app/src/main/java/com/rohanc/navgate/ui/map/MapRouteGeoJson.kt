@@ -4,6 +4,9 @@ import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.RouteResponse
 
 object MapRouteGeoJson {
+    private const val FAR_METERS = 1_500.0
+    private const val FAR_SPACING_METERS = 20.0
+
     fun lineString(route: RouteResponse?): String =
         featureCollectionJson(
             geometry = route?.pathCoordinates.orEmpty().toLineStringCoordinates(),
@@ -29,7 +32,14 @@ object MapRouteGeoJson {
         for (i in firstAfter(from) until firstAfter(along)) if (line.cumulative[i] < along) done += line.points[i]
         done += here
         ahead += here
-        for (i in firstAfter(along) until line.points.size) { if (line.cumulative[i] >= to) break; ahead += line.points[i] }
+        // The whole road to go can be long: beyond 1.5 km it is thinned to a point every 20 m (it is redrawn in full detail as it is approached).
+        var lastFar = Double.NEGATIVE_INFINITY
+        for (i in firstAfter(along) until line.points.size) {
+            if (line.cumulative[i] >= to) break
+            if (line.cumulative[i] - along > FAR_METERS && line.cumulative[i] - lastFar < FAR_SPACING_METERS) continue
+            if (line.cumulative[i] - along > FAR_METERS) lastFar = line.cumulative[i]
+            ahead += line.points[i]
+        }
         line.pointAt(to).let { end -> if (ahead.last().distanceTo(end) > 0.01) ahead += end }
         // The vehicle drives in its own lane, so the line ahead does too: it holds the lane for 80 m and returns to the road's centre.
         val drawnAhead = if (kotlin.math.abs(laneOffsetMeters) >= 0.2) com.rohanc.navgate.core.LaneTracker.shift(ahead, laneOffsetMeters, holdMeters = 80.0, fadeMeters = 60.0) else ahead

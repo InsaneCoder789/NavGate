@@ -163,6 +163,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
             }
             if(directionCaller in listOf("Search","Results"))vm.updateSearch(directionQuery)
         }
+        if(screen=="Place")vm.clearFocusedPlace()
         if(screen=="ManualPin"){screen="My routes";return}
         if(screen=="Camera"||screen=="Live")vm.switchMode(PresentationMode.MAP)
         screen=frontendBack(screen,active,placeCaller,settingsCaller,utilityCaller,searchFor,directionCaller)
@@ -241,6 +242,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         dismissOnboarding={vm.dismissOnboarding();screen="Explore"},
         cancelPick={back()},
         openCategory={category->searchFor="place";vm.updateSearch(category.query);screen="Results"},closeResults={vm.updateSearch("");screen="Explore"},
+        email={address->runCatching{context.startActivity(Intent(Intent.ACTION_SENDTO,Uri.parse("mailto:"+address.trim())))}},
         call={phone->runCatching{context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+phone.filter{it.isDigit()||it=='+'})))}},
         openWebsite={site->runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(if(site.startsWith("http://")||site.startsWith("https://"))site else "https://$site")))}})
     val locationServicesOn=com.rohanc.navgate.ui.location.rememberLocationServicesOn()
@@ -250,7 +252,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     // The planned route as a measured line, and how far along it the vehicle is: what the car marker glides on.
     val navRoute=backend.session.route
     val navGeometry=remember(navRoute?.id){navRoute?.let{com.rohanc.navgate.core.RouteGeometry(it.geometry)}}
-    val navTrack=if(active&&navRoute!=null)com.rohanc.navgate.ui.map.TrackInput(navRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,backend.session.lockedToRoute&&backend.session.snappedLocation!=null)else null
+    val navTrack=if(active&&navRoute!=null)com.rohanc.navgate.ui.map.TrackInput(navRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,!backend.session.offRoute)else null  // once guidance runs the car stays on the route line; only a confirmed off-route frees it
     val data=JourneyData(screen,searchFor,ui,backend.session,ui.snapshot.route?.steps.orEmpty(),backend.session.route?.takeIf{it.external}?.warnings.orEmpty(),permission,prefs.voiceEnabled,ui.areaName,
         if(searchFor=="saved")vm.searchSaved(ui.searchQuery)else ui.places,active,if(showMotion)vm.motionState else null,
         SettingsModel(prefs,ui.cityMode,active,voiceAvailability,permission),if(screen=="Camera")"AR" else if(screen=="Live")"VR" else if(prefs.buildings3d)"3D" else "2D",cameraPermission,alignment,

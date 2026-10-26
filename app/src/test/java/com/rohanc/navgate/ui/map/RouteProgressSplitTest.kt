@@ -44,7 +44,8 @@ class RouteWindowTest {
         assertTrue("behind: ${count(done)} points", count(done) in 10..16)
         assertTrue("ahead: ${count(ahead)} points", count(ahead) in 68..74)
         val full = MapRouteGeoJson.progressSplit(long, 10_000.0)
-        assertTrue("the whole route is ${count(full.second) + count(full.first)} points", count(full.second) + count(full.first) > 2000)
+        // The road to go is drawn to its end, with the stretches beyond 1.5 km thinned to a point every 20 m.
+        assertTrue("ahead of the vehicle: ${count(full.second)} points", count(full.second) in 300..600)
     }
 
     @Test fun `the window joins the vehicle without a gap and stops at the end of the route`() {

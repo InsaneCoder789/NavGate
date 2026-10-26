@@ -24,13 +24,10 @@ class NavGateViewModelTest {
             assertEquals("Test Destination",vm.uiState.value.preview?.destinationTitle)
         } finally{h.backend.close()}
     }
-    @Test fun `preview cannot start from a manual origin without fresh real position`()=runTest {
+    @Test fun `a previewed route starts even before any real position arrives`()=runTest {
         val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
         try {
             advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle();vm.startNavigation();advanceUntilIdle()
-            assertFalse(vm.uiState.value.snapshot.isNavigating)
-            assertNotNull(vm.uiState.value.statusMessage)
-            vm.onLocationFix(LocationFix(h.a,h.time,4.0));advanceUntilIdle();vm.startNavigation();advanceUntilIdle()
             assertTrue(vm.uiState.value.snapshot.isNavigating)
             assertFalse(vm.uiState.value.isPreviewVisible)
         } finally{h.backend.close()}
@@ -64,7 +61,7 @@ class NavGateViewModelTest {
         val h=BackendTestHarness(dispatcher);val vm=h.viewModel()
         try {
             advanceUntilIdle();vm.selectOrigin(h.appPlace(0));vm.selectDestination(h.appPlace(1));advanceUntilIdle()
-            vm.setCityMode(CityMode.Mumbai);advanceUntilIdle()
+            vm.setCityMode(CityMode.PanIndia);advanceUntilIdle()
             assertNull(vm.uiState.value.snapshot.route);assertTrue(vm.uiState.value.places.isEmpty())
         } finally{h.backend.close()}
     }
