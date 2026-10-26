@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.dp
 /** The round frosted button used for the map controls (recenter, layers, lane, fit route). */
 @Composable
 fun MapControlButton(onClick:()->Unit,enabled:Boolean=true,content:@Composable ()->Unit) {
-    NavGlassSurface(shape=androidx.compose.foundation.shape.CircleShape,shadowElevation=3.dp) {
+    NavGlassSurface(shape=androidx.compose.foundation.shape.CircleShape,shadowElevation=3.dp,dense=true) {
         IconButton(onClick=onClick,enabled=enabled,modifier=Modifier.size(52.dp),content=content)
     }
 }

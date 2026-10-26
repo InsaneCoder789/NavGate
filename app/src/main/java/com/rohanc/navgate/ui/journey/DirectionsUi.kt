@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.core.RouteFailure
 import com.rohanc.navgate.model.RouteStep
@@ -34,7 +36,11 @@ import com.rohanc.navgate.ui.state.NavGateUiState
 
 /** Directions: route card on top, travel-mode tabs with times, the route summary and a clear Start button. */
 @Composable
-fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarnings: List<String>, permission: Boolean, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
+fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarnings: List<String>, permission: Boolean, onInsets: (Float, Float) -> Unit, a: JourneyActions) =
+    DirectionsContent(ui, steps, routeWarnings, permission, onInsets, a)
+
+@Composable
+private fun BoxScope.DirectionsContent(ui: NavGateUiState, steps: List<RouteStep>, routeWarnings: List<String>, permission: Boolean, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
@@ -44,15 +50,20 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
     val origin = ui.selectedOrigin
     val destination = ui.selectedDestination
     NavGlassSurface(Modifier.align(Alignment.TopCenter).onSizeChanged { topPx = it.height }.statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp), dense = true, shadowElevation = 4.dp) {
-        Row(Modifier.padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = a.back) { Icon(Icons.Rounded.ArrowBack, "Back") }
+        shape = RoundedCornerShape(24.dp), dense = true, shadowElevation = 4.dp) {
+        // One card, no rings: a plain back arrow, the route (start, dotted line, destination) in the middle, a plain swap arrow at the end.
+        Row(Modifier.padding(start = 2.dp, end = 2.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = a.back, modifier = Modifier.size(44.dp)) { Icon(Icons.Rounded.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface) }
+            RouteStepper(Modifier.padding(start = 2.dp, end = 6.dp))
             Column(Modifier.weight(1f)) {
-                EndpointRow(Icons.Rounded.RadioButtonChecked, MaterialTheme.colorScheme.secondary, origin?.title ?: "Choose start", origin == null || origin.id.startsWith("live"), { a.openSearch("from") })
-                HorizontalDivider(Modifier.padding(start = 40.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                EndpointRow(Icons.Rounded.Place, MaterialTheme.colorScheme.error, destination?.title ?: "Choose destination", false, { a.openSearch("to") })
+                EndpointText(origin?.title ?: if (permission) "Your location" else "Choose start", origin == null || origin.id.startsWith("live"), { a.openSearch("from") })
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
+                EndpointText(destination?.title ?: "Choose destination", false, { a.openSearch("to") })
             }
-            IconButton(onClick = a.swap) { Icon(Icons.Rounded.SwapVert, "Swap") }
+            val canSwap = origin != null && destination != null
+            IconButton(onClick = a.swap, enabled = canSwap, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Rounded.SwapVert, "Swap start and destination", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (canSwap) 1f else 0.38f))
+            }
         }
     }
     val screenDp = LocalConfiguration.current.screenHeightDp
@@ -63,8 +74,8 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
         Column(Modifier.navigationBarsPadding()) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (driving) "Drive" else "Walk", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
-                destination?.let { NgRoundButton(Icons.Rounded.Share, "Share destination", { a.share(it) }) }
-                NgRoundButton(Icons.Rounded.Close, "Clear directions", a.clearPlan)
+                destination?.let { IconButton(onClick = { a.share(it) }, modifier = Modifier.size(44.dp)) { Icon(Icons.Rounded.Share, "Share destination") } }
+                IconButton(onClick = a.clearPlan, modifier = Modifier.size(44.dp)) { Icon(Icons.Rounded.Close, "Clear directions") }
             }
             ModeTabs(ui, a)
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -80,21 +91,33 @@ fun BoxScope.DirectionsUi(ui: NavGateUiState, steps: List<RouteStep>, routeWarni
                     }
                 }
             }
-            Row(Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (ui.preview != null) NgPrimaryButton(if (ui.startPending) "Starting…" else if (driving) "Start driving" else "Start walking", Icons.Rounded.Navigation, a.start, Modifier.weight(1f), enabled = !ui.startPending && permission)
-                else NgPrimaryButton(if (driving) "Preview driving route" else "Preview walking route", Icons.Rounded.Directions, a.replan, Modifier.weight(1f), enabled = !ui.isLoadingRoute && origin != null && destination != null)
-                NgTonalButton("Steps", if (showSteps) Icons.Rounded.ExpandMore else Icons.Rounded.FormatListBulleted, { showSteps = !showSteps }, enabled = steps.isNotEmpty())
+            ButtonRow(Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 16.dp), spacing = 8.dp) { item ->
+                if (ui.preview != null) NgPrimaryButton(if (ui.startPending) "Starting…" else if (driving) "Start driving" else "Start walking", Icons.Rounded.Navigation, a.start, item(1f), enabled = !ui.startPending)
+                else NgPrimaryButton("Preview route", Icons.Rounded.Directions, a.replan, item(1f), enabled = !ui.isLoadingRoute && origin != null && destination != null)
+                NgTonalButton("Steps", if (showSteps) Icons.Rounded.ExpandMore else Icons.Rounded.FormatListBulleted, { showSteps = !showSteps }, if (isLargeText()) Modifier.fillMaxWidth() else Modifier, enabled = steps.isNotEmpty())
             }
         }
     }
 }
 
+/** One line of the route card: just the place name, 48 dp high, so the stepper beside it lines up. */
 @Composable
-private fun EndpointRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: androidx.compose.ui.graphics.Color, text: String, highlight: Boolean, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 48.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Icon(icon, null, Modifier.size(20.dp), tint = tint)
-        Text(text, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium,
-            color = if (highlight) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface)
+private fun EndpointText(text: String, highlight: Boolean, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(48.dp).clickable(onClick = onClick), contentAlignment = Alignment.CenterStart) {
+        Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium,
+            color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+/** The start dot, three dots joining it to the destination and the destination pin: the route drawn as a path (97 dp = two rows and the line between them). */
+@Composable
+private fun RouteStepper(modifier: Modifier = Modifier) {
+    Box(modifier.width(22.dp).height(97.dp)) {
+        Icon(Icons.Rounded.RadioButtonChecked, null, Modifier.align(Alignment.TopCenter).padding(top = 15.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            repeat(3) { Box(Modifier.size(3.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.75f), androidx.compose.foundation.shape.CircleShape)) }
+        }
+        Icon(Icons.Rounded.Place, null, Modifier.align(Alignment.BottomCenter).padding(bottom = 13.dp).size(22.dp), tint = MaterialTheme.colorScheme.error)
     }
 }
 
@@ -137,7 +160,6 @@ private fun Summary(ui: NavGateUiState, driving: Boolean, permission: Boolean, w
         ui.selectedOrigin == null -> Banner("Choose a start, or use your current location.", "Use my location", a.useCurrentLocation)
         else -> Text(ui.statusMessage ?: "Choose a destination.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
-    ui.statusMessage?.takeIf { preview != null && it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary) }
     warnings.filter { it.isNotBlank() && !it.startsWith("Valhalla") && !it.startsWith("Arrival is at the mapped") }.take(3).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
 }
 

@@ -12,6 +12,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.rohanc.navgate.model.tidy
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -68,14 +70,28 @@ fun BoxScope.ResultsScreen(ui: NavGateUiState, userLocation: Coordinate?, onInse
 internal fun ResultRow(place: PlaceSearchResult, userLocation: Coordinate?, onClick: () -> Unit) {
     val status = remember(place.hours) { OpeningHours.status(place.hours, LocalDateTime.now()) }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Box(Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(PoiCategory.fromSlug(place.category.orEmpty())?.let { categoryIcon(it) } ?: placeIcon(place), null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-        }
+        PlaceBadge(place, 42.dp)
         Column(Modifier.weight(1f)) {
-            Text(place.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(place.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(place.title.tidy(), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(place.subtitle.tidy(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             status?.let { Text(it.label, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (it.open) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error) }
         }
         distanceFrom(userLocation, place)?.let { Text(it, style = MaterialTheme.typography.labelLarge, softWrap = false, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+}
+
+/** The round icon of a place in a list: the same icon and colour the map uses for its kind, so a hospital looks like a hospital everywhere. */
+@Composable
+internal fun PlaceBadge(place: PlaceSearchResult, size: androidx.compose.ui.unit.Dp) {
+    val kind = remember(place.category) { com.rohanc.navgate.data.search.PinKind.of("", place.category.orEmpty()) }
+    if (kind == com.rohanc.navgate.data.search.PinKind.Other) {
+        Box(Modifier.size(size).background(MaterialTheme.colorScheme.primaryContainer, CircleShape).testTag("place-badge"), contentAlignment = Alignment.Center) {
+            Icon(PoiCategory.fromSlug(place.category.orEmpty())?.let { categoryIcon(it) } ?: placeIcon(place), null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+    } else {
+        val tint = com.rohanc.navgate.ui.map.MapIcons.color(kind)
+        Box(Modifier.size(size).background(tint.copy(alpha = 0.14f), CircleShape).testTag("place-badge"), contentAlignment = Alignment.Center) {
+            Icon(com.rohanc.navgate.ui.map.MapIcons.icon(kind), null, Modifier.size(size * 0.55f), tint = tint)
+        }
     }
 }

@@ -23,7 +23,7 @@ class NativeFrontendFlowTest {
     @Before fun setup(){
         fixture=Fixture()
         compose.runOnUiThread{
-            vm=NavGateViewModel({scope->NavigationBackend(scope,fixture,fixture,fixture,routingProvider=com.rohanc.navgate.testing.FixtureRouting())},fixture.users,InMemoryAppPreferencesStore(storedCityMode=CityMode.KiitBeta),fixture)
+            vm=NavGateViewModel({scope->NavigationBackend(scope,fixture,fixture,fixture,routingProvider=com.rohanc.navgate.testing.FixtureRouting())},fixture.users,InMemoryAppPreferencesStore(storedCityMode=CityMode.Kiit),fixture)
             store.put("test-vm",vm)
         }
         compose.setContent{NavGateFrontend(injectedViewModel=vm,renderMap=false,trackLocation=false)}
@@ -70,11 +70,11 @@ class NativeFrontendFlowTest {
         typeInSearch("Place")
         compose.waitUntil(5_000){vm.uiState.value.places.size==3}
         compose.onNodeWithText("Destination Place").performClick()
-        compose.onNodeWithContentDescription("Save place").performClick()
+        compose.onNodeWithText("Save").performClick()
         compose.waitUntil(5_000){vm.uiState.value.savedPlaces.any{it.id=="b"}}
         assertEquals("b",runBlocking{fixture.users.savedPlaces()}.single().id)
         compose.onNodeWithText("Directions",substring=false).performClick()
-        compose.onNodeWithText("Choose start").performClick()
+        compose.onAllNodes(androidx.compose.ui.test.hasText("Choose start") or androidx.compose.ui.test.hasText("Your location")).onFirst().performClick()
         typeInSearch("Origin")
         compose.waitUntil(5_000){vm.uiState.value.places.any{it.id=="a"}}
         compose.onNodeWithText("Origin Place").performClick()
@@ -108,7 +108,7 @@ class NativeFrontendFlowTest {
         compose.waitUntil(5_000){vm.uiState.value.places.any{it.id=="b"}}
         compose.onNodeWithText("Destination Place").performClick()
         compose.waitUntil(5_000){vm.uiState.value.selectedDestination?.id=="b"}
-        compose.onNodeWithText("Choose start").performClick()
+        compose.onAllNodes(androidx.compose.ui.test.hasText("Choose start") or androidx.compose.ui.test.hasText("Your location")).onFirst().performClick()
         typeInSearch("Unlocated")
         compose.waitUntil(5_000){vm.uiState.value.places.any{it.id=="unknown"}}
         compose.onNodeWithText("Unlocated Place").performClick()

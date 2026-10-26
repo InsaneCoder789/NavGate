@@ -22,7 +22,7 @@ private val Categories = listOf(
 
 /** The home map: search pill, category chips, Directions button and a short "what's here" sheet. */
 @Composable
-fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions, regionId: String = "mumbai", userLocation: com.rohanc.navgate.model.Coordinate? = null, recentTrips: List<com.rohanc.navgate.model.RouteHistoryEntry> = emptyList()) {
+fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions, kiitMode: Boolean = false, userLocation: com.rohanc.navgate.model.Coordinate? = null, recentTrips: List<com.rohanc.navgate.model.RouteHistoryEntry> = emptyList()) {
     val density = LocalDensity.current
     var topPx by remember { mutableIntStateOf(0) }
     var bottomPx by remember { mutableIntStateOf(0) }
@@ -34,7 +34,7 @@ fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a:
     Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged { topPx = it.height }.statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         NgSearchPill("Search here", true, { a.openSearch("place") }, leading = { Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary) },
-            trailing = { NgRoundButton(Icons.Rounded.AccountCircle, "Settings", a.openSettings, container = androidx.compose.ui.graphics.Color.Transparent, tint = MaterialTheme.colorScheme.primary, size = 48.dp) })
+            trailing = { IconButton(onClick = a.openSettings, modifier = Modifier.size(48.dp)) { Icon(Icons.Rounded.AccountCircle, "Settings", tint = MaterialTheme.colorScheme.primary) } })
         NgChipRow {
             com.rohanc.navgate.data.search.PoiCategory.entries.forEach { c -> NgChip(c.label, categoryIcon(c)) { a.openCategory(c) } }
             NgChip("My routes", Icons.Rounded.Route) { a.openMyRoutes() }
@@ -46,9 +46,9 @@ fun BoxScope.ExploreHome(areaName: String?, onInsets: (Float, Float) -> Unit, a:
             NgDirectionsFab({ a.openSearch("to") })
         }
         val roomDp = screenDp - with(density) { (topPx + barPx).toDp().value } - 8f
-        NearbySheet(sheet, screenDp, areaName, regionId, userLocation, recentTrips, a, { a.openPlace(it) }, maxDp = roomDp)
+        NearbySheet(sheet, screenDp, areaName, kiitMode, userLocation, recentTrips, a, { a.openPlace(it) }, maxDp = roomDp)
         Box(Modifier.onSizeChanged { barPx = it.height }) { NgBottomBar("Explore", a.openTab) }
     }
 }
 
-private const val COLLAPSED_DP = 150f
+private const val COLLAPSED_DP = 104f

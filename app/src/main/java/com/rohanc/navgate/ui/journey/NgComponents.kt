@@ -61,7 +61,7 @@ fun NgRoundButton(icon: ImageVector, description: String, onClick: () -> Unit, m
 /** Frosted round map control such as recenter or compass. */
 @Composable
 fun NgMapButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    GlassPanel(modifier, shape = CircleShape, weight = GlassWeight.Thin, onClick = onClick) {
+    GlassPanel(modifier, shape = CircleShape, weight = GlassWeight.Thin, minOpacity = 0.8f, onClick = onClick) {
         Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) { Icon(icon, description, tint = MaterialTheme.colorScheme.onSurface) }
     }
 }
@@ -125,7 +125,7 @@ fun NgTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifi
 /** Frosted bottom navigation bar, full width like the Android system pattern. */
 @Composable
 fun NgBottomBar(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
-    GlassPanel(modifier.fillMaxWidth(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.72f) {
+    GlassPanel(modifier.fillMaxWidth(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.72f, solidInLight = true) {
         Row(Modifier.navigationBarsPadding().selectableGroup().padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf(Triple("Explore", Icons.Rounded.Place, "Explore"), Triple("Saved", Icons.Rounded.BookmarkBorder, "Saved"), Triple("Recents", Icons.Rounded.History, "Recents")).forEach { (key, icon, label) ->
                 val chosen = key == selected
@@ -177,7 +177,7 @@ fun distanceFrom(origin: Coordinate?, place: PlaceSearchResult): String? {
 /** 2D map, 3D map with solid buildings, or AR camera: the three ways to follow a route. Only offered once a route exists. */
 @Composable
 fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier, vertical: Boolean = false, arAvailable: Boolean = true) {
-    GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular) {
+    GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular, minOpacity = 0.7f) {
         val items: @Composable () -> Unit = {
             listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "AR" to Icons.Rounded.ViewInAr, "VR" to Icons.Rounded.Videocam).filter { (it.first != "AR" && it.first != "VR") || arAvailable }.forEach { (mode, icon) ->
                 val on = mode == selected
@@ -214,7 +214,7 @@ fun NgModeButton(label: String, icon: ImageVector, onClick: () -> Unit, modifier
 fun NgDialog(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit, dismissLabel: String? = null,
     confirmEnabled: Boolean = true, icon: ImageVector? = null) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        GlassPanel(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), weight = GlassWeight.Thick, minOpacity = 0.85f) {
+        GlassPanel(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), weight = GlassWeight.Thick, minOpacity = 0.85f, solidInLight = true) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (icon != null) Icon(icon, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
                 Text(title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
@@ -225,4 +225,15 @@ fun NgDialog(title: String, message: String, confirmLabel: String, onConfirm: ()
             }
         }
     }
+}
+
+/** Large accessibility text: rows of buttons stack, one under the other at full width, instead of squeezing their labels. */
+@Composable
+fun isLargeText(): Boolean = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+
+/** A row of buttons that becomes a column at large text sizes. Each button gets [Modifier.weight] in the row and the full width in the column. */
+@Composable
+fun ButtonRow(modifier: Modifier = Modifier, spacing: androidx.compose.ui.unit.Dp = 10.dp, content: @Composable (rowItem: (Float) -> Modifier) -> Unit) {
+    if (isLargeText()) Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing)) { content { Modifier.fillMaxWidth() } }
+    else Row(modifier, horizontalArrangement = Arrangement.spacedBy(spacing)) { content { weight -> Modifier.weight(weight) } }
 }

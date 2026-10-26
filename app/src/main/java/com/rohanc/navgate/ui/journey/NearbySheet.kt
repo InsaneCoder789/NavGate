@@ -29,7 +29,8 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.data.local.NavGateServices
 import com.rohanc.navgate.data.local.toAppPlace
-import com.rohanc.navgate.data.search.PoiCategory
+import com.rohanc.navgate.core.GeoPoint
+import com.rohanc.navgate.core.KiitArea
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.PlaceSearchResult
 import kotlinx.coroutines.CancellationException
@@ -40,11 +41,11 @@ import kotlinx.coroutines.launch
  * Pull it up over the map to see the nearest restaurants, fuel, hospitals and more, then tap one to open it.
  */
 @Composable
-internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: Float, areaName: String?, regionId: String, userLocation: Coordinate?, recentTrips: List<com.rohanc.navgate.model.RouteHistoryEntry>, a: JourneyActions, onPlace: (PlaceSearchResult) -> Unit, maxDp: Float = screenDp * 0.74f) {
+internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: Float, areaName: String?, kiitMode: Boolean, userLocation: Coordinate?, recentTrips: List<com.rohanc.navgate.model.RouteHistoryEntry>, a: JourneyActions, onPlace: (PlaceSearchResult) -> Unit, maxDp: Float = screenDp * 0.74f) {
     val density = LocalDensity.current.density
     val scope = rememberCoroutineScope()
     // Never taller than the room between the search controls and the bottom bar, however large the text is set.
-    val full = minOf(screenDp * 0.74f, maxDp).coerceAtLeast(200f); val collapsed = minOf(150f, full - 40f); val half = minOf(screenDp * 0.46f, (collapsed + full) / 2f)
+    val full = minOf(screenDp * 0.74f, maxDp).coerceAtLeast(200f); val collapsed = minOf(104f, full - 40f); val half = minOf(screenDp * 0.46f, (collapsed + full) / 2f)
     val anchors = listOf(collapsed, half, full)
     fun settle(velocityDpPerSec: Float) {
         val here = sheet.value
@@ -74,21 +75,35 @@ internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: 
     }
     val drag = rememberDraggableState { px -> scope.launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { sheet.snapTo((sheet.value - px / density).coerceIn(collapsed, full)) } }
 
-    val category = PoiCategory.entries.first()
     val context = LocalContext.current
     val services = remember(context) { NavGateServices.get(context) }
     var loading by remember { mutableStateOf(true) }
+    // The KIIT directory takes over Nearby only in the KIIT region and only while the user is on or near the campuses; anywhere else it is what is nearby.
+    val kiitActive = kiitMode && userLocation != null && KiitArea.contains(GeoPoint(userLocation.latitude, userLocation.longitude))
     // Reading the height only while laying out keeps a drag from recomposing the sheet on every frame.
     val opened by remember(sheet) { derivedStateOf { sheet.value > collapsed + 20f } }
     var wanted by remember { mutableStateOf(false) }
     LaunchedEffect(opened) { if (opened) wanted = true }
-    val places by produceState<List<PlaceSearchResult>>(emptyList(), category, regionId, wanted, userLocation?.let { (it.latitude * 100).toInt() to (it.longitude * 100).toInt() }) {
+    val places by produceState<List<PlaceSearchResult>>(emptyList(), kiitActive, wanted, userLocation?.let { (it.latitude * 200).toInt() to (it.longitude * 200).toInt() }) {
         if (!wanted) return@produceState
         loading = true
-        value = try { services.searchData.searchPage(category.query, regionId).places.map { it.toAppPlace() }.take(25) }
-            catch (c: CancellationException) { throw c } catch (_: Exception) { emptyList() }
+        val here = userLocation?.let { GeoPoint(it.latitude, it.longitude) }
+        value = try {
+            if (kiitActive && here != null) services.repository.regionPlacesNear("kiit", here).map { it.toAppPlace() }
+            else services.searchData.nearbyPage(here).places.map { it.toAppPlace() }.take(40)
+        } catch (c: CancellationException) { throw c } catch (_: Exception) { emptyList() }
         loading = false
     }
+
+    val emergency by produceState<List<PlaceSearchResult>>(emptyList(), wanted, userLocation?.let { (it.latitude * 200).toInt() to (it.longitude * 200).toInt() }) {
+        if (!wanted || userLocation == null) return@produceState
+        value = try { services.searchData.emergencyNear(GeoPoint(userLocation.latitude, userLocation.longitude)).map { it.toAppPlace() } }
+            catch (c: CancellationException) { throw c } catch (_: Exception) { emptyList() }
+    }
+
+    // When the emergency places arrive above a list that has already moved a little, bring the top of the list back into view.
+    LaunchedEffect(opened) { if (!opened) listState.scrollToItem(0) }
+    LaunchedEffect(opened, emergency.size) { if (opened && emergency.isNotEmpty()) { kotlinx.coroutines.delay(350); listState.scrollToItem(0) } }
 
     NgSheet(Modifier.layout { measurable, c ->
         val h = (sheet.value * density).roundToInt()
@@ -97,18 +112,22 @@ internal fun NearbySheet(sheet: Animatable<Float, AnimationVector1D>, screenDp: 
     }.clipToBounds().nestedScroll(connection)) {
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxWidth().draggable(drag, Orientation.Vertical, onDragStopped = { settle(it / density) }).padding(horizontal = 20.dp).padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(areaName ?: "Explore nearby", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
-                Text(if (opened) "Nearest first. Tap one to open it." else "Pull up to see what is around you.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (kiitActive) "KIIT nearby" else areaName ?: "Explore nearby", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(when { kiitActive && opened -> "Campuses, hostels, food and sports, nearest first."; kiitActive -> "Pull up to see the KIIT places around you."; kiitMode && opened -> "KIIT places show here when you are on campus. Showing what is nearby."; opened -> "Nearest first. Tap one to open it."; else -> "Pull up to see what is around you." }, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState, contentPadding = PaddingValues(bottom = 12.dp)) {
-                if (recentTrips.isNotEmpty()) {
-                    item(key = "recent-title") { SectionLabel("Recent trips") }
-                    items(recentTrips.take(5), key = { "trip-${it.tripId}-${it.recordedAtEpochMillis}" }, contentType = { "trip" }) { TripRow(it, a) }
+                if (opened && emergency.isNotEmpty()) {
+                    item(key = "emergency-title") { SectionLabel("Emergency nearby") }
+                    items(emergency.take(3), key = { "emergency-${it.id}" }, contentType = { "place" }) { place -> ResultRow(place, userLocation) { onPlace(place) } }
                 }
-                if (opened) item(key = "nearby-title") { SectionLabel("Nearby") }
+                if (opened && recentTrips.isNotEmpty()) {
+                    item(key = "recent-title") { SectionLabel("Recent trips") }
+                    items(recentTrips.distinctBy { it.destinationTitle to it.travelMode }.take(2), key = { "trip-${it.tripId}-${it.recordedAtEpochMillis}" }, contentType = { "trip" }) { TripRow(it, a) }
+                }
+                if (opened) item(key = "nearby-title") { SectionLabel(if (kiitActive) "On campus" else "Nearby") }
                 if (loading && opened && places.isEmpty()) item(key = "skeleton") { SkeletonRows(4) }
-                if (!loading && places.isEmpty() && opened) item(key = "empty") { Text("Nothing found nearby right now.", Modifier.padding(20.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                items(places, key = { it.id }, contentType = { "place" }) { place -> ResultRow(place, userLocation) { onPlace(place) } }
+                if (!loading && places.isEmpty() && opened) item(key = "empty") { Text(if (kiitActive) "No KIIT places have a position yet." else "Nothing found nearby right now.", Modifier.padding(20.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                if (opened) items(places, key = { it.id }, contentType = { "place" }) { place -> ResultRow(place, userLocation) { onPlace(place) } }
             }
         }
     }

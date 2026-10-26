@@ -32,7 +32,7 @@ class WorldwideFrontendSearchTest {
         val store=ViewModelStore()
         lateinit var vm:NavGateViewModel
         compose.runOnUiThread{
-            vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,clock,routingProvider=com.rohanc.navgate.testing.FixtureRouting())},InMemoryUserPlacesStore(),InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta),clock)
+            vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,clock,routingProvider=com.rohanc.navgate.testing.FixtureRouting())},InMemoryUserPlacesStore(),InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.Kiit),clock)
             store.put("worldwide-search",vm)
         }
         try {
@@ -45,7 +45,7 @@ class WorldwideFrontendSearchTest {
             compose.waitUntil(5_000){vm.uiState.value.focusedPlace?.id==worldPlace.id}
             assertEquals(48.8584,vm.uiState.value.focusedPlace!!.latitude!!,0.00001)
             compose.onNodeWithText("Paris, France",substring=false).assertExists()
-            compose.onNodeWithContentDescription("Save place").performClick()
+            compose.onNodeWithText("Save").performClick()
             compose.waitUntil(5_000){vm.uiState.value.savedPlaces.any{it.id==worldPlace.id}}
         } finally {compose.runOnUiThread{store.clear()}}
     }

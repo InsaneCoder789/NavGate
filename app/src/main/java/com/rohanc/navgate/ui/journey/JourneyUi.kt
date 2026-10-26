@@ -45,13 +45,13 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
     val userLocation = ui.displayLocation ?: ui.snapshot.userLocation
     if (ui.showOnboarding && d.screen == "Explore") { Onboarding(d.permission, a); return }
     when (d.screen) {
-        "Explore" -> ExploreHome(d.areaName, onInsets, a, ui.cityMode.regionId, userLocation, ui.routeHistory)
+        "Explore" -> ExploreHome(d.areaName, onInsets, a, ui.cityMode == com.rohanc.navgate.ui.state.CityMode.Kiit, userLocation, ui.routeHistory)
         "Results" -> ResultsScreen(ui, userLocation, onInsets, a)
         "Search" -> SearchPage(ui.searchQuery, d.searchFor, d.searchResults, ui.recentPlaces, ui.isLoadingPlaces, ui.searchNotice.takeIf { d.searchFor != "saved" }, d.permission, userLocation, a)
         "Place" -> ui.focusedPlace?.let { place -> PlaceUi(place, ui.savedPlaces.any { it.id == place.id }, userLocation, d.tripActive, onInsets, a) }
         "Directions", "Route" -> DirectionsUi(ui, d.steps, d.routeWarnings, d.permission, onInsets, a)
         "Navigation" -> NavigationUi(d.session, d.steps, d.voiceOn, (d.session.route?.profile ?: ui.travelProfile.name.lowercase()) == "driving", d.motion, onInsets, a, d.online, locationIssue = when { !d.permission -> "Location permission was turned off."; !d.locationOn -> "Location is turned off on this phone."; else -> null })
-        "Arrival" -> ArrivalUi(ui.selectedDestination?.title ?: d.session.route?.destinationTitle ?: "Destination", ui.travelProfile == TravelProfile.Driving, d.tripSummary, onInsets, a)
+        "Arrival" -> ArrivalUi(ui.selectedDestination, ui.selectedDestination?.title ?: d.session.route?.destinationTitle ?: "Destination", ui.travelProfile == TravelProfile.Driving, d.tripSummary, onInsets, a)
         "Saved" -> SavedScreen(ui, userLocation, a)
         "Recents" -> RecentsScreen(ui, userLocation, a)
         "Settings" -> SettingsScreen(d.settings, a)
@@ -74,7 +74,7 @@ fun BoxScope.JourneyUi(d: JourneyData, reportInsets: (Float, Float) -> Unit, a: 
         ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = sheetDp.dp + 12.dp), arAvailable = d.session.route?.profile == "walking")
     }
     // While driving the vertical switch sits mid-left, clear of the car, the banner and the map buttons on the right.
-    if (routed && d.screen == "Camera" && d.hasCameraPermission) NgModeButton("VR", Icons.Rounded.Videocam, { a.setViewMode("VR") }, Modifier.align(Alignment.CenterEnd).padding(end = 14.dp).offset(y = (-90).dp))
-    if (routed && d.screen == "Live" && d.hasCameraPermission) NgModeButton("AR", Icons.Rounded.ViewInAr, { a.setViewMode("AR") }, Modifier.align(Alignment.CenterEnd).padding(end = 14.dp).offset(y = (-90).dp))
+    if (routed && d.screen == "Camera" && d.hasCameraPermission) NgModeButton("VR", Icons.Rounded.Videocam, { a.setViewMode("VR") }, Modifier.align(Alignment.TopStart).padding(start = 14.dp, top = 168.dp))
+    if (routed && d.screen == "Live" && d.hasCameraPermission) NgModeButton("AR", Icons.Rounded.ViewInAr, { a.setViewMode("AR") }, Modifier.align(Alignment.TopStart).padding(start = 14.dp, top = 56.dp))
     if (routed && d.screen == "Navigation") ViewModeSwitch(d.viewMode, a.setViewMode, Modifier.align(Alignment.CenterStart).offset(y = 6.dp).padding(start = 12.dp), vertical = true, arAvailable = d.session.route?.profile == "walking")
 }

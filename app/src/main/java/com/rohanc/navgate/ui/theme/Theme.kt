@@ -37,7 +37,8 @@ private val LightColors = lightColorScheme(
     secondary = Color(0xFF2F6BE0), onSecondary = Color.White, secondaryContainer = Color(0xFFDCE8FF), onSecondaryContainer = Color(0xFF0F2A66),
     tertiary = Color(0xFFB26A00), background = Color(0xFFFBF7F5), onBackground = Color(0xFF18202C),
     surface = Color.White, onSurface = Color(0xFF18202C), surfaceVariant = Color(0xFFEEF2F8), onSurfaceVariant = Color(0xFF5A6678),
-    outline = Color(0xFF8793A6), outlineVariant = Color(0xFFD8E0EC), error = Color(0xFFD93025), onError = Color.White,
+    outline = Color(0xFF6B778C), outlineVariant = Color(0xFFD0D9E6), error = Color(0xFFD93025), onError = Color.White,
+    surfaceContainerHighest = Color(0xFFD9E0EC), surfaceContainerHigh = Color(0xFFE3E9F3), surfaceContainer = Color(0xFFEDF1F8),
     inverseSurface = Color(0xFF1F2937), inverseOnSurface = Color(0xFFEEF3FA),
 )
 

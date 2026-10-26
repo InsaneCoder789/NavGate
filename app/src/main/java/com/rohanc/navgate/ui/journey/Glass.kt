@@ -37,28 +37,33 @@ enum class GlassWeight { Thin, Regular, Thick }
  */
 @Composable
 fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(28.dp), weight: GlassWeight = GlassWeight.Regular,
-    shadow: Boolean = true, tint: Color? = null, contentColor: Color? = null, onClick: (() -> Unit)? = null, minOpacity: Float = 0f, content: @Composable BoxScope.() -> Unit) {
+    shadow: Boolean = true, tint: Color? = null, contentColor: Color? = null, onClick: (() -> Unit)? = null, minOpacity: Float = 0f, solidInLight: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
     val solid = LocalSolidGlass.current
     val haze = LocalHazeState.current
     // Full pages full of text keep a floor, so the map behind them never fights the words, whatever the slider says.
-    val opacity = maxOf(LocalGlassOpacity.current.coerceIn(0f, 1f), minOpacity)
+    // In light mode only whole pages of text are almost solid (dark map lines behind pale glass make words hard to read); everything else stays glass.
+    val floor = if (!dark && solidInLight) 0.97f else minOpacity
+    val opacity = maxOf(LocalGlassOpacity.current.coerceIn(0f, 1f), floor)
     // Every panel, sheet and banner uses the same clear glass as the map buttons; weight no longer changes the strength.
-    val tintAlpha = (0.10f + 0.86f * opacity).coerceIn(0.08f, 0.97f)
+    val tintAlpha = if (dark) (0.10f + 0.86f * opacity).coerceIn(0.08f, 0.97f) else (0.30f + 0.67f * opacity).coerceIn(0.30f, 0.97f)
     val raw = tint ?: scheme.surface
-    val base = androidx.compose.ui.graphics.lerp(raw, Color.White, if (dark) 0.10f else 0.0f)
+    // Light glass is a faintly cool pane rather than flat white, so it reads as glass over the map and never as a white box.
+    val base = if (dark) androidx.compose.ui.graphics.lerp(raw, Color.White, 0.10f) else androidx.compose.ui.graphics.lerp(raw, Color(0xFFDCE8F8), if (tint == null || tint == scheme.surface) 0.45f else 0.0f)
     val onBase = contentColor ?: scheme.onSurface
     // Clear glass like the map buttons: no frosting at low and middle settings, so the map stays crisp behind every panel.
     // Only the upper end of the slider blurs the map, on the way to solid.
-    val blur = ((opacity - 0.5f) * 44f).dp
+    // Dark glass stays crisp at low settings; light glass is always softly frosted, since sharp map lines behind pale glass look dirty.
+    val blur = if (dark) ((opacity - 0.5f) * 44f).dp else (10f + opacity * 24f).dp
     val frosted = haze != null && !solid && blur > 2.dp
     val effect = if (frosted) Modifier.hazeEffect(haze!!, HazeStyle(
-        backgroundColor = base, tints = listOf(HazeTint(base.copy(alpha = tintAlpha))), blurRadius = blur, noiseFactor = 0.02f)) else Modifier
+        backgroundColor = base.copy(alpha = if (dark) 1f else 0f), tints = listOf(HazeTint(base.copy(alpha = tintAlpha))), blurRadius = blur, noiseFactor = 0.02f)) else Modifier
     val fallbackAlpha = if (solid) 1f else if (frosted) 0f else tintAlpha
     val rim = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.55f else 0.95f), Color.White.copy(alpha = if (dark) 0.10f else 0.25f), Color.White.copy(alpha = if (dark) 0.32f else 0.7f)))
     val sheen = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.16f else 0.35f), Color.Transparent, Color.White.copy(alpha = if (dark) 0.05f else 0.12f)))
-    val shadowDp = if (shadow) (8f * (0.4f + opacity)).dp else 0.dp
+    // A drop shadow under a see-through round button shows as a pale box in light mode, so small circles go without.
+    val shadowDp = if (shadow && !(!dark && shape == androidx.compose.foundation.shape.CircleShape)) (8f * (0.4f + opacity)).dp else 0.dp
     val body: @Composable () -> Unit = { Box(Modifier.clip(shape).then(effect).background(base.copy(alpha = fallbackAlpha)).background(sheen), content = content) }
     if (onClick != null) Surface(onClick = onClick, modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.2.dp, rim), shadowElevation = shadowDp) { body() }
     else Surface(modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.2.dp, rim), shadowElevation = shadowDp) { body() }

@@ -53,4 +53,5 @@ data class JourneyActions(
     val closeResults: () -> Unit,
     val call: (String) -> Unit,
     val openWebsite: (String) -> Unit,
+    val email: (String) -> Unit = {},
 )

@@ -55,7 +55,7 @@ class JourneyScreenshotTest {
                 val road=ValhallaRoutingProvider(cache=RoomRoadRouteCache(db))
                 val routing=road
                 vm=NavGateViewModel({scope->NavigationBackend(scope,data,regions,AndroidBackendClock,RoomSessionStore(db,regions),routingProvider=routing)},InMemoryUserPlacesStore(),
-                    InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.KiitBeta),estimator=road)
+                    InMemoryAppPreferencesStore(onboardingSeen=true,storedCityMode=CityMode.Kiit),estimator=road)
                 stores.put("shots",vm)
             }
             compose.setContent{

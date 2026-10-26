@@ -110,7 +110,11 @@ internal fun rememberTripRuntime(vm: NavGateViewModel, session: SessionSnapshot,
     var topSpeedMps by remember { mutableDoubleStateOf(0.0) }
     LaunchedEffect(active) { if (active && tripStartMillis == 0L) { tripStartMillis = System.currentTimeMillis(); topSpeedMps = 0.0 } }
     // Collected in an effect, not in composition, so the 10 Hz motion updates do not recompose the whole screen.
-    LaunchedEffect(active) { if (active) vm.motionState.collect { m -> m?.speedMps?.takeIf { it < 80 }?.let { if (it > topSpeedMps) topSpeedMps = it } } }
+    // A position jump is not a speed: the first seconds are ignored and a reading that leaps more than 6 m/s from the one before it is dropped.
+    LaunchedEffect(active) { if (active) { var previous = Double.NaN; val began = System.currentTimeMillis()
+        vm.motionState.collect { m -> m?.speedMps?.takeIf { it < 100 }?.let { v ->
+            val steady = !previous.isNaN() && kotlin.math.abs(v - previous) <= 6.0 && System.currentTimeMillis() - began > 5_000
+            previous = v; if (steady && v > topSpeedMps) topSpeedMps = v } } } }
     LaunchedEffect(screen) { if (screen == "Explore") tripStartMillis = 0L }
     val summary = if (screen == "Arrival" && tripStartMillis > 0 && tripRoute != null) {
         val minutes = ((System.currentTimeMillis() - tripStartMillis) / 60_000.0).coerceAtLeast(1.0)

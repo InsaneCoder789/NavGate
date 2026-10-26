@@ -24,7 +24,7 @@ val GlassStroke = Color(0x33FFFFFF)
 val GlassBlur = 16.0 // Reference for blur radius
 
 // Navigation Specifics
-val NavGuidance = Color(0xFF16305C)          // the turn banner: deep blue
+val NavGuidance = Color(0xFF0B6B3A)          // the turn banner (the directions card): deep green, in light and dark
 val NavHighConfidence = Color(0xFF7FB2FF)
 val NavMediumConfidence = Color(0xFFFFC857)
 val NavLowConfidence = Color(0xFFFF6B6B)

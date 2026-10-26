@@ -28,6 +28,7 @@ import com.rohanc.navgate.core.RegionStatus
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.RouteHistoryEntry
 import com.rohanc.navgate.ui.ar.VoiceAvailability
+import com.rohanc.navgate.model.tidy
 import com.rohanc.navgate.ui.state.CityMode
 import com.rohanc.navgate.ui.state.NavGateUiState
 import java.text.DateFormat
@@ -36,7 +37,7 @@ import java.util.Date
 /** Full-screen glass page: the map stays visible, blurred, behind a frosted sheet. */
 @Composable
 fun GlassPage(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier, actions: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
-    GlassPanel(modifier.fillMaxSize(), shape = RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.62f) {
+    GlassPanel(modifier.fillMaxSize(), shape = RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.62f, solidInLight = true) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } else Spacer(Modifier.width(12.dp))
@@ -61,7 +62,7 @@ fun BoxScope.TabPage(selected: String, title: String, a: JourneyActions, actions
 fun BoxScope.SavedScreen(ui: NavGateUiState, userLocation: Coordinate?, a: JourneyActions) {
     var sorted by rememberSaveable { mutableStateOf(false) }
     TabPage("Saved", "Saved places", a, actions = { IconButton(onClick = { a.openSearch("saved") }) { Icon(Icons.Rounded.Search, "Search saved places") } }) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+        if (ui.savedPlaces.size > 1) Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
             FilterChip(sorted, { sorted = !sorted }, { Text(if (sorted) "Sorted A–Z" else "Sort A–Z") })
         }
         val places = if (sorted) ui.savedPlaces.sortedBy { it.title.lowercase() } else ui.savedPlaces
@@ -103,8 +104,8 @@ internal fun TripRow(trip: RouteHistoryEntry, a: JourneyActions) {
             Icon(if (trip.travelMode == com.rohanc.navgate.model.TravelProfile.Driving) Icons.Rounded.DirectionsCar else Icons.Rounded.DirectionsWalk, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
         }
         Column(Modifier.weight(1f)) {
-            Text(trip.destinationTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("${trip.status} · ${DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(trip.recordedAtEpochMillis))}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(trip.destinationTitle.tidy(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${tripStatusLabel(trip.status)} · ${tripWhen(trip.recordedAtEpochMillis)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text("Again", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     }
@@ -150,14 +151,13 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
                 SwitchRow("Reduce motion", "Move the map without animation.", model.prefs.reduceMotion) { a.setPrefs(model.prefs.copy(reduceMotion = it)) }
             }
             SettingsGroup("AR smoothness") {
-                Text("How smoothly the AR road line moves. ARCore's camera tops out at 60 frames a second; Max also redraws the line at your screen's own rate (up to 120 Hz) by predicting the camera between frames, which uses more battery.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Frames per second. How smoothly the AR road line moves. ARCore's camera tops out at 60 frames a second; Max also redraws the line at your screen's own rate (up to 120 Hz) by predicting the camera between frames, which uses more battery.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(Modifier.selectableGroup().fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("auto" to "Auto", "saver" to "30 fps", "smooth" to "60 fps", "max" to "Max").forEach { (key, label) ->
+                    listOf("auto" to "Auto", "saver" to "30", "smooth" to "60", "max" to "Max").forEach { (key, label) ->
                         FilterChip(model.prefs.arFps == key, { a.setPrefs(model.prefs.copy(arFps = key)) }, { Text(label, maxLines = 1, softWrap = false) }, Modifier.weight(1f), shape = RoundedCornerShape(16.dp))
                     }
                 }
-                SwitchRow("Hide the line behind people and vehicles", "A small on-device model spots people, vehicles and animals in the camera view so the road line passes behind them. Uses a little battery.", model.prefs.arObjects) { a.setPrefs(model.prefs.copy(arObjects = it)) }
-                NgTonalButton("Try AR here (practice path)", Icons.Rounded.ViewInAr, a.practiceAr, Modifier.fillMaxWidth())
+                                NgTonalButton("Try AR here (practice path)", Icons.Rounded.ViewInAr, a.practiceAr, Modifier.fillMaxWidth())
                 NgTonalButton("Share AR diagnostics", Icons.Rounded.Share, a.exportArDiagnostics, Modifier.fillMaxWidth())
             }
             if (com.rohanc.navgate.BuildConfig.CRASH_REPORT_URL.isNotBlank()) SettingsGroup("Help improve NavGate") {
@@ -177,16 +177,26 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
             }
             SettingsGroup("Map data") {
                 // The map's own info icon is gone; the required credits live here and on the directions screen.
-                Text("Map data © OpenStreetMap contributors (ODbL). Map tiles by OpenFreeMap. Routing by Valhalla. Places also from Photon.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Map data © OpenStreetMap contributors (ODbL). Map tiles by OpenFreeMap. Routing by Valhalla. Offline places for Mumbai and Odisha from OpenStreetMap and the Overture Maps Foundation. Places also from Photon and GeoNames.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             SettingsGroup("Privacy") {
-                Text("Precise live GPS is used on this phone to guide you. Searches send the words you type and an approximate area to Photon; route requests send the start and destination coordinates to Valhalla (OpenStreetMap Germany); map tiles are requested from OpenFreeMap. The camera is used only for AR and Live view: camera imagery is not recorded or uploaded by NavGate. Crash reports are sent only if you turn that on.",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                listOf(
+                    "Your position stays on this phone. It is used to guide you.",
+                    "Searches send the words you type and a rough area to Photon.",
+                    "Routes send the start and destination to Valhalla (OpenStreetMap Germany).",
+                    "Map tiles come from OpenFreeMap.",
+                    "The camera is used only for AR and Live view; its pictures are never recorded or uploaded.",
+                    "Crash reports are sent only if you turn that on.",
+                ).forEach { line -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Text("•", color = MaterialTheme.colorScheme.primary); Text(line, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
             }
             SettingsGroup("Region") {
                 CityMode.entries.forEach { city ->
                     Row(Modifier.fillMaxWidth().selectable(city == model.city, enabled = !model.tripActive, role = Role.RadioButton) { a.setCity(city) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(city == model.city, null, enabled = !model.tripActive); Spacer(Modifier.width(12.dp)); Text(city.label, style = MaterialTheme.typography.bodyLarge)
+                        RadioButton(city == model.city, null, enabled = !model.tripActive); Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(city.label, style = MaterialTheme.typography.bodyLarge)
+                            Text(city.summary, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
                 if (model.tripActive) Text("Stop the current trip to change region.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -248,5 +258,25 @@ fun BoxScope.PickPrompt(text: String, a: JourneyActions) {
             Text(text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge)
             TextButton(onClick = a.cancelPick) { Text("Cancel") }
         }
+    }
+}
+
+/** What happened to a trip, in words: the raw session states are for the code, not for people. */
+internal fun tripStatusLabel(status: String): String = when (status) {
+    "Arrived" -> "Arrived"
+    "Stopped" -> "Ended early"
+    else -> "Interrupted"
+}
+
+/** "Today, 22:12", "Yesterday, 18:05" or "26 Oct, 22:12". */
+internal fun tripWhen(millis: Long): String {
+    val then = java.util.Calendar.getInstance().apply { timeInMillis = millis }; val now = java.util.Calendar.getInstance()
+    val time = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(Date(millis))
+    val sameYear = then.get(java.util.Calendar.YEAR) == now.get(java.util.Calendar.YEAR)
+    val dayDiff = now.get(java.util.Calendar.DAY_OF_YEAR) - then.get(java.util.Calendar.DAY_OF_YEAR)
+    return when {
+        sameYear && dayDiff == 0 -> "Today, $time"
+        sameYear && dayDiff == 1 -> "Yesterday, $time"
+        else -> java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(Date(millis)) + ", $time"
     }
 }

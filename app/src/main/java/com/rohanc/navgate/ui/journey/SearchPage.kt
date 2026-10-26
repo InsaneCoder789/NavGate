@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.rohanc.navgate.model.tidy
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
@@ -33,7 +34,7 @@ fun SearchPage(query: String, searchFor: String, results: List<PlaceSearchResult
     notice: String?, hasLocationPermission: Boolean, userLocation: Coordinate?, a: JourneyActions) {
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    GlassPanel(Modifier.fillMaxSize(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.78f) {
+    GlassPanel(Modifier.fillMaxSize(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.78f, solidInLight = true) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             GlassPanel(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Thin, shadow = false, minOpacity = 0.6f) {
                 Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -97,12 +98,13 @@ private fun SearchRow(place: PlaceSearchResult, userLocation: Coordinate?, icon:
 fun PlaceListRow(place: PlaceSearchResult, userLocation: Coordinate?, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit, trailing: @Composable RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(Modifier.width(60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            if (com.rohanc.navgate.data.search.PinKind.of("", place.category.orEmpty()) != com.rohanc.navgate.data.search.PinKind.Other) PlaceBadge(place, 44.dp)
+            else Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             distanceFrom(userLocation, place)?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
         }
         Column(Modifier.weight(1f)) {
-            Text(place.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(place.subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(place.title.tidy(), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(place.subtitle.tidy(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         trailing()
     }
