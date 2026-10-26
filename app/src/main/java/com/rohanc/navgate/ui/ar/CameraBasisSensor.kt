@@ -14,9 +14,9 @@ import com.rohanc.navgate.core.projectPath
 
 /** Live rear-camera axes from the rotation-vector sensor, in a true-north frame. Null until the first reading. */
 @Composable
-fun rememberCameraBasis(enabled: Boolean, position: () -> GeoPoint?): State<CameraBasis?> {
+fun rememberCameraBasis(enabled: Boolean, position: () -> GeoPoint?, onBasis: (CameraBasis) -> Unit) {
     val context = LocalContext.current
-    val basis = remember { mutableStateOf<CameraBasis?>(null) }
+    val latest = rememberUpdatedState(onBasis)
     DisposableEffect(context, enabled) {
         val manager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor = manager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
@@ -30,14 +30,13 @@ fun rememberCameraBasis(enabled: Boolean, position: () -> GeoPoint?): State<Came
                 if (now - declinationAt > 60_000) position()?.let {
                     declination = GeomagneticField(it.latitude.toFloat(), it.longitude.toFloat(), 0f, now).declination.toDouble(); declinationAt = now
                 }
-                basis.value = cameraBasis(matrix, declination)
+                latest.value(cameraBasis(matrix, declination))   // handed straight to the renderer: no Compose state, so no recomposition at 50 Hz
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
         }
         if (enabled && sensor != null) manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
         onDispose { manager.unregisterListener(listener) }
     }
-    return basis
 }
 
 /** How close to the route the phone must be before AR guidance is offered. */

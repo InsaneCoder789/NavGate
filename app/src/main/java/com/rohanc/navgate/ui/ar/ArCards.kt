@@ -34,10 +34,11 @@ internal object ArTokens {
 
 /** The shared frosted surface: soft shadow, a gentle top-to-bottom tint and a hairline edge that catches the light at the top. */
 @Composable
-internal fun ArCard(modifier: Modifier = Modifier, radius: Dp = ArTokens.radiusCard, content: @Composable BoxScope.() -> Unit) {
+internal fun ArCard(modifier: Modifier = Modifier, radius: Dp = ArTokens.radiusCard, body: Float = 0f, content: @Composable BoxScope.() -> Unit) {
     val shape = RoundedCornerShape(radius)
     Box(modifier.shadow(14.dp, shape, ambientColor = Color.Black.copy(alpha = 0.4f), spotColor = Color.Black.copy(alpha = 0.4f)).clip(shape)
         .background(Brush.verticalGradient(listOf(ArTokens.glassTop, ArTokens.glassBottom)))
+        .then(if (body > 0f) Modifier.background(ArNavy.copy(alpha = body)) else Modifier)
         .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.06f))), shape), content = content)
 }
 

@@ -2,12 +2,15 @@ package com.rohanc.navgate.ui.ar
 
 import com.rohanc.navgate.core.GeoPoint
 import com.rohanc.navgate.core.RouteGeometry
+import com.rohanc.navgate.core.offset
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
 /** What is drawn on the road this frame, all in ARCore world coordinates. */
-class ArScene(val ribbon: ArMeshData, val arrow: ArMeshData?, val arrowOutline: ArMeshData?, val turnPoint: GroundPoint?, val turnIsArrival: Boolean, val roadEnd: Float, val groundY: Float, val ahead: GroundPoint? = null)
+class ArScene(val ribbon: ArMeshData, val arrow: ArMeshData?, val arrowOutline: ArMeshData?, val turnPoint: GroundPoint?, val turnIsArrival: Boolean, val roadEnd: Float, val groundY: Float, val ahead: GroundPoint? = null, val track: ArMeshData? = null)
 
 /**
  * The AR engine without any graphics: it ties ARCore's free-floating world to the real one and decides what to draw. The GL renderer
@@ -19,11 +22,35 @@ class ArScene(val ribbon: ArMeshData, val arrow: ArMeshData?, val arrowOutline: 
 class ArWorld(val aligner: ArGeoAligner = ArGeoAligner()) {
     private class Sample(val timeMillis: Long, val along: Double, val x: Double, val z: Double)
     private val alongHistory = ArrayDeque<Sample>()
+    private var alongEstimate = Double.NaN
+    private val netWindow = ArrayDeque<Triple<Long, Double, Double>>()
+    private var alongAtMillis = 0L
+    private var lastArPosition: DoubleArray? = null
+    private var lateralMeters = 0.0
+    private var lateralAtMillis = 0L
 
     /** Feeds one ARCore camera reading together with where the vehicle is on the route (the road's own position and direction). */
-    fun align(reading: ArCameraReading, compass: Double?, compassUp: Double?, geometry: RouteGeometry?, alongNowMeters: Double, speedMps: Double) {
+    fun align(reading: ArCameraReading, compass: Double?, compassUp: Double?, geometry: RouteGeometry?, alongNowMeters: Double, speedMps: Double, rawGps: GeoPoint? = null, rawAccuracy: Double = 30.0) {
         val g = geometry ?: return
-        val along = alongNowMeters.coerceIn(0.0, g.length)
+        // How far along the road they are: ARCore measures each step to the centimetre, a position fix is only good to a few metres and a reported speed can be low.
+        // So progress follows ARCore's own movement and the fixes only correct it, slowly, in either direction.
+        val dtAlong = ((reading.timeMillis - alongAtMillis).coerceIn(1L, 500L)) / 1000.0
+        val step = lastArPosition?.let { hypot(reading.position[0] - it[0], reading.position[2] - it[1]) } ?: 0.0
+        lastArPosition = doubleArrayOf(reading.position[0], reading.position[2])
+        alongAtMillis = reading.timeMillis
+        val fixAlong = alongNowMeters.coerceIn(0.0, g.length)
+        // Where the raw position falls on the road: noisy by a few metres but not biased by a low reported speed, unlike the tracked progress.
+        val rawAlong = rawGps?.let { com.rohanc.navgate.core.projectPath(it, g.points, minAlong = max(0.0, fixAlong - 40.0), maxAlong = fixAlong + 40.0)?.alongMeters }
+        val reference = (rawAlong ?: fixAlong).coerceIn(0.0, g.length)
+        // Steps count only while really walking (net movement over the last two seconds): phone sway while standing must not look like progress.
+        netWindow.addLast(Triple(reading.timeMillis, reading.position[0], reading.position[2]))
+        while (netWindow.size > 1 && reading.timeMillis - netWindow.first().first > 2000) netWindow.removeFirst()
+        val net = netWindow.first().let { f -> val span = (reading.timeMillis - f.first) / 1000.0; if (span > 0.5) hypot(reading.position[0] - f.second, reading.position[2] - f.third) / span else 0.0 }
+        alongEstimate = if (alongEstimate.isNaN()) reference else alongEstimate + (if (step in 0.003..1.0 && net > 0.4) step else 0.0)
+        alongEstimate += (reference - alongEstimate) * (1.0 - Math.exp(-dtAlong / ALONG_PULL_SECONDS))
+        // Never trust the dead reckoning far from the position fixes: it cannot run more than 30 m ahead of or behind them.
+        alongEstimate = alongEstimate.coerceIn(reference - 30.0, reference + 30.0)
+        val along = alongEstimate.coerceIn(0.0, g.length)
         // The heading the aligner compares ARCore's travel with must cover the same stretch of road: the chord of the last few seconds, not
         // the bearing at this instant, which differs on a bend and would make a steady walker look like a changing heading.
         alongHistory.addLast(Sample(reading.timeMillis, along, reading.position[0], reading.position[2]))
@@ -33,15 +60,31 @@ class ArWorld(val aligner: ArGeoAligner = ArGeoAligner()) {
         // So the stretch of road compared is the one that distance long, ending where the road position says the user is now.
         val walked = hypot(reading.position[0] - first.x, reading.position[2] - first.z)
         val then = (along - walked).coerceAtLeast(0.0)
-        val chord = if (walked > 3.0 && along - then > 3.0) g.pointAt(then).bearingTo(g.pointAt(along)) else g.bearingAt(along)
-        aligner.update(reading, compass, g.pointAt(along), 3.0, chord, speedMps, compassUp)
+        val chordNow = if (walked > 3.0 && along - then > 3.0) g.pointAt(then).bearingTo(g.pointAt(along)) else g.bearingAt(along)
+        // On a bend the road's direction changes while the walker's path is smoothed by sway and the position fix is a few metres off, so a chord measured there
+        // is a poor reference. The road's heading is learned from straight stretches only; on a bend the compass and the existing alignment carry on.
+        val bendDegrees = g.bearingAt(then)?.let { a -> g.bearingAt(along)?.let { b -> Math.abs(((b - a + 540.0) % 360.0) - 180.0) } } ?: 0.0
+        val chord = chordNow; val straight = bendDegrees <= 18.0
+        // Where the user stands against the road: the pavement is a few metres from its centre line, so the line is drawn on the road, not under their feet.
+        // Learned slowly from the real position (smoothed over about 25 s, clamped, and only part-trusted: a GPS fix is good to a few metres).
+        val road = g.pointAt(along); val bearing = g.bearingAt(along)
+        if (rawGps != null && bearing != null && rawAccuracy <= 15.0 && speedMps > 0.4) {
+            val (e, n) = rawGps.offsetFrom(road); val r = Math.toRadians(bearing)
+            val across = (e * cos(r) - n * sin(r)).coerceIn(-8.0, 8.0)            // positive: to the right of the way they are going
+            val dt = ((reading.timeMillis - lateralAtMillis).coerceIn(1L, 500L)) / 1000.0
+            lateralMeters += (across - lateralMeters) * (1.0 - Math.exp(-dt / 25.0))
+        }
+        lateralAtMillis = reading.timeMillis
+        val offset = (lateralMeters * 0.7).coerceIn(-4.0, 4.0)
+        val anchor = if (bearing != null && kotlin.math.abs(offset) > 0.3) road.offset(offset, bearing + 90.0) else road
+        aligner.update(reading, compass, anchor, 3.0, chord, speedMps, compassUp, learnHeading = straight)
     }
 
     /** How far to trust the alignment right now (0 to 1). */
     val confidence: Double get() = aligner.confidence
 
     /** ARCore lost tracking and came back: its world may have shifted, so start the alignment again. */
-    fun relocalized() = aligner.reset()
+    fun relocalized() { aligner.reset(); alongEstimate = Double.NaN; lastArPosition = null; netWindow.clear(); alongHistory.clear() }
 
     /** The ribbon, turn arrow and destination ring for the road ahead, or null until the world is aligned. */
     fun buildScene(path: List<GeoPoint>, roadEndMeters: Double, turnKind: String?, groundY: Double, camera: GroundPoint? = null): ArScene? {
@@ -51,7 +94,9 @@ class ArWorld(val aligner: ArGeoAligner = ArGeoAligner()) {
         // The line always starts under the phone, however far the alignment is off, and eases back onto the road ahead.
         val ground = camera?.let { anchorToCamera(mapped, it) } ?: mapped
         val y = groundY + 0.02
-        val ribbon = ArMesh.ribbon(smoothGround(ground), y, 0.85)
+        val ribbon = ArMesh.ribbon(smoothGround(ground), y, 1.0)
+        // Both: the road line sits on the road, and a slimmer track runs from under the feet along the same way, so it feels like walking in a lane.
+        val track = camera?.let { ArMesh.ribbon(smoothGround(anchorToCamera(mapped, it, blendMeters = 12.0, hold = 1.0)), y - 0.004, 0.30) }
         var turn: GroundPoint? = null; var arrow: ArMeshData? = null; var outline: ArMeshData? = null
         val arrival = turnKind == "Arrive"
         // Walk the path to the end of this road and read the direction in and out of it.
@@ -68,7 +113,7 @@ class ArWorld(val aligner: ArGeoAligner = ArGeoAligner()) {
         // A point about 8 m down the line, which says which way the road lies from where the phone is pointing.
         var walked = 0.0; var aheadPoint: GroundPoint? = null
         for (i in 1 until ground.size) { walked += hypot(ground[i].x - ground[i - 1].x, ground[i].z - ground[i - 1].z); if (walked >= 8.0) { aheadPoint = ground[i]; break } }
-        return ArScene(ribbon, arrow, outline, turn, arrival, roadEndMeters.toFloat(), y.toFloat(), aheadPoint ?: ground.last())
+        return ArScene(ribbon, arrow, outline, turn, arrival, roadEndMeters.toFloat(), y.toFloat(), aheadPoint ?: ground.last(), track)
     }
 }
 
@@ -105,7 +150,8 @@ fun smoothGround(path: List<GroundPoint>, passes: Int = 2): List<GroundPoint> {
  * Re-bases [path] so it begins exactly at [camera] (the point on the ground under the phone). Vertices behind the phone are dropped, and
  * the sideways error between the phone and the nearest point of the road is blended out over [blendMeters] so the line settles on the road.
  */
-fun anchorToCamera(path: List<GroundPoint>, camera: GroundPoint, blendMeters: Double = 14.0, maxOffset: Double = 8.0): List<GroundPoint> {
+/** [hold] is the part of the sideways error kept at the start of the line: 1 starts it under the phone, 0 leaves the line on the road itself. It is mostly on the road now, so it reads as placed on the road. */
+fun anchorToCamera(path: List<GroundPoint>, camera: GroundPoint, blendMeters: Double = 8.0, maxOffset: Double = 8.0, hold: Double = 0.2): List<GroundPoint> {
     if (path.size < 2) return path
     var best = Double.MAX_VALUE; var bi = 0; var bt = 0.0
     for (i in 0 until path.lastIndex) {
@@ -115,7 +161,7 @@ fun anchorToCamera(path: List<GroundPoint>, camera: GroundPoint, blendMeters: Do
         if (d < best) { best = d; bi = i; bt = t }
     }
     val nx = path[bi].x + (path[bi + 1].x - path[bi].x) * bt; val nz = path[bi].z + (path[bi + 1].z - path[bi].z) * bt
-    var ox = camera.x - nx; var oz = camera.z - nz
+    var ox = (camera.x - nx) * hold; var oz = (camera.z - nz) * hold
     val mag = hypot(ox, oz); if (mag > maxOffset) { ox *= maxOffset / mag; oz *= maxOffset / mag }
     val out = ArrayList<GroundPoint>(path.size - bi + 1)
     out.add(GroundPoint(nx + ox, nz + oz))
@@ -214,3 +260,5 @@ object FeetMarker {
         return Plan(cameraX - dx / n * 0.28, cameraZ - dz / n * 0.28, 0.5, alpha)
     }
 }
+
+private const val ALONG_PULL_SECONDS = 25.0

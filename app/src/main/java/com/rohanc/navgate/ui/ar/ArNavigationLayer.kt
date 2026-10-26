@@ -32,7 +32,11 @@ fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: Track
     val inputs = remember { ArInputs() }
     var status by remember { mutableStateOf<ArSessionStatus>(ArSessionStatus.Starting) }
     var hud by remember { mutableStateOf<ArHud?>(null) }
-    val basis by rememberCameraBasis(true) { gps }
+    val latestGps = rememberUpdatedState(gps)
+    rememberCameraBasis(true, { latestGps.value }) { basis ->
+        inputs.compassAzimuth = basis.takeIf { kotlin.math.abs(it.pitchDegrees) < 55 }?.headingDegrees
+        inputs.compassUpAzimuth = (Math.toDegrees(kotlin.math.atan2(basis.up[0], basis.up[1])) + 360.0) % 360.0
+    }
     val here = snapped ?: gps
 
     // Checkpoints: only the road you are on is loaded; the track hands the renderer a short path ahead.
@@ -51,10 +55,8 @@ fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: Track
     }
     // The render thread reads these; they are plain volatile fields, so updating them costs nothing per frame.
     SideEffect {
-        inputs.objectAwareness = objectAwareness; inputs.path = path; inputs.roadEndMeters = roadEnd; inputs.turnKind = turnKind; inputs.geometry = geometry; inputs.driving = driving
+        inputs.rawGps = gps; inputs.objectAwareness = false; inputs.path = path; inputs.roadEndMeters = roadEnd; inputs.turnKind = turnKind; inputs.geometry = geometry; inputs.driving = driving
         inputs.alongShapeMeters = track?.alongShapeMeters ?: 0.0; inputs.speedMps = track?.speedMps ?: 0.0; inputs.fixElapsedMillis = track?.fixElapsedMillis ?: 0L
-        inputs.compassAzimuth = basis?.takeIf { kotlin.math.abs(it.pitchDegrees) < 55 }?.headingDegrees
-        inputs.compassUpAzimuth = basis?.let { (Math.toDegrees(kotlin.math.atan2(it.up[0], it.up[1])) + 360.0) % 360.0 }
     }
 
     Box(modifier) {

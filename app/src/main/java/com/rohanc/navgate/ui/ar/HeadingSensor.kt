@@ -23,6 +23,11 @@ fun rememberHeadingState(location:GeoPoint?=null): MutableState<Double?> {
     val currentLocation=rememberUpdatedState(location)
     val heading=remember { mutableStateOf<Double?>(null) }
     val filter=remember { HeadingFilter() }
+    // The screen reads this value, and every change redraws it: only a real turn of the phone (2 degrees or more) is published.
+    fun publish(value:Double?){
+        val old=heading.value
+        if(value==null||old==null||kotlin.math.abs(((value-old+540.0)%360.0)-180.0)>=2.0)heading.value=value
+    }
     DisposableEffect(context,view,lifecycle) {
         val manager=context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val sensor=manager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
@@ -48,7 +53,7 @@ fun rememberHeadingState(location:GeoPoint?=null): MutableState<Double?> {
                 if(!SensorManager.remapCoordinateSystem(matrix,axes.first,axes.second,remapped)){clear();return}
                 SensorManager.getOrientation(remapped,orientation)
                 val declination=GeomagneticField(point.latitude.toFloat(),point.longitude.toFloat(),0f,System.currentTimeMillis()).declination
-                heading.value=filter.sample(Math.toDegrees(orientation[0].toDouble()),declination.toDouble(),event.timestamp/1_000_000,true)
+                publish(filter.sample(Math.toDegrees(orientation[0].toDouble()),declination.toDouble(),event.timestamp/1_000_000,true))
             }
             override fun onAccuracyChanged(sensor:Sensor?,accuracy:Int){
                 reliable=accuracy>=SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM
@@ -64,6 +69,6 @@ fun rememberHeadingState(location:GeoPoint?=null): MutableState<Double?> {
         lifecycle.addObserver(observer);update()
         onDispose{lifecycle.removeObserver(observer);manager.unregisterListener(listener);clear()}
     }
-    LaunchedEffect(filter){while(true){delay(500);heading.value=filter.current(SystemClock.elapsedRealtime())}}
+    LaunchedEffect(filter){while(true){delay(500);publish(filter.current(SystemClock.elapsedRealtime()))}}
     return heading
 }

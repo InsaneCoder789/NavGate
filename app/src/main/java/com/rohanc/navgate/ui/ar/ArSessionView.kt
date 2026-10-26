@@ -57,6 +57,8 @@ class ArInputs {
     @Volatile var alongShapeMeters = 0.0
     @Volatile var speedMps = 0.0
     @Volatile var fixElapsedMillis = 0L
+    /** Where the fused position puts the user, which differs from the road when they are on the pavement. */
+    @Volatile var rawGps: GeoPoint? = null
     @Volatile var compassAzimuth: Double? = null
     /** True-north heading of the top edge of the phone, used when the camera looks at the ground. */
     @Volatile var compassUpAzimuth: Double? = null
@@ -81,7 +83,8 @@ internal fun resolveFps(context: Context, mode: ArFpsMode): Pair<Int, Boolean> {
     val level = battery?.let { it.getIntExtra(BatteryManager.EXTRA_LEVEL, 100) * 100 / max(1, it.getIntExtra(BatteryManager.EXTRA_SCALE, 100)) } ?: 100
     val charging = (battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0
     val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-    val hot = Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= PowerManager.THERMAL_STATUS_MODERATE
+    // Only a seriously hot phone (the system itself is about to throttle) lowers the camera rate: smoothness comes before battery.
+    val hot = Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE
     return when {
         power.isPowerSaveMode || hot || (!charging && level < 20) -> 30 to false
         charging && !hot -> 60 to true
@@ -158,9 +161,10 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     private var phoneHeightNow = 0.0
     private var planesOff = false
     private var groundFrame = 0
+    // No depth sensing: the line is the route on the road and nothing hides it, so there is nothing to measure and no battery to spend on it.
+    private var depthOn = false
     private var settledAt = 0L
     private fun now0() = SystemClock.elapsedRealtime()
-    private var cachedScene: ArScene? = null; private var sceneBuiltAt = 0L; private var sceneKey: List<Any?> = emptyList()
     private val clip = FloatArray(4); private val turnIn = FloatArray(4)
     private var lastTimestamp = 0L
     private var last: PoseSample? = null
@@ -212,7 +216,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
                     updateMode = if (target.second) Config.UpdateMode.LATEST_CAMERA_IMAGE else Config.UpdateMode.BLOCKING
                     focusMode = Config.FocusMode.AUTO
                     lightEstimationMode = Config.LightEstimationMode.DISABLED
-                    depthMode = if (created.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) Config.DepthMode.AUTOMATIC else Config.DepthMode.DISABLED
+                    depthMode = Config.DepthMode.DISABLED
                 })
                 chooseCameraConfig(created)
                 session = created
@@ -261,13 +265,13 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         val newImage = frame.timestamp != lastTimestamp
         if (newImage) { lastTimestamp = frame.timestamp; cameraFrames++ }
         // Looks at the picture for people and vehicles whether or not tracking has started, a few times a second.
-        if (newImage && inputs.objectAwareness && fpsPolicyAllowsObjects()) objects.maybeDetect(frame, now, width, height)
 
         if (!tracking) {
             // The camera sometimes starts with a black picture (seen on this phone at the 30 fps setting): if nothing usable has appeared
             // five seconds after starting, restart the session, up to three times, at the full camera rate.
-            if (restarts < 3 && now - resumedAt > 5000 && cameraFrames + overlayFps >= 0) {
-                restarts++; Log.i(TAG, "No usable picture at ${target.first} fps (${camera.trackingFailureReason}): restart $restarts at full camera rate")
+            if (restarts < 3 && now - resumedAt > 5000 && pictureIsBlack(frame)) {
+                restarts++; resumedAt = now      // set now, not when the restart runs, so one black picture is never restarted twice
+                Log.i(TAG, "Black camera picture at ${target.first} fps (${camera.trackingFailureReason}): restart $restarts at full camera rate")
                 forceFullRate = true; main.post { pause(); resume() }
             }
             if (lostAtMillis == 0L) lostAtMillis = now
@@ -292,13 +296,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         Matrix.multiplyMM(mvp, 0, proj, 0, view, 0)
 
         var turnX: Float? = null; var turnY: Float? = null
-        // The line is fixed in the world, so it is rebuilt a few times a second (and at once when its inputs change), not at every frame:
-        // the new camera pose moves it on screen between rebuilds, and its mesh is only sent to the GPU when it is rebuilt.
-        val key = listOf(inputs.path, inputs.roadEndMeters, inputs.turnKind, inputs.driving)
-        if (cachedScene == null || key != sceneKey || now - sceneBuiltAt >= if (target.second) 33 else 66) {
-            cachedScene = buildScene(last!!.position[1], GroundPoint(last!!.position[0], last!!.position[2])); sceneBuiltAt = now; sceneKey = key
-        }
-        val scene = cachedScene
+        // The line starts under the phone, so it is rebuilt from the newest camera position on every frame: anything slower makes it step.
+        val scene = buildScene(last!!.position[1], GroundPoint(last!!.position[0], last!!.position[2]))
         GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
         GLES20.glDisable(GLES20.GL_DEPTH_TEST); GLES20.glDisable(GLES20.GL_CULL_FACE)
         drawFeetMarker(now)
@@ -306,7 +305,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
             GLES20.glEnable(GLES20.GL_BLEND); GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
             GLES20.glDisable(GLES20.GL_DEPTH_TEST); GLES20.glDisable(GLES20.GL_CULL_FACE)
             val seconds = (now % 100_000L) / 1000f
-            path.setHidden(if (inputs.objectAwareness && fpsPolicyAllowsObjects()) objects.latest.takeIf { now - it.atMillis < 1200 } else null, width, height)
+            path.setHidden(null, width, height)
+            scene.track?.let { path.drawSolid(mvp, it, 0.72f, 0.88f, 1.0f, 0.60f, slot = 4) }
             path.drawRibbon(mvp, scene.ribbon, seconds, scene.roadEnd, world.confidence.toFloat())
             scene.arrowOutline?.let { path.drawSolid(mvp, it, 0.04f, 0.07f, 0.12f, 0.92f, slot = 1) }
             scene.arrow?.let { path.drawSolid(mvp, it, if (scene.turnIsArrival) 1.0f else 0.66f, if (scene.turnIsArrival) 1.0f else 0.80f, 1.0f, 0.97f, slot = 2) }
@@ -373,7 +373,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
             runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.HORIZONTAL; depthMode = if (active.isDepthModeSupported(Config.DepthMode.AUTOMATIC) && !power.isPowerSaveMode) Config.DepthMode.AUTOMATIC else Config.DepthMode.DISABLED }) }
             return
         }
-        if (!planesOff && settled) { settledAt = now0(); planesOff = true; runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.DISABLED; depthMode = Config.DepthMode.DISABLED }) } }
+        if (!planesOff && settled) { settledAt = now0(); planesOff = true; runCatching { active.configure(active.config.apply { planeFindingMode = Config.PlaneFindingMode.DISABLED; if (!depthAllowed()) { depthMode = Config.DepthMode.DISABLED; depthOn = false; path.clearDepth() } }) } }
     }
 
     /** Feeds ARCore's camera and the route-locked vehicle position to the AR engine. The road's own direction aligns the world once moving. */
@@ -384,7 +384,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         val z = axis(2)
         val reading = ArCameraReading(doubleArrayOf(pose.tx().toDouble(), pose.ty().toDouble(), pose.tz().toDouble()), doubleArrayOf(-z[0], -z[1], -z[2]), axis(0), axis(1), now)
         lastAxes = reading.forward to reading.up
-        world.align(reading, inputs.compassAzimuth, inputs.compassUpAzimuth, geometry, alongNow, inputs.speedMps)
+        world.align(reading, inputs.compassAzimuth, inputs.compassUpAzimuth, geometry, alongNow, inputs.speedMps, inputs.rawGps, 8.0)
     }
 
     private fun predictedPose(): Pose? {
@@ -411,8 +411,34 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         return (((bearing - azimuth + 540.0) % 360.0) - 180.0).toFloat()
     }
 
+    /** True when the camera is delivering black frames (the average of a sparse sample of the brightness plane is almost zero). */
+    private fun pictureIsBlack(frame: Frame): Boolean = try {
+        frame.acquireCameraImage().use { image ->
+            val y = image.planes[0]; val buffer = y.buffer; val stride = y.rowStride
+            var sum = 0L; var n = 0
+            for (row in 0 until image.height step 40) for (col in 0 until image.width step 40) { sum += buffer.get(row * stride + col).toInt() and 0xff; n++ }
+            n > 0 && sum / n < 6
+        }
+    } catch (_: Exception) { false }
+
+    /** Occlusion uses ARCore's depth: only while the phone is cool and not saving power, since depth is a real cost. */
+    private fun depthAllowed() = depthOn && !power.isPowerSaveMode &&
+        !(Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE)
+
+    private val depthMap = FloatArray(6)
+    private fun uploadDepth(frame: Frame) {
+        try {
+            frame.transformCoordinates2d(Coordinates2d.VIEW_NORMALIZED, floatArrayOf(0f, 0f, 1f, 0f, 0f, 1f), Coordinates2d.IMAGE_NORMALIZED, depthMap)
+            frame.acquireDepthImage16Bits().use { image ->
+                val plane = image.planes[0]
+                if (plane.rowStride == image.width * 2) path.setDepth(plane.buffer, image.width, image.height, depthMap) else path.clearDepth()
+            }
+        } catch (_: com.google.ar.core.exceptions.NotYetAvailableException) { /* no depth yet: the line is drawn without occlusion */ }
+        catch (_: Exception) { path.clearDepth() }
+    }
+
     private fun fpsPolicyAllowsObjects() = (target.first >= 60 || fpsMode != ArFpsMode.Saver) && !power.isPowerSaveMode &&
-        !(Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= PowerManager.THERMAL_STATUS_MODERATE)
+        !(Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= PowerManager.THERMAL_STATUS_SEVERE)
 
     private fun trackingMessage(camera: Camera): String? = when (camera.trackingFailureReason) {
         TrackingFailureReason.INSUFFICIENT_LIGHT -> "Too dark for AR: turn on more light or use the map"
@@ -424,7 +450,8 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
 
     private fun publishHud(now: Long, turnX: Float?, turnY: Float?, tracking: String?, roadAngle: Float? = null) {
         if (now - windowStart >= 1000) { cameraFps = cameraFrames; overlayFps = drawnFrames; cameraFrames = 0; drawnFrames = 0; windowStart = now }
-        if (now - lastHudAt < 60) return
+        // The turn marker needs frequent updates to follow the picture; the status text and counters do not.
+        if (now - lastHudAt < if (turnX != null) 60 else 250) return
         lastHudAt = now
         val hud = ArHud(turnX, turnY, tracking, aligner.aligned, ground.found, cameraFps, overlayFps, objects.latest.takeIf { now - it.atMillis < 1200 }?.count ?: 0, phoneHeightNow, world.confidence, roadAngle)
         ArDiagnostics.record(now, hud)
@@ -432,7 +459,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     }
 }
 
-private const val SLOTS = 4
+private const val SLOTS = 5
 private const val GROUND_REFRESH_MILLIS = 90_000L
 private val GROUND_PROBES = listOf(0.5f to 0.88f, 0.5f to 0.7f, 0.3f to 0.8f, 0.7f to 0.8f, 0.5f to 0.5f)
 
@@ -442,15 +469,43 @@ private class ArPathRenderer {
     private val buffers = IntArray(SLOTS); private val uploaded = arrayOfNulls<ArMeshData>(SLOTS)
     private var aPos = 0; private var aUv = 0; private var uMvp = 0; private var uMode = 0; private var uTime = 0; private var uEnd = 0; private var uColor = 0; private var uBox = 0; private var uViewport = 0; private var uConfidence = 0
     private val boxes = FloatArray(32); private var viewW = 1f; private var viewH = 1f
+    private var uDepthLoc = 0; private var uHasDepthLoc = 0; private var uViewToImageLoc = 0; private var uViewToImageYLoc = 0
+    private var depthTexture = 0; private var hasDepth = false; private val viewToImage = FloatArray(6)
+
+    /** Hands the renderer ARCore's depth picture (16-bit, little-endian) so the line is hidden behind what stands in front of it. */
+    fun setDepth(buffer: java.nio.ByteBuffer, width: Int, height: Int, viewToImageMap: FloatArray) {
+        if (depthTexture == 0) { val ids = IntArray(1); GLES20.glGenTextures(1, ids, 0); depthTexture = ids[0] }
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE1); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, depthTexture)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST); GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST)
+        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE); GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+        GLES20.glPixelStorei(GLES20.GL_UNPACK_ALIGNMENT, 1)
+        android.opengl.GLES30.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, android.opengl.GLES30.GL_RG8, width, height, 0, android.opengl.GLES30.GL_RG, GLES20.GL_UNSIGNED_BYTE, buffer)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        System.arraycopy(viewToImageMap, 0, viewToImage, 0, 6); hasDepth = true
+    }
+    fun clearDepth() { hasDepth = false }
     private var staging: FloatBuffer = ByteBuffer.allocateDirect(4 * 5 * 6 * 400).order(ByteOrder.nativeOrder()).asFloatBuffer()
 
     fun create() {
         val vertex = compile(GLES20.GL_VERTEX_SHADER, """
-            uniform mat4 uMvp; attribute vec3 aPos; attribute vec2 aUv; varying vec2 vUv;
-            void main(){ gl_Position = uMvp * vec4(aPos, 1.0); vUv = aUv; }""")
+            uniform mat4 uMvp; attribute vec3 aPos; attribute vec2 aUv; varying vec2 vUv; varying float vDepth;
+            void main(){ gl_Position = uMvp * vec4(aPos, 1.0); vUv = aUv; vDepth = gl_Position.w; }""")
         val fragment = compile(GLES20.GL_FRAGMENT_SHADER, """
-            precision mediump float; varying vec2 vUv; uniform int uMode; uniform float uTime; uniform float uEnd; uniform vec4 uColor;
+            precision mediump float; varying vec2 vUv; varying float vDepth; uniform int uMode; uniform float uTime; uniform float uEnd; uniform vec4 uColor;
             uniform vec4 uBox[8]; uniform vec2 uViewport; uniform float uConfidence;
+            // ARCore's depth picture (16 bits in two bytes, millimetres) and the mapping from screen position to its coordinates.
+            uniform sampler2D uDepth; uniform float uHasDepth; uniform vec4 uViewToImage; uniform vec2 uViewToImageY;
+            // 1 where nothing is in front of the road, falling to 0 where the camera sees something clearly nearer than this bit of line.
+            float clearOfScene() {
+              if (uHasDepth < 0.5 || vDepth > 7.0 || vDepth < 0.3) return 1.0;
+              vec2 view = vec2(gl_FragCoord.x / uViewport.x, 1.0 - gl_FragCoord.y / uViewport.y);
+              vec2 img = uViewToImage.xy + view.x * uViewToImage.zw + view.y * uViewToImageY;
+              vec2 rg = texture2D(uDepth, img).rg * 255.0;
+              float sensed = (rg.x + rg.y * 256.0) / 1000.0;
+              if (sensed < 0.2) return 1.0;                                   // no reading here
+              // A wrong depth reading (glare, a glossy floor) must never erase the line: it dims to 30% at the least.
+              return mix(0.30, 1.0, smoothstep(-0.6, -0.2, sensed - vDepth));   // 0.4 m of give: the ground itself reads a few centimetres off
+            }
             // 0 where something stands in front of the road (the lower part of a person's or vehicle's box), 1 elsewhere, with a soft edge.
             float clearOfObjects() {
               vec2 p = vec2(gl_FragCoord.x / uViewport.x, 1.0 - gl_FragCoord.y / uViewport.y);
@@ -468,22 +523,29 @@ private class ArPathRenderer {
               return keep;
             }
             void main(){
-              float visible = clearOfObjects();
+              // The line is the route on the road, solid, whatever stands in front of the camera: nothing hides it.
+              float visible = 1.0;
               if (uMode == 1) { gl_FragColor = vec4(uColor.rgb, uColor.a * visible); return; }
               float side = abs(vUv.x);
-              // The leading indicator: a solid blue band with bright rails and bold white chevrons that run toward the turn.
-              float rail = smoothstep(0.80, 0.88, side) * (1.0 - smoothstep(0.95, 1.0, side));
+              // A line that reads on any ground, in sun or shade: a deep navy casing round a bright rail round a saturated blue body, with bold white chevrons
+              // running toward the turn. Light pavement shows the casing, dark asphalt shows the rail; neither can swallow it.
+              float casing = smoothstep(0.78, 0.86, side);
+              float rail = smoothstep(0.64, 0.72, side) * (1.0 - smoothstep(0.80, 0.86, side));
               float phase = fract((vUv.y - uTime * 3.0) / 2.0 + side * 0.30);
               float chev = smoothstep(0.0, 0.04, phase) * (1.0 - smoothstep(0.17, 0.30, phase));
-              vec3 blue = vec3(0.17, 0.50, 1.0); vec3 ice = vec3(0.66, 0.80, 1.0);
-              vec3 col = mix(mix(blue, ice, side * 0.35), vec3(1.0), chev * 0.92);
-              col = mix(col, ice, rail * 0.9);
-              float far = 1.0 - smoothstep(uEnd * 0.6, uEnd + 6.0, vUv.y);
+              vec3 body = mix(vec3(0.04, 0.50, 1.0), vec3(0.28, 0.72, 1.0), side * 0.5);
+              vec3 col = mix(body, vec3(1.0), chev * 0.96);
+              col = mix(col, vec3(0.88, 0.96, 1.0), rail);
+              col = mix(col, vec3(0.02, 0.07, 0.20), casing * 0.92);
+              float feather = 1.0 - smoothstep(0.96, 1.0, side);
+              // Fades with distance only toward the end of the road it knows, and never to nothing before it.
+              float far = mix(0.35, 1.0, 1.0 - smoothstep(uEnd * 0.85, uEnd + 6.0, vUv.y));
               float beyond = vUv.y > uEnd ? 0.4 : 1.0;
               float near = smoothstep(0.5, 2.4, vUv.y);
-              float a = (0.80 + 0.15 * chev) * far * beyond * near;
-              // Less sure of the alignment: fainter line, never a confident-looking one that may be wrong.
-              gl_FragColor = vec4(col, a * visible * mix(0.45, 1.0, uConfidence));
+              float a = 0.95 * feather * far * beyond * near;
+              // Less sure of the alignment: a little less solid and a gentle dash, but always plainly visible (the screen already says it is still lining up).
+              float dash = uConfidence < 0.5 ? mix(0.80, 1.0, step(0.30, fract(vUv.y / 1.1))) : 1.0;
+              gl_FragColor = vec4(col, a * visible * dash * mix(0.88, 1.0, uConfidence));
             }""")
         program = GLES20.glCreateProgram().also { GLES20.glAttachShader(it, vertex); GLES20.glAttachShader(it, fragment); GLES20.glLinkProgram(it) }
         val linked = IntArray(1); GLES20.glGetProgramiv(program, GLES20.GL_LINK_STATUS, linked, 0)
@@ -491,6 +553,7 @@ private class ArPathRenderer {
         aPos = GLES20.glGetAttribLocation(program, "aPos"); aUv = GLES20.glGetAttribLocation(program, "aUv")
         uMvp = GLES20.glGetUniformLocation(program, "uMvp"); uMode = GLES20.glGetUniformLocation(program, "uMode")
         uTime = GLES20.glGetUniformLocation(program, "uTime"); uEnd = GLES20.glGetUniformLocation(program, "uEnd"); uColor = GLES20.glGetUniformLocation(program, "uColor")
+        uDepthLoc = GLES20.glGetUniformLocation(program, "uDepth"); uHasDepthLoc = GLES20.glGetUniformLocation(program, "uHasDepth"); uViewToImageLoc = GLES20.glGetUniformLocation(program, "uViewToImage"); uViewToImageYLoc = GLES20.glGetUniformLocation(program, "uViewToImageY")
         uBox = GLES20.glGetUniformLocation(program, "uBox"); uViewport = GLES20.glGetUniformLocation(program, "uViewport"); uConfidence = GLES20.glGetUniformLocation(program, "uConfidence")
         GLES20.glGenBuffers(SLOTS, buffers, 0); uploaded.fill(null)
     }
@@ -517,6 +580,12 @@ private class ArPathRenderer {
         if (mesh.vertexCount == 0) return
         GLES20.glUniformMatrix4fv(uMvp, 1, false, mvp, 0)
         GLES20.glUniform4fv(uBox, 8, boxes, 0); GLES20.glUniform2f(uViewport, viewW, viewH)
+        GLES20.glUniform1f(uHasDepthLoc, if (hasDepth) 1f else 0f)
+        if (hasDepth) {
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE1); GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, depthTexture); GLES20.glUniform1i(uDepthLoc, 1); GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            GLES20.glUniform4f(uViewToImageLoc, viewToImage[0], viewToImage[1], viewToImage[2] - viewToImage[0], viewToImage[3] - viewToImage[1])
+            GLES20.glUniform2f(uViewToImageYLoc, viewToImage[4] - viewToImage[0], viewToImage[5] - viewToImage[1])
+        }
         GLES20.glBindBuffer(GLES20.GL_ARRAY_BUFFER, buffers[slot])
         if (uploaded[slot] !== mesh) {
             if (staging.capacity() < mesh.vertices.size) staging = ByteBuffer.allocateDirect(mesh.vertices.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()

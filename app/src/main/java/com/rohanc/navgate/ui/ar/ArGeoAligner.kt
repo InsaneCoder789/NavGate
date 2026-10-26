@@ -46,6 +46,7 @@ class ArGeoAligner(
     private var lastForward: DoubleArray? = null
     private var compassSeconds = 0.0
     private var roadHeadingSeconds = 0.0
+    private var disagreeSeconds = 0.0
     private var lastGpsAccuracy = 50.0
 
     /**
@@ -79,12 +80,15 @@ class ArGeoAligner(
      * [compass] is the camera's true azimuth from the rotation sensor (null when unreliable, e.g. looking straight up/down),
      * [gps]/[gpsAccuracy] the fused position, [courseDegrees]/[speedMps] the fused direction of travel.
      */
-    fun update(reading: ArCameraReading, compass: Double?, gps: GeoPoint?, gpsAccuracy: Double, courseDegrees: Double?, speedMps: Double, compassUp: Double? = null): GeoCamera? {
+    fun update(reading: ArCameraReading, compass: Double?, gps: GeoPoint?, gpsAccuracy: Double, courseDegrees: Double?, speedMps: Double, compassUp: Double? = null, learnHeading: Boolean = true): GeoCamera? {
         val fx = reading.forward[0]; val fz = reading.forward[2]
         val horizontal = hypot(fx, fz)
         val frameDt = ((reading.timeMillis - lastTimeMs).coerceIn(1L, 500L)) / 1000.0
         // Walking pace (about 1.4 m/s) counts as moving: the road's own heading is the best compass there is.
-        val travelling = courseDegrees != null && speedMps > 0.6
+        // ARCore measures how far the phone really moved, to the centimetre. A reported speed under 0.6 m/s (a steady hold, a slow GPS speed) must not stop the
+        // road's own direction being used, so being on foot is also judged from ARCore's movement over the last few seconds.
+        val arcoreSpeed = trail.firstOrNull()?.let { first -> val span = (reading.timeMillis - first.first) / 1000.0; if (span > 1.0) hypot(reading.position[0] - first.second, reading.position[2] - first.third) / span else 0.0 } ?: 0.0
+        val travelling = courseDegrees != null && (speedMps > 0.6 || arcoreSpeed > 0.7)
         // The compass is only trusted while the phone is steady; a quick swing makes its reading lag the camera.
         val swing = lastForward?.let { Math.toDegrees(Math.acos((it[0] * fx + it[1] * reading.forward[1] + it[2] * fz).coerceIn(-1.0, 1.0))) / frameDt } ?: 0.0
         lastForward = doubleArrayOf(fx, reading.forward[1], fz)
@@ -105,17 +109,20 @@ class ArGeoAligner(
         // Refine yaw from travel: ARCore's displacement over the last seconds against the GPS course.
         trail.addLast(Triple(reading.timeMillis, reading.position[0], reading.position[2]))
         while (trail.size > 1 && reading.timeMillis - trail.first().first > windowMillis) trail.removeFirst()
-        if (travelling && trail.size > 2) {
+        // On a bend the road's direction is not the walker's: heading is learned from straight stretches only, but the compass stays ignored all the same.
+        if (travelling && trail.size > 2 && learnHeading) {
             val dx = reading.position[0] - trail.first().second; val dz = reading.position[2] - trail.first().third
             if (hypot(dx, dz) > travelNeeded) { roadHeadingSeconds = minOf(8.0, roadHeadingSeconds + frameDt) }
             if (hypot(dx, dz) > travelNeeded) {
                 val sample = Math.toRadians(courseDegrees!!) - atan2(dx, -dz)
                 // A step that disagrees wildly with the current alignment is the walker weaving or crossing the road, not a better heading.
                 val off = theta?.let { Math.toDegrees(abs(atan2(sin(sample - it), cos(sample - it)))) } ?: 0.0
+                // A heading that keeps disagreeing for several seconds is the truth showing through, not weaving: the old lock was wrong, so start again.
+                disagreeSeconds = if (off > maxCourseDisagreementDeg) disagreeSeconds + frameDt else 0.0
                 if (off <= maxCourseDisagreementDeg || roadHeadingSeconds < SETTLE_SECONDS) theta = theta?.let { blend(it, sample, 1.0 - Math.exp(-frameDt / (if (roadHeadingSeconds < SETTLE_SECONDS) travelTau else settledTau))) } ?: sample
             }
         }
-        if (!(travelling && trail.size > 2)) roadHeadingSeconds = maxOf(0.0, roadHeadingSeconds - frameDt * 0.05)
+        if (!(travelling && trail.size > 2) ) roadHeadingSeconds = maxOf(0.0, roadHeadingSeconds - frameDt * 0.05)
         lastGpsAccuracy = gpsAccuracy
         val t = theta ?: return null
         val ref = reference ?: gps?.also { reference = it; anchorAr = doubleArrayOf(reading.position[0], reading.position[2]); anchorEast = 0.0; anchorNorth = 0.0 } ?: return null
