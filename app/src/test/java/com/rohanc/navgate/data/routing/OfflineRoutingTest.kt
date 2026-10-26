@@ -41,7 +41,7 @@ class OfflineRoutingTest {
         assertTrue(last.alongMeters > route.distanceMeters - 20)
     }
 
-    private class Fake(val result: () -> RouteResult, val alt: List<CampusRoute> = emptyList()) : RoutingProvider {
+    private class Fake(val result: suspend () -> RouteResult, val alt: List<CampusRoute> = emptyList()) : RoutingProvider {
         var calls = 0
         override suspend fun plan(request: PlanRequest, pinnedVersion: String?): RouteResult { calls++; return result() }
         override suspend fun alternatives(request: PlanRequest) = alt
@@ -79,6 +79,13 @@ class OfflineRoutingTest {
     @Test fun `a thrown network error also falls back`() = runBlocking {
         val r = FailoverRoutingProvider(Fake({ throw java.io.IOException("boom") }), offline(true), online = { true }).plan(request)
         assertTrue(r is RouteResult.Ready)
+    }
+
+    @Test fun `a server that is too slow is not waited for when the phone can route the trip`() = runBlocking {
+        val slow = Fake({ kotlinx.coroutines.delay(60_000); ready() })
+        val started = System.nanoTime()
+        val r = FailoverRoutingProvider(slow, offline(true), online = { true }).plan(request) as RouteResult.Ready
+        assertEquals("brouter", r.route.source); assertTrue((System.nanoTime() - started) / 1_000_000 < 8_000)
     }
 
     @Test fun `alternatives fall back to the single offline route`() = runBlocking {

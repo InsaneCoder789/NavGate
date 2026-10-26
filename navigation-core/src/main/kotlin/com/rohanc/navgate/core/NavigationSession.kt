@@ -64,7 +64,7 @@ data class GuidancePolicy(
     val arrivalSamples: Int = 2,
     val rerouteCooldownMillis: Long = 12_000,
     val maxWalkingMetersPerSecond: Double = 4.0,
-    val maxDrivingMetersPerSecond: Double = 70.0,
+    val maxDrivingMetersPerSecond: Double = 90.0,
     /** A fix that is only briefly poor or odd is ignored for this long instead of interrupting guidance. */
     val coastMillis: Long = 6_000,
     /** With no fix at all, guidance keeps advancing along the route at the last speed for this long before it admits it has lost you. */
@@ -119,28 +119,32 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
         val current = mutable.value
         if (current.status !in setOf(SessionStatus.Preview, SessionStatus.ResumeAvailable)) return@withLock SessionUpdate(current)
         val route = current.route ?: return@withLock SessionUpdate(current)
+        // Starting never waits for a good fix, for the phone to be near the route, or for any position at all: a place off the drawn map (an unlisted alley) must still open.
+        // Tracking itself stays strict about every fix it accepts; only the start is free. Where a fix exists and sits on the route, the trip begins there.
         val fix = latestFix
-        val issue = qualityReason(fix, nowElapsedMillis)
-        if (issue != null) return@withLock publish(current.copy(signalReason = issue))
-        requireNotNull(fix)
         val resumed = current.status == SessionStatus.ResumeAvailable
-        val expected = if (resumed) projectPath(fix.point, route.geometry) else null
-        val near = if (resumed) expected?.distanceMeters ?: Double.POSITIVE_INFINITY else fix.point.distanceTo(route.geometry.first())
-        // A road router snaps the start pin to the nearest mapped road, which can be tens of metres from where a phone reports you.
-        val startTolerance = if (route.external) 60.0 else 20.0
-        if (near > startTolerance) return@withLock publish(current.copy(signalReason = "Move to the planned start or replan from your location"))
-        if (resumed && abs(route.shapeToRouteMeters(expected?.alongMeters ?: 0.0) - current.alongMeters) > 40.0) {
-            return@withLock publish(current.copy(signalReason = "Position changed since the checkpoint; replan before resuming"))
+        val onRoute = fix?.takeIf { it.point.valid }?.let { projectPath(it.point, route.geometry) }?.takeIf { it.distanceMeters <= maxOf(150.0, (fix.accuracyMeters.takeIf { a -> a.isFinite() } ?: 0.0) * 2) }
+        if (resumed) {
+            // Only a saved trip being resumed insists on a fresh, accurate fix at the place it was left.
+            val issue = qualityReason(fix, nowElapsedMillis)
+            if (issue != null) return@withLock publish(current.copy(signalReason = issue))
+            requireNotNull(fix)
+            val expected = projectPath(fix.point, route.geometry)
+            val startTolerance = if (route.external) 60.0 else 20.0
+            if ((expected?.distanceMeters ?: Double.POSITIVE_INFINITY) > startTolerance) return@withLock publish(current.copy(signalReason = "Move to the planned start or replan from your location"))
+            if (abs(route.shapeToRouteMeters(expected?.alongMeters ?: 0.0) - current.alongMeters) > 40.0) return@withLock publish(current.copy(signalReason = "Position changed since the checkpoint; replan before resuming"))
         }
+        val startAlong = if (resumed) current.alongMeters else route.shapeToRouteMeters(onRoute?.alongMeters ?: 0.0).coerceIn(0.0, route.distanceMeters)
         resetTracking()
-        lastAccepted = fix
+        lastAccepted = fix?.takeIf { qualityReason(it, nowElapsedMillis) == null }
         // Open on the first real turn, not on the "head southwest" start instruction at 0 m.
-        val upcoming = route.maneuvers.indexOfFirst { it.alongMeters > current.alongMeters + 2 }.let { if (it < 0) route.maneuvers.lastIndex.coerceAtLeast(0) else it }
+        val upcoming = route.maneuvers.indexOfFirst { it.alongMeters > startAlong + 2 }.let { if (it < 0) route.maneuvers.lastIndex.coerceAtLeast(0) else it }
         val firstTurn = route.maneuvers.getOrNull(upcoming)
         publish(current.copy(sessionId = current.sessionId ?: UUID.randomUUID().toString(), status = SessionStatus.Navigating,
-            location = fix.point, accuracyMeters = fix.accuracyMeters, signalReason = null, maneuverIndex = upcoming,
+            location = fix?.point ?: route.geometry.first(), accuracyMeters = fix?.accuracyMeters ?: current.accuracyMeters, signalReason = null, maneuverIndex = upcoming,
             instruction = firstTurn?.instruction ?: current.instruction,
-            distanceToManeuver = ((firstTurn?.alongMeters ?: route.distanceMeters) - current.alongMeters).coerceAtLeast(0.0)), current.instruction)
+            distanceToManeuver = ((firstTurn?.alongMeters ?: route.distanceMeters) - startAlong).coerceAtLeast(0.0),
+            alongMeters = startAlong, remainingMeters = (route.distanceMeters - startAlong).coerceAtLeast(0.0), remainingSeconds = route.remainingSecondsAt(startAlong)), current.instruction)
     }
 
     suspend fun stop(): SessionUpdate = mutex.withLock {
@@ -211,13 +215,24 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
             val earlier = jumpCandidate
             jumpCandidate = fix
             val sinceGood = previous?.let { fix.elapsedMillis - it.elapsedMillis } ?: Long.MAX_VALUE
-            // Within a few seconds of a good fix, an impossible jump is a glitch: ignore it quietly, guidance carries on along the route.
-            if (sinceGood <= policy.coastMillis) return@withLock SessionUpdate(current)
-            // After a longer gap, two fixes in a row that agree with each other are a real relocation (tunnel exit), not a glitch.
-            if (earlier == null || earlier.point.distanceTo(fix.point) > 25.0 + fix.accuracyMeters) {
-                return@withLock publish(current.copy(status = SessionStatus.SignalLimited, signalReason = "Implausible location jump; waiting for a stable fix"))
+            // At motorway speed (up to 250 km/h) the allowance, which follows the speed seen so far, lags a vehicle that is really going that fast: a single far fix looks
+            // like a glitch, but a second fix that continues from it at the same pace is a vehicle moving. Such a chain is accepted as real movement.
+            val driving = route.profile == "driving"
+            val chain = driving && earlier != null && fix.elapsedMillis > earlier.elapsedMillis && earlier.elapsedMillis > previous.elapsedMillis && run {
+                val firstSeconds = (earlier.elapsedMillis - previous.elapsedMillis) / 1000.0; val secondSeconds = (fix.elapsedMillis - earlier.elapsedMillis) / 1000.0
+                val firstSpeed = previous.point.distanceTo(earlier.point) / firstSeconds; val secondSpeed = earlier.point.distanceTo(fix.point) / secondSeconds
+                firstSpeed <= policy.maxDrivingMetersPerSecond && secondSpeed <= policy.maxDrivingMetersPerSecond && abs(firstSpeed - secondSpeed) <= max(10.0, 0.35 * firstSpeed)
             }
-            jumpCandidate = null; tracker?.reset(); relocated = true
+            if (chain) { jumpCandidate = null; tracker?.reset(); relocated = true }
+            // Within a few seconds of a good fix, an impossible jump is a glitch: ignore it quietly, guidance carries on along the route.
+            else if (sinceGood <= policy.coastMillis) return@withLock SessionUpdate(current)
+            // After a longer gap, two fixes in a row that agree with each other are a real relocation (tunnel exit), not a glitch.
+            if (!chain) {
+                if (earlier == null || earlier.point.distanceTo(fix.point) > 25.0 + fix.accuracyMeters) {
+                    return@withLock publish(current.copy(status = SessionStatus.SignalLimited, signalReason = "Implausible location jump; waiting for a stable fix"))
+                }
+                jumpCandidate = null; tracker?.reset(); relocated = true
+            }
         } else jumpCandidate = null
         val windowed = projectPath(fix.point, route.geometry,
             minAlong = route.routeToShapeMeters(max(0.0, current.alongMeters - BACK_WINDOW_METERS)), maxAlong = if (relocated) Double.POSITIVE_INFINITY else route.routeToShapeMeters(current.alongMeters) + movementBudget)

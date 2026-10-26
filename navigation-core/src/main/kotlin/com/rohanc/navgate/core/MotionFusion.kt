@@ -34,7 +34,7 @@ class MotionFusion(private val config: Config = Config()) {
         val accelNoise: Double = 0.7, val maxAccel: Double = 6.0, val accelSmoothing: Double = 0.25,
         val minGpsSigma: Double = 2.5, val velocitySigma: Double = 1.0, val courseMinSpeed: Double = 3.0,
         val stationarySpeed: Double = 0.5, val stationaryHoldMillis: Long = 1_200, val maxPredictMillis: Long = 1_500,
-        val resetDistanceMeters: Double = 20_000.0, val maxPlausibleSpeed: Double = 70.0,
+        val resetDistanceMeters: Double = 20_000.0, val maxPlausibleSpeed: Double = 90.0,
     )
 
     private class Axis { var p = 0.0; var v = 0.0; var p00 = 1e6; var p01 = 0.0; var p11 = 25.0

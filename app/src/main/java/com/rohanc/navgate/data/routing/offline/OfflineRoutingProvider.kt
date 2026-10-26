@@ -3,6 +3,8 @@ package com.rohanc.navgate.data.routing.offline
 import com.rohanc.navgate.core.*
 import com.rohanc.navgate.data.routing.RoadPreferences
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Routes on the phone with BRouter, using the routing tiles the user has downloaded. Works with no network at all. */
 class OfflineRoutingProvider internal constructor(
@@ -75,11 +77,18 @@ class FailoverRoutingProvider(
 ) : RoutingProvider {
     override suspend fun plan(request: PlanRequest, pinnedVersion: String?): RouteResult {
         if (!online() && offline.isReady(request)) (offline.plan(request, pinnedVersion) as? RouteResult.Ready)?.let { return it }
-        val first = try { primary.plan(request, pinnedVersion) } catch (c: CancellationException) { throw c } catch (e: Exception) { null }
-        if (first is RouteResult.Ready) return first
-        if (offline.isReady(request)) (offline.plan(request, pinnedVersion) as? RouteResult.Ready)?.let { return it }
-        return first ?: primary.plan(request, pinnedVersion)
+        return kotlinx.coroutines.coroutineScope {
+            val onlineAnswer = async { try { primary.plan(request, pinnedVersion) } catch (c: CancellationException) { throw c } catch (e: Exception) { null } }
+            // A slow server is not waited for when the phone can route the trip itself: after a few seconds the on-device route is used.
+            val quick = withTimeoutOrNull(SLOW_SERVER_MILLIS) { onlineAnswer.await() }
+            if (quick is RouteResult.Ready) return@coroutineScope quick
+            if (offline.isReady(request)) (offline.plan(request, pinnedVersion) as? RouteResult.Ready)?.let { onlineAnswer.cancel(); return@coroutineScope it }
+            val first = quick ?: onlineAnswer.await()
+            first ?: primary.plan(request, pinnedVersion)
+        }
     }
+
+    private companion object { const val SLOW_SERVER_MILLIS = 3_500L }
 
     override suspend fun alternatives(request: PlanRequest): List<CampusRoute> {
         val online = if (online()) try { primary.alternatives(request) } catch (c: CancellationException) { throw c } catch (_: Exception) { emptyList() } else emptyList()

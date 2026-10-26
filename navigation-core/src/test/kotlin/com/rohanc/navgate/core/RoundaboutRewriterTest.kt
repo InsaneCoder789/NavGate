@@ -71,4 +71,41 @@ class RoundaboutRewriterTest {
         val fixed = RoundaboutRewriter.apply(r, listOf(ring))
         assertEquals(3, fixed.maneuvers[1].exitNumber)
     }
+
+    private fun drivenRoute(c: GeoPoint, inBearing: Double, outBearing: Double): CampusRoute {
+        val inbound = (6 downTo 1).map { c.offset(it * 10.0, inBearing) }
+        val outbound = (1..6).map { c.offset(it * 10.0, outBearing) }
+        val pts = inbound + listOf(c) + outbound
+        val len = pts.lengthMeters(); var run = 0.0
+        val along = pts.mapIndexed { i, p -> if (i > 0) run += pts[i - 1].distanceTo(p); run }
+        return CampusRoute("r", 1, "m", "v", "dest", "", pts, emptyList(), len, len / 10.0,
+            listOf(Maneuver("Drive east.", pts.first(), 0.0, "Start"), Maneuver("Turn left onto Ring Road.", pts[8], along[8], "Left"), Maneuver("Arrive.", pts.last(), len, "Arrive")),
+            "", source = "valhalla", profile = "driving", provider = "t", fetchedAtEpochMillis = 1, destinationPoint = pts.last(), destinationTitle = "dest", shapeElapsedSeconds = along.map { it / 10.0 })
+    }
+    private fun bearingsOnRing(route: CampusRoute, c: GeoPoint, r: Double) = route.geometry.filter { abs(it.distanceTo(c) - r) < 0.6 }.map { c.bearingTo(it) }
+
+    @Test fun `where people drive on the left the ring is driven clockwise`() {
+        val c = GeoPoint(19.197055, 72.872471); val r = RoundaboutRing(c, 9.0, listOf(14.0, 78.0, 347.0, 268.0))
+        val fixed = RoundaboutRewriter.apply(drivenRoute(c, 268.0, 78.0), listOf(r))
+        val b = bearingsOnRing(fixed, c, 9.0)
+        assertTrue("clockwise means bearings grow: $b", b.size >= 4 && b.zipWithNext().count { (x, y) -> ((y - x + 540.0) % 360.0) - 180.0 > 0 } >= b.size - 2)
+    }
+
+    @Test fun `where people drive on the right the ring is driven anticlockwise`() {
+        val c = GeoPoint(48.8566, 2.3522); val r = RoundaboutRing(c, 9.0, listOf(14.0, 78.0, 347.0, 268.0))
+        val fixed = RoundaboutRewriter.apply(drivenRoute(c, 268.0, 78.0), listOf(r))
+        val b = bearingsOnRing(fixed, c, 9.0)
+        assertTrue("anticlockwise means bearings fall: $b", b.size >= 4 && b.zipWithNext().count { (x, y) -> ((y - x + 540.0) % 360.0) - 180.0 < 0 } >= b.size - 2)
+    }
+
+    @Test fun `rounding the corners keeps the two ends where they are`() {
+        val pts = listOf(GeoPoint(0.0, 0.0), GeoPoint(0.0, 0.001), GeoPoint(0.001, 0.001))
+        val rounded = RoundaboutRewriter.smooth(pts)
+        assertEquals(pts.first(), rounded.first()); assertEquals(pts.last(), rounded.last()); assertTrue(rounded.size > pts.size)
+    }
+
+    @Test fun `the side of the road is known by country`() {
+        assertTrue(TrafficSide.drivesOnLeft(GeoPoint(20.35, 85.82))); assertTrue(TrafficSide.drivesOnLeft(GeoPoint(51.5, -0.12)))
+        assertFalse(TrafficSide.drivesOnLeft(GeoPoint(48.85, 2.35))); assertFalse(TrafficSide.drivesOnLeft(GeoPoint(40.7, -74.0)))
+    }
 }

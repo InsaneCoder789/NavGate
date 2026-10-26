@@ -40,8 +40,8 @@ class NavGateServices private constructor(context: Context) {
     private val onlineRouting = ValhallaRoutingProvider(cache=RoomRoadRouteCache(database))
     val mapPacks = com.rohanc.navgate.data.maps.MapPackStore(context)
     val routingData = com.rohanc.navgate.data.routing.offline.RoutingDataStore(context)
-    /** Online routing first; the phone's own BRouter engine when the network or the server fails and the area's tiles are installed. */
-    val roadRouting: com.rohanc.navgate.core.RoutingProvider = com.rohanc.navgate.data.routing.offline.FailoverRoutingProvider(onlineRouting,com.rohanc.navgate.data.routing.offline.OfflineRoutingProvider.of(routingData) { points -> mapPacks.streetNamesFor(points) })
+    /** Routes come from the road router only. A slow answer is waited for; there is no on-phone fallback that could replace it. */
+    val roadRouting: com.rohanc.navgate.core.RoutingProvider = onlineRouting
     private val roadTiles = com.rohanc.navgate.data.maps.RoadTileSource(pack = { z, x, y -> mapPacks.packTile(z, x, y) }, cacheDir = java.io.File(context.cacheDir, "road-tiles"))
     private val roundabouts = com.rohanc.navgate.data.maps.RoundaboutFinder { z, x, y -> roadTiles.tile(z, x, y) }
     /** Every route, from either router, with its roundabouts drawn and spoken the way they are on the ground. */

@@ -21,8 +21,8 @@ interface RoadRouteCache {
 /** Real Valhalla road/path routing. Requests are single-flight, cancellable and never fake a route. */
 class ValhallaRoutingProvider(
     private val endpoint:HttpUrl="https://valhalla1.openstreetmap.de/route".toHttpUrl(),
-    private val client:OkHttpClient=OkHttpClient.Builder().connectTimeout(8,TimeUnit.SECONDS).readTimeout(20,TimeUnit.SECONDS)
-        .callTimeout(25,TimeUnit.SECONDS).retryOnConnectionFailure(false).build(),
+    private val client:OkHttpClient=OkHttpClient.Builder().connectTimeout(6,TimeUnit.SECONDS).readTimeout(12,TimeUnit.SECONDS)
+        .callTimeout(15,TimeUnit.SECONDS).retryOnConnectionFailure(false).build(),
     private val cache:RoadRouteCache?=null,
     private val epochMillis:()->Long=System::currentTimeMillis,
     private val elapsedMillis:()->Long={System.nanoTime()/1_000_000},
@@ -90,8 +90,12 @@ class ValhallaRoutingProvider(
                 return parseWithAlternates(fetch(http),variant,endpoint.host,epochMillis())
             }
             // The quickest route with up to two alternates, then the route with the least distance (a different road, often).
-            val quick=call(request.copy(preference="fastest"),2)
-            val short=try{call(request.copy(preference="shortest"),0)}catch(c:CancellationException){throw c}catch(_:Exception){emptyList()}
+            // Both questions go out together (the slot spacing still keeps them a second apart), so the second no longer waits for the first answer.
+            val (quick,short)=coroutineScope{
+                val fast=async{call(request.copy(preference="fastest"),2)}
+                val least=async{try{call(request.copy(preference="shortest"),0)}catch(c:CancellationException){throw c}catch(_:Exception){emptyList()}}
+                fast.await() to least.await()
+            }
             val distinct=mutableListOf<CampusRoute>()
             for(candidate in quick+short)if(distinct.none{RouteChoices.sameRoute(it,candidate)})distinct+=candidate
             RouteChoices.labelled(distinct).also{result->synchronized(alternativesCache){alternativesCache[cacheKey]=epochMillis() to result}}
@@ -227,8 +231,6 @@ class ValhallaRoutingProvider(
                     add("Valhalla · © OpenStreetMap contributors. Estimated time; live traffic is not included.")
                     if(summary["has_ferry"]?.jsonPrimitive?.booleanOrNull==true)add("This route includes a ferry; check its operating conditions.")
                     if(summary["has_toll"]?.jsonPrimitive?.booleanOrNull==true)add("This route includes toll roads.")
-                    val offset=shape.first().distanceTo(request.origin)
-                    if(offset>20)add("The mapped route starts ${offset.toInt()} m from your pin. Move to that start before beginning guidance.")
                     if(shape.last().distanceTo(destination)>20)add("Arrival is at the mapped road/path endpoint near the destination pin, not a verified building entrance.")
                 }
                 val route=CampusRoute(id=UUID.randomUUID().toString(),requestId=request.requestId,regionId=request.regionId,

@@ -8,16 +8,38 @@ class NavigationSessionTest {
     private fun route(): CampusRoute = fixtureRoute()
     private fun fix(point:GeoPoint,time:Long,accuracy:Double=4.0)=LocationFix(point,time,accuracy)
 
-    @Test fun `manual preview cannot start without fresh accurate location at planned start`() = runTest {
+    @Test fun `a trip starts from where you are on the route, not only from its first point`() = runTest {
         val session=NavigationSession(); val route=route()
         session.preview(route)
-        assertEquals(SessionStatus.Preview,session.start(100).snapshot.status)
+        val middle=route.geometry[route.geometry.size/2]
+        session.location(fix(middle,100),100)
+        val started=session.start(100).snapshot
+        assertEquals(SessionStatus.Navigating,started.status); assertTrue(started.alongMeters>0.0); assertTrue(started.remainingMeters<route.distanceMeters)
+    }
+
+    @Test fun `a trip starts with no location at all`() = runTest {
+        val session=NavigationSession(); val route=route()
+        session.preview(route)
+        val started=session.start(100).snapshot
+        assertEquals(SessionStatus.Navigating,started.status); assertEquals(0.0,started.alongMeters,0.0)
+    }
+
+    @Test fun `weak or old GPS does not stop a trip from starting`() = runTest {
+        val session=NavigationSession(); val route=route()
+        session.preview(route)
         session.location(fix(route.geometry.first(),100,100.0),100)
-        assertEquals(SessionStatus.Preview,session.start(100).snapshot.status)
-        session.location(fix(route.geometry.last(),200),200)
-        assertEquals(SessionStatus.Preview,session.start(200).snapshot.status)
-        session.location(fix(route.geometry.first(),300),300)
-        assertEquals(SessionStatus.Navigating,session.start(300).snapshot.status)
+        assertEquals(SessionStatus.Navigating,session.start(100).snapshot.status)
+        val old=NavigationSession(); old.preview(route)
+        old.location(fix(route.geometry.first(),100),100)
+        assertEquals(SessionStatus.Navigating,old.start(60_000).snapshot.status)
+    }
+
+    @Test fun `standing far from the route does not stop a trip from starting`() = runTest {
+        val session=NavigationSession(); val route=route()
+        session.preview(route)
+        session.location(fix(route.geometry.first().offset(5_000.0,0.0),100),100)
+        val started=session.start(100).snapshot
+        assertEquals(SessionStatus.Navigating,started.status); assertNotNull(started.route)
     }
 
     @Test fun `mode changes preserve trip and sparse segments advance gradually`() = runTest {

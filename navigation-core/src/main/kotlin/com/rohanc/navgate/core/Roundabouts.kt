@@ -16,11 +16,15 @@ class RoundaboutRing(val center: GeoPoint, val radiusMeters: Double, val armBear
  */
 object RoundaboutRewriter {
     private const val STEP_DEGREES = 12.0
+    private enum class Side { Left, Right, Shortest }
+    /** Which way round the ring the traffic goes for the route being rewritten: clockwise where people drive on the left, anticlockwise on the right, the short way for walkers. */
+    private var side = Side.Shortest
     /** How far outside the ring a route still counts as using it (the footpath or approach lies a little outside the ring road). */
     private fun reach(r: RoundaboutRing) = r.radiusMeters + max(8.0, r.radiusMeters * 0.6)
 
     fun apply(route: CampusRoute, rings: List<RoundaboutRing>): CampusRoute {
         var current = route
+        side = if (route.profile == "driving") (if (TrafficSide.drivesOnLeft(route.geometry.firstOrNull() ?: return route)) Side.Left else Side.Right) else Side.Shortest
         // Later rings first, so earlier distances stay valid while the route is rewritten.
         for (ring in rings.sortedByDescending { r -> route.geometry.indexOfFirst { it.distanceTo(r.center) <= reach(r) } }) {
             current = rewriteOne(current, ring) ?: current
@@ -40,15 +44,23 @@ object RoundaboutRewriter {
         val exit = crossing(g, last + 1, last, ring.center, reach) ?: g[last]
         if (first == 0 || last == g.lastIndex) return null          // starts or ends inside the roundabout: nothing to guide through
         val entryAngle = ring.center.bearingTo(entry); val exitAngle = ring.center.bearingTo(exit)
-        val sweep = signedSweep(entryAngle, exitAngle)
+        val shortest = signedSweep(entryAngle, exitAngle)
+        // Traffic goes one way round: the long way for a third exit, never against the flow.
+        val sweep = when (side) {
+            Side.Left -> (exitAngle - entryAngle + 720.0) % 360.0
+            Side.Right -> -((entryAngle - exitAngle + 720.0) % 360.0)
+            Side.Shortest -> shortest
+        }
         // It must really be taken: the route has to use a different arm to leave by, or pass close to the middle.
         val closest = (first..last).minOf { g[it].distanceTo(ring.center) }
-        if (abs(sweep) < 25.0 && closest > ring.radiusMeters * 0.9) return null
-        if (abs(sweep) < 8.0) return null
+        if (abs(shortest) < 25.0 && closest > ring.radiusMeters * 0.9) return null
+        if (abs(shortest) < 8.0) return null
 
         val steps = max(1, (abs(sweep) / STEP_DEGREES).roundToInt())
         val arc = (0..steps).map { ring.center.offset(ring.radiusMeters, entryAngle + sweep * it / steps) }
-        val newGeometry = g.subList(0, first) + entry + arc + exit + g.subList(last + 1, g.size)
+        // The corners where the road meets the ring are rounded off, so the line sweeps in, round and out like a drawn roundabout.
+        val drawn = smooth(listOf(entry) + arc + exit)
+        val newGeometry = g.subList(0, first) + drawn + g.subList(last + 1, g.size)
 
         val oldLength = g.lengthMeters(); val newLength = newGeometry.lengthMeters()
         val delta = newLength - oldLength
@@ -80,12 +92,30 @@ object RoundaboutRewriter {
             val t0 = et[first - 1] + (et[first] - et[first - 1]) * fractionAlong(g, first - 1, first, entry)
             val t1 = et[last] + (et[minOf(last + 1, g.lastIndex)] - et[last]) * fractionAlong(g, last, minOf(last + 1, g.lastIndex), exit)
             // Time inside the roundabout is spread over the new arc by length; everything after it keeps its own offset.
-            val inner = ArrayList<Double>(); var run = 0.0; val arcPts = listOf(entry) + arc + exit
+            val inner = ArrayList<Double>(); var run = 0.0; val arcPts = drawn
             arcPts.forEachIndexed { i, p -> if (i > 0) run += arcPts[i - 1].distanceTo(p); inner += t0 + (t1 - t0) * (if (run <= 0) 0.0 else run / arcPts.zipWithNext().sumOf { (a, b) -> a.distanceTo(b) }) }
             et.subList(0, first) + inner + et.subList(last + 1, et.size)
         } else emptyList()
         val duration = times.lastOrNull() ?: route.estimatedSeconds
         return route.copy(geometry = newGeometry, distanceMeters = newDistance, estimatedSeconds = max(duration, 0.0), shapeElapsedSeconds = times, maneuvers = rebuilt)
+    }
+
+    /** Corner cutting (two rounds) that keeps both ends where they are. */
+    internal fun smooth(points: List<GeoPoint>, rounds: Int = 2): List<GeoPoint> {
+        var current = points
+        repeat(rounds) {
+            if (current.size < 3) return current
+            val next = ArrayList<GeoPoint>(current.size * 2)
+            next += current.first()
+            for (i in 0 until current.size - 1) {
+                val a = current[i]; val b = current[i + 1]
+                if (i > 0) next += GeoPoint(a.latitude * 0.75 + b.latitude * 0.25, a.longitude * 0.75 + b.longitude * 0.25)
+                if (i < current.size - 2) next += GeoPoint(a.latitude * 0.25 + b.latitude * 0.75, a.longitude * 0.25 + b.longitude * 0.75)
+            }
+            next += current.last()
+            current = next
+        }
+        return current
     }
 
     /** The point where the segment [a]-[b] crosses the circle of [radius] around [center] (a is outside, b inside). */
@@ -143,4 +173,18 @@ class RoundaboutRoutingProvider(
         val fixed = RoundaboutRewriter.apply(route, found)
         return if (RouteIntegrity.shapeErrors(fixed).isEmpty()) fixed else route
     }
+}
+
+/** Which side of the road people drive on, by country area. Roundabouts are driven clockwise where it is the left. */
+object TrafficSide {
+    private class Box(val south: Double, val west: Double, val north: Double, val east: Double)
+    private val left = listOf(
+        Box(6.0, 68.0, 36.0, 98.0),        // India, Nepal, Sri Lanka, Bangladesh, Bhutan
+        Box(49.8, -11.0, 61.0, 2.0),       // United Kingdom and Ireland
+        Box(24.0, 122.0, 46.0, 146.0),     // Japan
+        Box(-48.0, 112.0, -9.0, 179.0),    // Australia and New Zealand
+        Box(-35.0, 16.0, -22.0, 33.0),     // South Africa
+        Box(-1.0, 95.0, 21.0, 106.0),      // Thailand, Malaysia, Singapore
+    )
+    fun drivesOnLeft(p: GeoPoint): Boolean = left.any { p.latitude in it.south..it.north && p.longitude in it.west..it.east }
 }
