@@ -37,7 +37,10 @@ private class MarkerState {
     var point = GeoPoint(0.0, 0.0); var heading = 0.0; var cameraBearing = 0.0; var onRoute = false; var accuracy = 10.0
     var zoom = Double.NaN; var tilt = Double.NaN; private var lane = 0.0
     private var along = Double.NaN
-    fun reset() { along = Double.NaN; ready = false }
+    /** A new route (a reroute): the car keeps where it is drawn and glides onto the new line instead of being redrawn on it. */
+    fun reset() { along = Double.NaN; settling = ready }
+    private var settling = false
+    var userZoom = 0.0; var lastZoomSet = Double.NaN; var lastTargetSet: GeoPoint? = null
     private fun ease(dt: Double, tau: Double) = 1.0 - Math.exp(-dt / tau)
     private fun turnToward(from: Double, to: Double, k: Double): Double { val d = ((to - from + 540.0) % 360.0) - 180.0; return (from + d * k + 360.0) % 360.0 }
 
@@ -51,7 +54,12 @@ private class MarkerState {
             // The vehicle drives in its own lane, a lane's width from the centre line the route is drawn on, sliding across when it changes lane.
             lane += (laneTarget - lane) * ease(dt, 0.6)
             val roadBearing = route.bearingAt(along)
-            point = route.pointAt(along).let { p -> if (roadBearing != null && abs(lane) > 0.02) p.offset(lane, roadBearing + 90.0) else p }
+            val onLine = route.pointAt(along).let { p -> if (roadBearing != null && abs(lane) > 0.02) p.offset(lane, roadBearing + 90.0) else p }
+            if (settling) {
+                val k = ease(dt, 0.28)
+                point = GeoPoint(point.latitude + (onLine.latitude - point.latitude) * k, point.longitude + (onLine.longitude - point.longitude) * k)
+                if (point.distanceTo(onLine) < 0.6) settling = false
+            } else point = onLine
             headingTarget = roadBearing ?: headingTarget; onRoute = true
         } else {
             along = Double.NaN; onRoute = false
@@ -62,7 +70,7 @@ private class MarkerState {
         headingTarget?.let { heading = if (ready) turnToward(heading, it, ease(dt, 0.10)) else it }
         val bearingTarget = bearingOverride ?: heading
         cameraBearing = if (ready) turnToward(cameraBearing, bearingTarget, ease(dt, if (bearingOverride != null) 0.30 else 0.12)) else bearingTarget
-        val zoomTarget = zoomFor(e.speedMps, tiltTarget > 0) + zoomBias
+        val zoomTarget = (zoomFor(e.speedMps, tiltTarget > 0) + zoomBias).coerceAtMost(MAX_FOLLOW_ZOOM) + userZoom
         // The first frame starts from wherever the map is, so beginning guidance sweeps in to the vehicle instead of jumping.
         if (zoom.isNaN()) { zoom = cameraZoom; tilt = cameraTilt }
         zoom += (zoomTarget - zoom) * ease(dt, 0.55); tilt += (tiltTarget - tilt) * ease(dt, 0.6)
@@ -78,7 +86,7 @@ private class MarkerState {
 @Composable
 fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route: RouteGeometry?, track: TrackInput?, driving: Boolean, following: Boolean, tilt: Double, bodyColor: Color,
     vehicle: VehicleModel = VehicleModel.Sedan, vehiclePaint: Color = VehicleColor.White.paint, paddingFraction: Float = 0.34f,
-    zoomBias: Double = 0.0, bearingOverride: Double? = null, laneOffsetMeters: Double = 0.0) {
+    zoomBias: Double = 0.0, bearingOverride: Double? = null, laneOffsetMeters: Double = 0.0, onUserPan: () -> Unit = {}) {
     val estimate by motion.collectAsStateWithLifecycle()
     val latestEstimate by rememberUpdatedState(estimate)
     val latestRoute by rememberUpdatedState(route); val latestTrack by rememberUpdatedState(track)
@@ -88,7 +96,7 @@ fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route
     val state = remember { MarkerState() }
     var frame by remember { mutableLongStateOf(0L) }
     LaunchedEffect(route) { state.reset() }
-    LaunchedEffect(following) { if (!following) { state.zoom = Double.NaN; state.tilt = Double.NaN } }
+    LaunchedEffect(following) { if (!following) { state.zoom = Double.NaN; state.tilt = Double.NaN; state.lastZoomSet = Double.NaN; state.lastTargetSet = null } }
     val context = androidx.compose.ui.platform.LocalContext.current
     val power = remember(context) { context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager }
     val latestDriving by rememberUpdatedState(driving)
@@ -97,15 +105,23 @@ fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route
         while (true) {
             // The camera and marker are updated as often as the user can benefit from, not at every display frame (see RenderBudget).
             val e = latestEstimate
-            val warm = android.os.Build.VERSION.SDK_INT >= 29 && power.currentThermalStatus >= android.os.PowerManager.THERMAL_STATUS_MODERATE
-            kotlinx.coroutines.delay(RenderBudget.intervalMillis(power.isPowerSaveMode, warm, e?.speedMps ?: 0.0, latestDriving, cameraView = latestBearing != null))
+            val thermal = if (android.os.Build.VERSION.SDK_INT >= 29) power.currentThermalStatus else 0
+            kotlinx.coroutines.delay(RenderBudget.intervalMillis(power.isPowerSaveMode, thermal, e?.speedMps ?: 0.0, latestDriving, cameraView = latestBearing != null))
             withFrameNanos { now ->
                 val dt = if (last == 0L) 0.0 else ((now - last) / 1e9).coerceIn(0.0, 0.35); last = now
                 val estimate = latestEstimate
                 if (estimate != null) {
+                    if (latestFollowing) {
+                        val z = camera.position.zoom
+                        // Anything the user changed since the last frame we wrote is theirs: a pinch changes the zoom offset, a drag leaves the car.
+                        if (!state.lastZoomSet.isNaN() && abs(z - state.lastZoomSet) > 0.01) state.userZoom = (state.userZoom + (z - state.lastZoomSet)).coerceIn(-5.0, 2.0)
+                        val t = state.lastTargetSet
+                        if (t != null && GeoPoint(camera.position.target.latitude, camera.position.target.longitude).distanceTo(t) > 12.0) onUserPan()
+                    } else { state.userZoom = 0.0 }
                     state.step(dt, estimate, latestRoute, latestTrack, latestTilt, camera.position.zoom, camera.position.tilt, latestZoomBias, latestBearing, latestLane)
                     if (latestFollowing) camera.position = camera.position.copy(target = Position(longitude = state.point.longitude, latitude = state.point.latitude),
                         bearing = state.cameraBearing, tilt = state.tilt, zoom = state.zoom, padding = PaddingValues(top = (screenHeightDp * paddingFraction).dp))
+                    if (latestFollowing) { state.lastZoomSet = camera.position.zoom; state.lastTargetSet = GeoPoint(state.point.latitude, state.point.longitude) }
                 }
                 frame = now
             }
@@ -117,10 +133,10 @@ fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route
     val mapBearing = camera.position.bearing.toFloat()
     val halo = (state.accuracy / camera.metersPerDpAtTarget).toFloat().coerceIn(10f, 90f)
     val heading = state.heading.toFloat()
-    val canvasDp = 140.dp
+    val canvasDp = 210.dp
     val shownModel = if (driving) vehicle else VehicleModel.Arrow
     val metresPerDp = camera.metersPerDpAtTarget.toFloat().takeIf { it.isFinite() && it > 0f } ?: 0.1f
-    val lengthDp = (shownModel.length / metresPerDp).coerceIn(if (driving) 44f else 48f, if (driving) 100f else 76f).dp
+    val lengthDp = (shownModel.length / metresPerDp).coerceIn(if (driving) 90f else 78f, if (driving) 168f else 118f).dp
     Box(Modifier.offset(screen.x - canvasDp / 2, screen.y - canvasDp / 2).size(canvasDp)) {
         Canvas(Modifier.fillMaxSize()) {
             val c = Offset(size.width / 2, size.height / 2)
@@ -138,4 +154,7 @@ fun VehicleMarker(camera: CameraState, motion: StateFlow<MotionEstimate?>, route
 }
 
 /** Zoom for the speed: faster, further out. The tipped 3D view already shows far ahead, so it can stay a little closer. */
-private fun zoomFor(speedMps: Double, tipped: Boolean): Double = (when { speedMps > 22 -> 15.8; speedMps > 13 -> 16.4; speedMps > 6 -> 17.0; else -> 17.6 }) + 0.8 + if (tipped) 0.3 else 0.0
+private const val MAX_FOLLOW_ZOOM = 21.2
+
+/** Zoom for the speed (up to 250 km/h = 70 m/s and beyond): faster, further out, so the road ahead always fits. */
+private fun zoomFor(speedMps: Double, tipped: Boolean): Double = (when { speedMps > 55 -> 14.6; speedMps > 40 -> 15.0; speedMps > 22 -> 15.8; speedMps > 13 -> 16.4; speedMps > 6 -> 17.0; else -> 17.6 }) + 2.6 + if (tipped) 0.3 else 0.0
