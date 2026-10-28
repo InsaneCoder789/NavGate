@@ -3,27 +3,37 @@ package com.rohanc.navgate.ui.theme
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import com.rohanc.navgate.R
 import androidx.compose.ui.unit.sp
+
+/** Sora, for the numbers and headlines you act on (distance to the turn, minutes left); everything you read stays in the system font. */
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+val NavDisplay = FontFamily(
+    Font(R.font.sora, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.sora, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+)
 
 val NavGateTypography =
     Typography(
         displayLarge = TextStyle(
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = NavDisplay,
             fontWeight = FontWeight.Bold,
             fontSize = 44.sp,
             lineHeight = 52.sp,
             letterSpacing = (-0.8).sp,
         ),
         headlineLarge = TextStyle(
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = NavDisplay,
             fontWeight = FontWeight.SemiBold,
             fontSize = 32.sp,
             lineHeight = 40.sp,
             letterSpacing = (-0.3).sp,
         ),
         headlineMedium = TextStyle(
-            fontFamily = FontFamily.SansSerif,
+            fontFamily = NavDisplay,
             fontWeight = FontWeight.SemiBold,
             fontSize = 24.sp,
             lineHeight = 32.sp,

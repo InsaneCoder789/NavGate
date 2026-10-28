@@ -9,32 +9,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val NavGateColors =
-    darkColorScheme(
-        primary = NavPrimary,
-        onPrimary = NavOnPrimary,
-        primaryContainer = NavPrimaryContainer,
-        onPrimaryContainer = Color.White,
-        secondary = NavSecondary,
-        onSecondary = Color.Black,
-        secondaryContainer = NavSecondaryContainer,
-        onSecondaryContainer = Color.White,
-        tertiary = NavTertiary,
-        onTertiary = Color.Black,
-        background = NavBackground,
-        onBackground = NavOnSurface,
-        surface = NavSurface,
-        onSurface = NavOnSurface,
-        surfaceVariant = NavSurfaceHigh,
-        onSurfaceVariant = NavOnSurfaceVariant,
-        outline = GlassStroke,
-        error = NavLowConfidence,
-        onError = Color.White,
-    )
-
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF2F6BE0), onPrimary = Color.White, primaryContainer = Color(0xFFDCE8FF), onPrimaryContainer = Color(0xFF0F2A66),
-    secondary = Color(0xFF2F6BE0), onSecondary = Color.White, secondaryContainer = Color(0xFFDCE8FF), onSecondaryContainer = Color(0xFF0F2A66),
+    primary = Color(0xFF2F6BFF), onPrimary = Color.White, primaryContainer = Color(0xFFE4ECFF), onPrimaryContainer = Color(0xFF0F2A66),
+    secondary = Color(0xFF13B8FF), onSecondary = Color.White, secondaryContainer = Color(0xFFE4ECFF), onSecondaryContainer = Color(0xFF0F2A66),
     tertiary = Color(0xFFB26A00), background = Color(0xFFFBF7F5), onBackground = Color(0xFF18202C),
     surface = Color.White, onSurface = Color(0xFF18202C), surfaceVariant = Color(0xFFEEF2F8), onSurfaceVariant = Color(0xFF5A6678),
     outline = Color(0xFF6B778C), outlineVariant = Color(0xFFD0D9E6), error = Color(0xFFD93025), onError = Color.White,
