@@ -21,8 +21,6 @@ android {
             require(selectedAbi in setOf("arm64-v8a","armeabi-v7a","x86","x86_64"))
             ndk { abiFilters += selectedAbi }
         }
-
-        buildConfigField("String", "NAVGATE_BACKEND_URL", "\"http://10.0.2.2:8080\"")
         // Where opted-in crash reports are posted. Blank (the default) means the option is hidden and nothing is ever sent.
         buildConfigField("String", "CRASH_REPORT_URL", "\"${(project.findProperty("navgate.crashUrl") as String?) ?: ""}\"")
 
