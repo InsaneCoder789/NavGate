@@ -43,7 +43,16 @@ data class SessionSnapshot(
     /** False once the vehicle has left the planned road; screens then stop snapping it to the route. */
     val lockedToRoute: Boolean = true,
     val backupRoutes: Int = 0,
+    /** How far off the position may be, in metres (the route tracker's own estimate); the map draws a halo of this size when it is large. */
+    val sigmaMeters: Double = 0.0,
 )
+
+/** Distance to the next manoeuvre right now: the figure from the last fix, carried on at the speed along the route so a 1 Hz GPS does not make the countdown step in 9 m jumps. */
+fun SessionSnapshot.distanceToManeuverAt(nowElapsedMillis: Long): Double {
+    if (status != SessionStatus.Navigating || !lockedToRoute || offRoute || fixElapsedMillis <= 0L) return distanceToManeuver
+    val age = ((nowElapsedMillis - fixElapsedMillis) / 1000.0).coerceIn(0.0, 2.5)
+    return (distanceToManeuver - speedAlongMps.coerceAtLeast(0.0) * age).coerceAtLeast(0.0)
+}
 
 @Serializable
 data class SessionCheckpoint(val snapshot: SessionSnapshot)
@@ -176,7 +185,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
             val maneuver = route.maneuvers.getOrNull(step)
             val next = state.copy(alongMeters = capped, maneuverIndex = step, remainingMeters = max(0.0, route.distanceMeters - capped), remainingSeconds = route.remainingSecondsAt(capped),
                 distanceToManeuver = max(0.0, (maneuver?.alongMeters ?: route.distanceMeters) - capped), instruction = maneuver?.instruction ?: state.instruction,
-                snappedLocation = p.point, routeBearing = p.bearingDegrees ?: state.routeBearing, speedAlongMps = p.speedMps, fixElapsedMillis = nowElapsedMillis,
+                snappedLocation = p.point, routeBearing = p.bearingDegrees ?: state.routeBearing, speedAlongMps = p.speedMps, fixElapsedMillis = nowElapsedMillis, sigmaMeters = (state.sigmaMeters + 1.5).coerceAtMost(120.0),
                 signalReason = "No GPS signal: following the route")
             val spoken = if (step != state.maneuverIndex) onNewStep(next) else headsUp(next)
             return@withLock publish(next, spoken)
@@ -318,7 +327,7 @@ class NavigationSession(private val policy: GuidancePolicy = GuidancePolicy()) {
             signalReason = if (offRoute) "Route deviation detected" else null, offRoute = offRoute,
             snappedLocation = if (offRoute) null else tracked.point,
             routeBearing = if (offRoute) null else tracked.bearingDegrees ?: route.geometry.getOrNull(projection.segment)?.let { a -> route.geometry.getOrNull(projection.segment + 1)?.let { b -> a.bearingTo(b) } },
-            speedAlongMps = if (offRoute) 0.0 else tracked.speedMps, fixElapsedMillis = fix.elapsedMillis, lockedToRoute = !offRoute && tracked.locked, backupRoutes = backups.size)
+            speedAlongMps = if (offRoute) 0.0 else tracked.speedMps, fixElapsedMillis = fix.elapsedMillis, lockedToRoute = !offRoute && tracked.locked, backupRoutes = backups.size, sigmaMeters = tracked.sigmaMeters)
         if (arrived) pendingReroute = null
         val spoken = if (arrived) next.instruction else if (step != current.maneuverIndex) onNewStep(next) else headsUp(next)
         publish(next, spoken, reroute)
