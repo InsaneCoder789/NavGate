@@ -73,7 +73,7 @@ def main():
     parser.add_argument('workbook', nargs='?', default='/Users/rohanc/Downloads/KIIT_Complete_Campus_Wise_Locations.xlsx')
     parser.add_argument('--osm-index')
     parser.add_argument('--output', type=Path, default=ROOT / 'backend/internal/campus/seed/custom_pois.json')
-    parser.add_argument('--also', type=Path, nargs='*', default=[ROOT / 'app/src/main/assets/custom_pois.json'])
+    parser.add_argument('--also', type=Path, nargs='*', default=[])
     arguments = parser.parse_args()
     rows = base.load_all_locations(Path(arguments.workbook))
     headers = rows[0]

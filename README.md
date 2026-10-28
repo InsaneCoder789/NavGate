@@ -208,7 +208,7 @@ Live traffic, transit, cycling, detailed building models and account-based synch
 | `navigation-core/` | Kotlin geometry, routing, tracking, session logic and validation independent of Android. |
 | `scripts/` | Place-index builders, generic region-pack tooling and regressions. |
 | `data/` | Public-source snapshots and provenance for optional generated indexes. |
-| `backend/` | Optional Go HTTP service; the current Android navigation flow does not require it. It ships without a bundled place dataset. |
+| `backend/` | The KIIT campus place data (`internal/campus/seed`) and its import script, read by the region-catalog builders in `scripts/`. The Go service that used to live here was removed: the app talks to Valhalla directly. |
 
 Detailed research, architecture notes and working documents are maintained separately from the code repository.
 
