@@ -1,7 +1,14 @@
 package com.rohanc.navgate.ui.journey
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -38,7 +47,7 @@ import kotlin.math.roundToInt
 fun NgSearchPill(text: String, placeholder: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier,
     leading: @Composable () -> Unit, trailing: @Composable () -> Unit = {}) {
     // The pill sits over a busy map, so it keeps enough body to read the text at any glass setting.
-    GlassPanel(modifier.fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Regular, minOpacity = 0.62f, onClick = onClick) {
+    GlassPanel(modifier.fillMaxWidth(), shape = CircleShape, weight = GlassWeight.Regular, minOpacity = 0.62f, onClick = onClick, whiteGradientInLight = true) {
         Row(Modifier.heightIn(min = 56.dp).padding(start = 18.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             leading()
@@ -69,18 +78,18 @@ fun NgMapButton(icon: ImageVector, description: String, onClick: () -> Unit, mod
 /** The large coloured Directions button that sits above the map controls. */
 @Composable
 fun NgDirectionsFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(onClick = onClick, modifier = modifier.semantics { contentDescription = "Directions" }, shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary, shadowElevation = 6.dp) {
-        Box(Modifier.size(60.dp), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Directions, null, Modifier.size(30.dp)) }
+    Surface(onClick = onClick, modifier = modifier.semantics { contentDescription = "Directions" }, shape = RoundedCornerShape(22.dp),
+        color = Color.Transparent, contentColor = Color.White, shadowElevation = 8.dp) {
+        Box(Modifier.size(62.dp).background(com.rohanc.navgate.ui.theme.NavTokens.pulse()), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Directions, null, Modifier.size(30.dp)) }
     }
 }
 
 @Composable
-fun NgChip(label: String, icon: ImageVector?, onClick: () -> Unit) {
-    GlassPanel(shape = CircleShape, weight = GlassWeight.Thin, minOpacity = 0.55f, onClick = onClick) {
+fun NgChip(label: String, icon: ImageVector?, iconTint: Color? = null, onClick: () -> Unit) {
+    GlassPanel(shape = CircleShape, weight = GlassWeight.Thin, minOpacity = 0.55f, onClick = onClick, whiteGradientInLight = true) {
         Row(Modifier.heightIn(min = 44.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
-            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+            if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = iconTint ?: MaterialTheme.colorScheme.onSurface)
+            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -92,11 +101,19 @@ fun NgChipRow(modifier: Modifier = Modifier, content: @Composable RowScope.() ->
 
 /** Frosted bottom sheet with the grabber used by every sheet in the app. */
 @Composable
-fun NgSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun NgSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, onGrabberDrag: ((Boolean) -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    val dragAction by rememberUpdatedState(onGrabberDrag)
+    val dragThreshold = with(LocalDensity.current) { 24.dp.toPx() }
     // Sheets carry paragraphs and lists, so they keep a little body even at the clearest setting.
     GlassPanel(modifier.fillMaxWidth(), shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), weight = GlassWeight.Thick, minOpacity = 0.62f) {
         Column {
-            Box(Modifier.fillMaxWidth().height(24.dp).let { if (onGrabber != null) it.clickable(onClickLabel = "Resize panel", onClick = onGrabber) else it }, contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().height(32.dp).testTag("sheetGrabber")
+                .let { if (onGrabber != null) it.clickable(onClickLabel = "Resize panel", onClick = onGrabber) else it }
+                .let { if (onGrabberDrag != null) it.pointerInput(dragThreshold) {
+                    var distance = 0f
+                    detectVerticalDragGestures(onDragStart = { distance = 0f }, onVerticalDrag = { change, amount -> change.consume(); distance += amount },
+                        onDragEnd = { if (kotlin.math.abs(distance) >= dragThreshold) dragAction?.invoke(distance < 0) }, onDragCancel = { distance = 0f })
+                } else it }, contentAlignment = Alignment.Center) {
                 Box(Modifier.width(36.dp).height(4.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape))
             }
             content()
@@ -106,19 +123,25 @@ fun NgSheet(modifier: Modifier = Modifier, onGrabber: (() -> Unit)? = null, cont
 
 @Composable
 fun NgPrimaryButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 52.dp), shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary)) {
+    val pulse = com.rohanc.navgate.ui.theme.NavTokens.pulse()
+    val face = if (enabled) Modifier.background(pulse) else Modifier.background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
+    Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 54.dp).then(if (enabled) Modifier.shadow(8.dp, CircleShape, ambientColor = Color(0x552F6BFF), spotColor = Color(0x552F6BFF)) else Modifier).clip(CircleShape).then(face), shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White, disabledContainerColor = Color.Transparent, disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
         if (icon != null) { Icon(icon, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
-        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 fun NgTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 52.dp), shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) {
+    val dark = com.rohanc.navgate.ui.theme.NavTokens.isDark()
+    // Light: a white gradient with a hairline, like every control. Dark: the quiet blue container.
+    val face = if (dark) Modifier.background(MaterialTheme.colorScheme.primaryContainer) else Modifier.background(com.rohanc.navgate.ui.theme.NavTokens.porcelain()).border(1.dp, com.rohanc.navgate.ui.theme.NavTokens.PorcelainEdge, CircleShape)
+    Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 54.dp).clip(CircleShape).then(face), shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = if (dark) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+            disabledContainerColor = Color.Transparent, disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
         if (icon != null) { Icon(icon, null, Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)) }
-        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
     }
 }
 
@@ -127,11 +150,11 @@ fun NgTonalButton(label: String, icon: ImageVector?, onClick: () -> Unit, modifi
 fun NgBottomBar(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
     GlassPanel(modifier.fillMaxWidth(), shape = androidx.compose.ui.graphics.RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.72f, solidInLight = true) {
         Row(Modifier.navigationBarsPadding().selectableGroup().padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            listOf(Triple("Explore", Icons.Rounded.Place, "Explore"), Triple("Saved", Icons.Rounded.BookmarkBorder, "Saved"), Triple("Recents", Icons.Rounded.History, "Recents")).forEach { (key, icon, label) ->
+            listOf(Triple("Explore", Icons.Rounded.Place, "Explore"), Triple("Routes", Icons.Rounded.Route, "Routes"), Triple("Saved", Icons.Rounded.BookmarkBorder, "Saved"), Triple("Recents", Icons.Rounded.History, "Recents")).forEach { (key, icon, label) ->
                 val chosen = key == selected
                 Column(Modifier.weight(1f).clip(RoundedCornerShape(20.dp)).selectable(chosen, role = Role.Tab, onClick = { onSelect(key) }).padding(vertical = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Box(Modifier.clip(CircleShape).background(if (chosen) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f) else androidx.compose.ui.graphics.Color.Transparent).padding(horizontal = 22.dp, vertical = 4.dp)) {
+                    Box(Modifier.clip(CircleShape).background(if (chosen) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f) else androidx.compose.ui.graphics.Color.Transparent).padding(horizontal = 18.dp, vertical = 4.dp)) {
                         Icon(icon, null, Modifier.size(24.dp), tint = if (chosen) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Medium,
@@ -179,11 +202,11 @@ fun distanceFrom(origin: Coordinate?, place: PlaceSearchResult): String? {
 fun ViewModeSwitch(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier, vertical: Boolean = false, arAvailable: Boolean = true) {
     GlassPanel(modifier, shape = RoundedCornerShape(24.dp), weight = GlassWeight.Regular, minOpacity = 0.7f) {
         val items: @Composable () -> Unit = {
-            listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "AR" to Icons.Rounded.ViewInAr, "VR" to Icons.Rounded.Videocam).filter { (it.first != "AR" && it.first != "VR") || arAvailable }.forEach { (mode, icon) ->
+            listOf("2D" to Icons.Rounded.Map, "3D" to Icons.Rounded.LocationCity, "VR" to Icons.Rounded.Videocam, "AR" to Icons.Rounded.ViewInAr).filter { (it.first != "AR" && it.first != "VR") || arAvailable }.forEach { (mode, icon) ->
                 val on = mode == selected
-                val tint = if (on) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                val tint = if (on) Color.White else MaterialTheme.colorScheme.onSurface
                 val shape = RoundedCornerShape(20.dp)
-                val cell = Modifier.clip(shape).background(if (on) MaterialTheme.colorScheme.primary else Color.Transparent)
+                val cell = Modifier.clip(shape).then(if (on) Modifier.background(com.rohanc.navgate.ui.theme.NavTokens.pulse()) else Modifier)
                     .selectable(on, role = Role.RadioButton, onClick = { onSelect(mode) }).semantics { contentDescription = "$mode navigation" }
                 if (vertical) Column(cell.size(56.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Icon(icon, null, Modifier.size(22.dp), tint = tint); Text(mode, style = MaterialTheme.typography.labelMedium, color = tint)
@@ -209,21 +232,55 @@ fun NgModeButton(label: String, icon: ImageVector, onClick: () -> Unit, modifier
     }
 }
 
-/** The app's own dialog: the same frosted glass, rounded pill buttons and type as every sheet, instead of the system alert. */
+/**
+ * The app's own dialog: a gradient tile with an icon, the title in the display face, the message, and two pill buttons side by side (the safe choice quiet,
+ * the confirming one filled; coral when it ends or deletes something). Same glass as every sheet, instead of the system alert.
+ */
 @Composable
 fun NgDialog(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit, dismissLabel: String? = null,
-    confirmEnabled: Boolean = true, icon: ImageVector? = null) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    confirmEnabled: Boolean = true, icon: ImageVector? = null, destructive: Boolean = false) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) { NgDialogCard(title, message, confirmLabel, onConfirm, onDismiss, dismissLabel, confirmEnabled, icon, destructive) }
+}
+
+/** The dialog's card on its own, so layout tests can measure it without a separate window. */
+@Composable
+internal fun NgDialogCard(title: String, message: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit, dismissLabel: String?,
+    confirmEnabled: Boolean, icon: ImageVector?, destructive: Boolean) {
+    run {
         GlassPanel(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), weight = GlassWeight.Thick, minOpacity = 0.85f, solidInLight = true) {
-            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (icon != null) Icon(icon, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+            Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val coral = com.rohanc.navgate.ui.theme.NavTokens.coral()
+                val tile = if (destructive) Brush.linearGradient(listOf(coral, Color(0xFFE5484D))) else com.rohanc.navgate.ui.theme.NavTokens.pulse()
+                val glyph = icon ?: if (destructive) Icons.Rounded.Close else Icons.Rounded.Info
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Box(Modifier.size(48.dp).clip(RoundedCornerShape(16.dp)).background(tile), contentAlignment = Alignment.Center) { Icon(glyph, null, Modifier.size(26.dp), tint = Color.White) }
+                    Text(title, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontFamily = com.rohanc.navgate.ui.theme.NavDisplay, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                }
                 Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
-                NgPrimaryButton(confirmLabel, null, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled)
-                if (dismissLabel != null) NgTonalButton(dismissLabel, null, onDismiss, Modifier.fillMaxWidth())
+                // Two short labels sit side by side; a long one would be cut, so the buttons stack, the confirming one on top.
+                androidx.compose.foundation.layout.BoxWithConstraints {
+                val stacked = dismissLabel != null && (dismissLabel.length > 10 || confirmLabel.length > 10 || isLargeText() || maxWidth < 300.dp)
+                val confirm: @Composable (Modifier) -> Unit = { m -> if (destructive) NgDestructiveButton(confirmLabel, onConfirm, m, confirmEnabled) else NgPrimaryButton(confirmLabel, null, onConfirm, m, enabled = confirmEnabled) }
+                if (stacked) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { confirm(Modifier.fillMaxWidth()); NgTonalButton(dismissLabel!!, null, onDismiss, Modifier.fillMaxWidth()) }
+                else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (dismissLabel != null) NgTonalButton(dismissLabel, null, onDismiss, Modifier.weight(1f))
+                    confirm(Modifier.weight(if (dismissLabel != null) 1.3f else 1f))
+                }
+                }
             }
         }
+    }
+}
+
+/** The filled coral pill for a choice that ends or deletes something. */
+@Composable
+fun NgDestructiveButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    val coral = com.rohanc.navgate.ui.theme.NavTokens.coral()
+    Button(onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 54.dp).shadow(8.dp, CircleShape, ambientColor = coral, spotColor = coral).clip(CircleShape)
+        .background(Brush.linearGradient(listOf(coral, Color(0xFFE5484D)))), shape = CircleShape,
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White, disabledContainerColor = Color.Transparent, disabledContentColor = Color.White.copy(alpha = 0.5f)), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)) {
+        Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false)
     }
 }
 
