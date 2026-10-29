@@ -25,6 +25,10 @@ interface UserPlacesStore {
     suspend fun routeHistory(): List<RouteHistoryEntry>
 
     suspend fun recordRouteHistory(entry: RouteHistoryEntry): List<RouteHistoryEntry>
+
+    /** How the walker rated a finished trip (a few fixed tags such as "Well lit"); kept with the trip on this phone and never uploaded. */
+    suspend fun saveTripFeedback(tripId: String, tags: Set<String>) {}
+    suspend fun tripFeedback(tripId: String): Set<String> = emptySet()
 }
 
 class SharedPrefsUserPlacesStore(
@@ -155,6 +159,10 @@ class InMemoryUserPlacesStore(
     private var recents: List<PlaceSearchResult> = emptyList(),
     private var history: List<RouteHistoryEntry> = emptyList(),
 ) : UserPlacesStore {
+    private val feedback = mutableMapOf<String, Set<String>>()
+    override suspend fun saveTripFeedback(tripId: String, tags: Set<String>) { feedback[tripId] = tags.toSet() }
+    override suspend fun tripFeedback(tripId: String): Set<String> = feedback[tripId].orEmpty()
+
     override suspend fun clearRouteHistory() { history=emptyList() }
     override suspend fun clearRecents() { recents=emptyList() }
     override suspend fun savedPlaces(): List<PlaceSearchResult> = saved

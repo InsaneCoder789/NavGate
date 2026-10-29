@@ -54,4 +54,6 @@ data class JourneyActions(
     val call: (String) -> Unit,
     val openWebsite: (String) -> Unit,
     val email: (String) -> Unit = {},
+    /** Tags the walker tapped after a trip (stored with the trip on this phone). */
+    val saveFeedback: (String, Set<String>) -> Unit = { _, _ -> },
 )

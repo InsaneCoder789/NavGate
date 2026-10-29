@@ -9,6 +9,8 @@ internal fun frontendBack(screen:String,active:Boolean,placeCaller:String,settin
     "Route"->"Directions"
     "Directions"->directionCaller
     "Setup"->"Settings"
+    "My routes"->"Routes"
+    "ManualPin"->"My routes"
     "MapPick"->"Directions"
     "Place"->placeCaller
     "Settings"->settingsCaller
@@ -20,6 +22,7 @@ internal fun selectedFrontendTab(screen:String,searchFor:String="place"):String=
     "MapPick"->"Directions"
     "Directions","Route","Navigation","Steps","Camera","Live","Arrival"->"Directions"
     "Saved"->"Saved"
+    "Routes","My routes","ManualPin"->"Routes"
     "Recents"->"Recents"
     else->"Explore"
 }

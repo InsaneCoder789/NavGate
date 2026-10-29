@@ -67,6 +67,8 @@ class NavGateViewModel(
     private var lastDurableRevision = 0L
     private var backendWasInitializing = true
     private val preferenceWrites = Mutex()
+    private val feedbackWrites = Mutex()
+    private val feedbackOverrides = mutableMapOf<String, Set<String>>()
     private var persistedFrontendPreferences = FrontendPreferences()
 
     init {
@@ -282,7 +284,13 @@ class NavGateViewModel(
      * A raw GPS fix drives guidance directly: the route tracker does its own filtering, and feeding it an already-filtered estimate
      * filtered it twice, which made the position lag and overshoot at stops. The map's blue dot keeps following the fused estimate.
      */
+    private val drivingGate = com.rohanc.navgate.core.FixGate(driving = true)
+    private val walkingGate = com.rohanc.navgate.core.FixGate(driving = false)
+
     fun onRawFix(fix: LocationFix) {
+        // A position that no vehicle could have reached (a reflection, a stale network fix) never reaches the map, the tracker or the session.
+        val walking = (backend.state.value.session.route?.profile ?: mutable.value.travelProfile.name.lowercase()) == "walking"
+        if (!(if (walking) walkingGate else drivingGate).accept(fix)) return
         val now = clock.elapsedMillis()
         lastRawFixAt = now
         onSearchLocation(fix)
@@ -309,9 +317,20 @@ class NavGateViewModel(
         onLocationFix(LocationFix(GeoPoint(location.latitude,location.longitude),clock.elapsedMillis()-lastFixAgeMillis,accuracyMeters,heading))
     }
 
+    /** Saves the tags the walker tapped on the arrival card; they stay with the trip on this phone. */
+    fun saveTripFeedback(tripId:String,tags:Set<String>) {
+        feedbackOverrides[tripId]=tags.toSet()
+        mutable.update { it.copy(tripFeedback=it.tripFeedback + (tripId to tags.toSet())) }
+        viewModelScope.launch { feedbackWrites.withLock { storeOperation { userPlacesStore.saveTripFeedback(tripId,tags) } } }
+    }
+
     fun checkSignal() {
         // Idle/Preview ticks do not publish backend snapshots, but their last GPS fix still ages.
-        mutable.update { it.copy(currentLocationUsable=freshCurrentLocation()!=null) }
+        val now=clock.elapsedMillis()
+        val seconds=if(lastRawFixAt<=Long.MIN_VALUE/4) null else (now-lastRawFixAt)/1000.0
+        val navigating=backend.state.value.session.status in NavigationSession.ACTIVE
+        val signal=com.rohanc.navgate.core.SignalState.from(mutable.value.displayAccuracy,seconds,navigating,drivingGate.rejectedCount+walkingGate.rejectedCount)
+        mutable.update { it.copy(currentLocationUsable=freshCurrentLocation()!=null,signal=if(it.signal==signal)it.signal else signal) }
         viewModelScope.launch { backend.tick() }
     }
     private fun applyRoadPreferences(p: FrontendPreferences) {
@@ -367,7 +386,7 @@ class NavGateViewModel(
         }
         mutable.update { it.copy(selectedOrigin=to,selectedDestination=from,selectedEntranceId=null) };recomputePreview()
     }
-    fun clearPlan() { if(!canEditTrip())return;viewModelScope.launch {
+    fun clearPlan() { if(!canEditTrip())return;estimateJob?.cancel();warmJob?.cancel();mutable.update{it.copy(modeEstimates=emptyMap())};viewModelScope.launch {
         backend.clear();mutable.update { it.copy(selectedOrigin=null,selectedDestination=null,focusedPlace=null,preview=null,isPreviewVisible=false,statusMessage=null) }
     } }
     fun finishArrival(keepDestinationContext:Boolean=false,destinationContext:PlaceSearchResult?=null) { val destination=mutable.value.selectedDestination ?: destinationContext;viewModelScope.launch { backend.clear();mutable.update { it.copy(selectedOrigin=null,selectedDestination=null,focusedPlace=if(keepDestinationContext)destination else null,activeTab=AppTab.Explore) } } }
@@ -386,7 +405,12 @@ class NavGateViewModel(
     }
 
     /** Previews a locally built route (the AR practice path) without any network call. */
-    fun previewLocalRoute(route: CampusRoute) { viewModelScope.launch { backend.previewRoute(route) } }
+    fun previewLocalRoute(route: CampusRoute) {
+        if(!canEditTrip()) return
+        estimateJob?.cancel();warmJob?.cancel()
+        mutable.update { it.copy(selectedOrigin=null,selectedDestination=null,preview=null,focusedPlace=null,modeEstimates=emptyMap(),routeChoices=emptyList(),startNotice=null) }
+        viewModelScope.launch { backend.previewRoute(route) }
+    }
 
     /** Switch the previewed route to another choice (fastest, shortest, alternative). */
     fun chooseRoute(routeId: String) { viewModelScope.launch { backend.chooseRoute(routeId) } }
@@ -449,7 +473,8 @@ class NavGateViewModel(
     private suspend fun refreshUserPlaces() {
         storeOperation {
             val saved=userPlacesStore.savedPlaces(); val recents=userPlacesStore.recentPlaces(); val history=userPlacesStore.routeHistory()
-            mutable.update { it.copy(savedPlaces=saved,recentPlaces=recents,routeHistory=history) }
+            val feedback=history.associate { it.tripId to userPlacesStore.tripFeedback(it.tripId) }
+            mutable.update { it.copy(savedPlaces=saved,recentPlaces=recents,routeHistory=history,tripFeedback=feedback + feedbackOverrides) }
         }
     }
     private suspend fun storeOperation(operation: suspend () -> Unit) {
@@ -502,6 +527,7 @@ data class NavGateUiState(
     val preview:RoutePreview?=null,val snapshot:NavigationSnapshot=NavigationSnapshot(),val isLoadingRoute:Boolean=false,
     val isPreviewVisible:Boolean=false,val activeTab:AppTab=AppTab.Explore,val travelProfile:TravelProfile=TravelProfile.Walking,
     val savedPlaces:List<PlaceSearchResult> = emptyList(),val recentPlaces:List<PlaceSearchResult> = emptyList(),
+    val tripFeedback:Map<String,Set<String>> = emptyMap(),
     val routeHistory:List<RouteHistoryEntry> = emptyList(),val cityMode:CityMode=CityMode.PanIndia,val kiitBetaAccess:Boolean=false,
     val showOnboarding:Boolean=true,val selectedEntranceId:String?=null,val statusMessage:String?=null,
     val routeFailure:RouteFailure?=null,val canResume:Boolean=false,val startPending:Boolean=false,
@@ -516,6 +542,8 @@ data class NavGateUiState(
     val areaName:String?=null,
     /** Why the last Start tap did not begin guidance, shown beside the Start button. */
     val startNotice:String?=null,
+    /** How good the position is right now: shown by the signal chip on the guidance screens. */
+    val signal:com.rohanc.navgate.core.SignalState=com.rohanc.navgate.core.SignalState(),
 )
 
 data class ModeEstimate(val etaLabel:String,val distanceLabel:String)

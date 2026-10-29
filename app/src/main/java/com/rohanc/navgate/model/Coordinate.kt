@@ -40,12 +40,13 @@ data class Coordinate(
     }
 }
 
-fun Double.asMetersLabel(): String =
-    if (this >= 1000) {
-        "%.1f km".format(this / 1000.0)
+fun Double.asMetersLabel(): String = coerceAtLeast(0.0).let { it.takeIf { v -> v.isFinite() } ?: 0.0 }.let { metres ->
+    if (metres >= 1000) {
+        "%.1f km".format(metres / 1000.0)
     } else {
-        "${roundToInt()} m"
+        "${metres.roundToInt()} m"
     }
+}
 
 fun Double.asEtaLabel(): String {
     val totalMinutes = (this / 60.0).roundToInt().coerceAtLeast(1)

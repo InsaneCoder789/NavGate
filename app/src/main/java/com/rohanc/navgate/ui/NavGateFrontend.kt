@@ -1,5 +1,7 @@
 package com.rohanc.navgate.ui
 
+import com.rohanc.navgate.ui.journey.RoutesTab
+import com.rohanc.navgate.ui.journey.PipHud
 import android.Manifest
 import android.app.Activity
 import androidx.core.view.WindowCompat
@@ -83,7 +85,9 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     val backend by vm.backendState.collectAsStateWithLifecycle()
     var screen by rememberSaveable { mutableStateOf("Explore") }
     val manualFormState=rememberSaveableStateHolder()
+    var manualEditorSession by rememberSaveable { mutableIntStateOf(0) }
     var manualPinsJson by rememberSaveable { mutableStateOf("[]") }
+    var manualEditRoute by remember { mutableStateOf<com.rohanc.navgate.core.ManualRoute?>(null) }
     val manualPins=remember(manualPinsJson){Json.decodeFromString<List<RoutePin>>(manualPinsJson)}
     var manualPointJson by rememberSaveable { mutableStateOf<String?>(null) }
     val manualPoint=remember(manualPointJson){manualPointJson?.let{Json.decodeFromString<GeoPoint>(it)}}
@@ -125,7 +129,10 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
     val dark=when(prefs.appearance){"light"->false;"system"->isSystemInDarkTheme();else->true}
     val fusion=remember{MotionFusion()}
     if(trackLocation)LocationPipeline(vm,fusion,permission,active,screen){ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)}}
-    val voiceAvailability=GuidanceRuntime(vm.backendState, vm.uiState, permission, vm::checkSignal)
+    val voiceAvailability=GuidanceRuntime(vm.backendState, vm.uiState, permission, vm::checkSignal, onExit = { vm.stopNavigation() })
+    val inPip by com.rohanc.navgate.nav.NavigationEvents.inPictureInPicture.collectAsState()
+    LaunchedEffect(active, screen) { com.rohanc.navgate.nav.NavigationEvents.setPipEligible(com.rohanc.navgate.nav.pipEligible(active, screen)) }
+    DisposableEffect(Unit) { onDispose { com.rohanc.navgate.nav.NavigationEvents.setPipEligible(false) } }
     LaunchedEffect(backend.session.route?.id){selectedManeuver=null}
     LaunchedEffect(backend.initializing){if(!backend.initializing)vm.refreshRegionStatus()}
     LaunchedEffect(backend.session.status,backend.initializing){if(!backend.initializing)screen=sessionDestination(backend.session.status,screen)}
@@ -165,29 +172,35 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         }
         if(screen=="Place")vm.clearFocusedPlace()
         if(screen=="ManualPin"){screen="My routes";return}
+        if(screen in listOf("Camera","Live") && backend.session.route?.destinationPlaceId==PracticeRoute.PLACE_ID){
+            vm.switchMode(PresentationMode.MAP);vm.clearPlan();screen="Settings";return
+        }
         if(screen=="Camera"||screen=="Live")vm.switchMode(PresentationMode.MAP)
         screen=frontendBack(screen,active,placeCaller,settingsCaller,utilityCaller,searchFor,directionCaller)
     }
-    DisposableEffect(dark) {
+    var introMode by remember{mutableStateOf<String?>(null)}
+    val darkSystemBars=dark || screen in setOf("Camera","Live","Setup") || introMode!=null || (screen=="Explore" && ui.showOnboarding)
+    DisposableEffect(darkSystemBars) {
         val window=(context as? Activity)?.window
         val bars=window?.let{WindowCompat.getInsetsController(it,it.decorView)}
         val oldStatus=bars?.isAppearanceLightStatusBars
         val oldNavigation=bars?.isAppearanceLightNavigationBars
-        bars?.isAppearanceLightStatusBars=!dark
-        bars?.isAppearanceLightNavigationBars=!dark
+        bars?.isAppearanceLightStatusBars=!darkSystemBars
+        bars?.isAppearanceLightNavigationBars=!darkSystemBars
         onDispose {
             if(oldStatus!=null)bars?.isAppearanceLightStatusBars=oldStatus
             if(oldNavigation!=null)bars?.isAppearanceLightNavigationBars=oldNavigation
         }
     }
     BackHandler(enabled=screen!="Explore"){back()}
+    BackHandler(enabled=introMode!=null){introMode=null}
     val hazeState=rememberHazeState()
     // The compass loop polls forever, so it only runs while the camera screen needs it.
     val headingState = if (screen=="Camera"||screen=="Live") rememberHeadingState(backend.session.location) else remember { mutableStateOf<Double?>(null) }
     val heading by headingState
+    var arHeading by remember{mutableStateOf<Double?>(null)}
     val alignment=alignmentStatus(ui.snapshot,heading)
     // First time into AR or Live view: show how it works, then carry on to where the driver was going.
-    var introMode by remember{mutableStateOf<String?>(null)}
     var introGo by remember{mutableStateOf<(()->Unit)?>(null)}
     fun gated(mode:String,go:()->Unit){val seen=if(mode=="VR")prefs.vrIntroSeen else prefs.arIntroSeen;if(seen)go() else{introMode=mode;introGo=go}}
     val actions=JourneyActions(
@@ -196,14 +209,14 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         openSettings={openUtility("Settings")},openTab={name->utilityStack=emptyList();screen=name},openMyRoutes={screen="My routes"},
         clearRecents={clearDialog=true},useCurrentLocation={currentOrigin()},chooseOnMap={type->searchFor=type;vm.updateSearch("");screen="MapPick"},
         swap=vm::swapEndpoints,clearPlan={vm.clearPlan();selectedManeuver=null;screen="Explore"},setProfile={vm.setTravelProfile(it)},replan=vm::replan,start=vm::startNavigation,
-        requestStop={stopDialog=true},requestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},
+        requestStop={if(backend.session.route?.destinationPlaceId==PracticeRoute.PLACE_ID){vm.switchMode(PresentationMode.MAP);vm.clearPlan();screen="Settings"}else stopDialog=true},requestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},
         openAppSettings={appSettings()},showSteps={screen="Steps"},openCamera={gated("AR"){screen="Camera";vm.switchMode(PresentationMode.AR_ASSIST)}},
         chooseRoute={vm.chooseRoute(it)},
         exportArDiagnostics={
             val version=runCatching{context.packageManager.getPackageInfo(context.packageName,0).let{"${it.versionName} (${androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it)})"}}.getOrDefault("?")
             context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT,"NavGate AR diagnostics").putExtra(Intent.EXTRA_TEXT,com.rohanc.navgate.ui.ar.ArDiagnostics.export(version)),"Share AR diagnostics"))
         },
-        practiceAr={gated("AR"){
+        practiceAr={if(active || ui.startPending || ui.stopPending) feedback="Stop the current trip before trying AR practice." else gated("AR"){
             val here=ui.displayLocation
             if(here==null||!permission)feedback="Turn on location to try AR here."
             else if(!cameraPermission){cameraLauncher.launch(Manifest.permission.CAMERA)}
@@ -243,6 +256,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
         cancelPick={back()},
         openCategory={category->searchFor="place";vm.updateSearch(category.query);screen="Results"},closeResults={vm.updateSearch("");screen="Explore"},
         email={address->runCatching{context.startActivity(Intent(Intent.ACTION_SENDTO,Uri.parse("mailto:"+address.trim())))}},
+        saveFeedback={id,tags->vm.saveTripFeedback(id,tags)},
         call={phone->runCatching{context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+phone.filter{it.isDigit()||it=='+'})))}},
         openWebsite={site->runCatching{context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(if(site.startsWith("http://")||site.startsWith("https://"))site else "https://$site")))}})
     val locationServicesOn=com.rohanc.navgate.ui.location.rememberLocationServicesOn()
@@ -267,7 +281,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                 Box(Modifier.fillMaxSize().hazeSource(hazeState)){
                     val mapUi=if(screen in listOf("Search","Results")&&searchFor=="saved")ui.copy(places=vm.searchSaved(ui.searchQuery))else ui
                     // Under the AR camera the map is never seen, so it is not drawn at all (VR shows it, and keeps it).
-                    if(renderMap&&screen!="Camera") NativeMap(mapUi,dark||(screen=="Live"&&isNightHour(java.time.LocalTime.now().hour)),permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},onToggle3d={vm.updateFrontendPreferences(prefs.copy(buildings3d=!prefs.buildings3d))},nextTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)?.target?.let{Coordinate(it.latitude,it.longitude)},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),showControls=screen=="Navigation",live=screen=="Live",liveHeading=if(screen=="Live")heading else null,onLaneSide={vm.updateFrontendPreferences(prefs.copy(laneSide=it))},routeGeometry=navGeometry,trackInput=navTrack,onPin=when(screen){
+                    if(renderMap&&screen!="Camera") NativeMap(mapUi,dark||(screen=="Live"&&isNightHour(java.time.LocalTime.now().hour)),permission,active,backend.session.sessionId,backend.session.accuracyMeters,inspectManualPoint.takeIf{screen in listOf("My routes","ManualPin")} ?: backend.session.route?.maneuvers?.getOrNull(selectedManeuver ?: -1)?.target?.let{Coordinate(it.latitude,it.longitude)},onFeedback={feedback=it},bottomInsetDp=if(journeyMap)insetBottom else LocalConfiguration.current.screenHeightDp*0.42f,topInsetDp=if(journeyMap)insetTop else 80f,controlsBottomDp=if(journeyMap)insetBottom+12f else null,onRequestLocation={locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION))},screenIsExplore=screen=="Explore",showPins=screen=="Results",onOpenLayers={showLayers=true},onToggle3d={vm.updateFrontendPreferences(prefs.copy(buildings3d=!prefs.buildings3d))},nextTurn=backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)?.target?.let{Coordinate(it.latitude,it.longitude)},motion=if(showMotion)vm.motionState else null,alongMeters=backend.session.alongMeters,manualPins=if(screen in listOf("My routes","ManualPin"))manualPins else emptyList(),showControls=screen=="Navigation",live=screen=="Live",liveHeading=if(screen=="Live")arHeading else null,onLaneSide={vm.updateFrontendPreferences(prefs.copy(laneSide=it))},routeGeometry=navGeometry,trackInput=navTrack,onPin=when(screen){
                         "ManualPin"->({point->manualPointJson=Json.encodeToString(point);inspectManualPoint=Coordinate(point.latitude,point.longitude);screen="My routes"})
                         "MapPick"->({point->choose(PlaceSearchResult("pin:${java.util.UUID.randomUUID()}","Dropped pin","Selected on map",point.latitude,point.longitude,com.rohanc.navgate.model.PlaceType.Landmark))})
                         else->null
@@ -279,7 +293,7 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                     if(screen=="Camera" && cameraPermission && arRoute!=null){
                         com.rohanc.navgate.ui.ar.ArNavigationLayer(arRoute,navGeometry,navTrack ?: com.rohanc.navgate.ui.map.TrackInput(arRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,true),
                             backend.session.snappedLocation,ui.displayLocation?.let{GeoPoint(it.latitude,it.longitude)},backend.session.distanceToManeuver,(arRoute.profile)=="driving",
-                            when(prefs.arFps){"saver"->com.rohanc.navgate.ui.ar.ArFpsMode.Saver;"smooth"->com.rohanc.navgate.ui.ar.ArFpsMode.Smooth;"max"->com.rohanc.navgate.ui.ar.ArFpsMode.Max;else->com.rohanc.navgate.ui.ar.ArFpsMode.Auto},Modifier.fillMaxSize(),prefs.arObjects,backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)?.kind)
+                            when(prefs.arFps){"saver"->com.rohanc.navgate.ui.ar.ArFpsMode.Saver;"smooth"->com.rohanc.navgate.ui.ar.ArFpsMode.Smooth;"max"->com.rohanc.navgate.ui.ar.ArFpsMode.Max;else->com.rohanc.navgate.ui.ar.ArFpsMode.Auto},Modifier.fillMaxSize(),prefs.arObjects,backend.session.route?.maneuvers?.getOrNull(backend.session.maneuverIndex)?.kind,statusTopDp=insetTop.coerceAtLeast(178f),statusBottomDp=insetBottom)
                     }
                 }
                 if(screen=="Live"&&cameraPermission){
@@ -304,34 +318,39 @@ fun NavGateFrontend(injectedViewModel:NavGateViewModel?=null,renderMap:Boolean=t
                             liveRoute, navGeometry,
                             navTrack ?: com.rohanc.navgate.ui.map.TrackInput(liveRoute.routeToShapeMeters(backend.session.alongMeters),backend.session.speedAlongMps,backend.session.fixElapsedMillis,true),
                             backend.session.snappedLocation, liveHere, backend.session.distanceToManeuver, false, com.rohanc.navgate.ui.ar.ArFpsMode.Auto, mod, false,
-                            liveRoute.maneuvers.getOrNull(liveIndex)?.kind, dome
+                            liveRoute.maneuvers.getOrNull(liveIndex)?.kind, dome, onCameraHeading={arHeading=it}
                         )}}else null
                     Box(Modifier.fillMaxSize()){LiveCameraLayer(bubble,
                         secs.takeIf{it>0}?.let{java.time.LocalTime.now().plusSeconds(it.toLong()).format(java.time.format.DateTimeFormatter.ofPattern("h:mm a"))},
                         if(secs>=3600)"%d h %d min".format((secs/3600).toInt(),((secs%3600)/60).toInt()) else "${(secs/60).toInt().coerceAtLeast(1)} min",
                         backend.session.remainingMeters.asMetersLabel(),
-                        arSlot)}
+                        arSlot, rawStatusMessage=alignment.label.takeIf { alignment.level != AlignmentLevel.Aligned })}
                 }
                 // Map details replaces the screen underneath instead of stacking on it.
-                if(!showLayers)JourneyUi(data,{top,bottom->insetTop=top;insetBottom=bottom},actions){
+                if(inPip){
+                    val s=backend.session;val cur=data.steps.getOrNull(s.maneuverIndex)
+                    val note=com.rohanc.navgate.nav.GuidanceNote.of(s.instruction,s.distanceToManeuver,s.remainingSeconds,s.remainingMeters)
+                    PipHud(com.rohanc.navgate.ui.journey.maneuverIcon(cur?.maneuverType?:com.rohanc.navgate.model.ManeuverType.Straight),note.chip,s.instruction,note.trip,onInsets={top,bottom->insetTop=top;insetBottom=bottom})
+                } else if(!showLayers)JourneyUi(data,{top,bottom->insetTop=top;insetBottom=bottom},actions){
+                    if(screen=="Routes")RoutesTab(services.manualRoutes,actions,{itinerary->vm.planItinerary(itinerary){ok->if(ok)screen="Directions"}},{route->manualFormState.removeState("manual-editor-$manualEditorSession");manualEditorSession++;manualPointJson=null;inspectManualPoint=null;manualEditRoute=route;manualPinsJson=Json.encodeToString(route?.pins ?: emptyList<RoutePin>());screen="My routes"})
                     if(screen=="My routes")GlassPage("My routes",actions.back){
                         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal=16.dp).padding(bottom=24.dp)){
-                            manualFormState.SaveableStateProvider("manual-editor"){ManualRoutePanel(services.manualRoutes,manualPins,{manualPinsJson=Json.encodeToString(it)},manualPoint,
-                                onPick={screen="ManualPin"},onClearPoint={manualPointJson=null},onInspect={inspectManualPoint=Coordinate(it.latitude,it.longitude)},onClearInspection={inspectManualPoint=null},onRoadRoute={itinerary->vm.planItinerary(itinerary){ok->if(ok)screen="Directions"}})}
+                            manualFormState.SaveableStateProvider("manual-editor-$manualEditorSession"){ManualRoutePanel(services.manualRoutes,manualPins,{manualPinsJson=Json.encodeToString(it)},manualPoint,
+                                editorSession=manualEditorSession,onPick={screen="ManualPin"},onClearPoint={manualPointJson=null},onInspect={inspectManualPoint=Coordinate(it.latitude,it.longitude)},onClearInspection={inspectManualPoint=null},onRoadRoute={itinerary->vm.planItinerary(itinerary){ok->if(ok)screen="Directions"}},initialRoute=manualEditRoute,onInitialRouteShown={manualEditRoute=null})}
                         }
                     }
                 }
                 introMode?.let{m->com.rohanc.navgate.ui.journey.ArIntroOverlay(m,onStart={
                     vm.updateFrontendPreferences(if(m=="VR")prefs.copy(vrIntroSeen=true) else prefs.copy(arIntroSeen=true))
                     val go=introGo;introMode=null;introGo=null;go?.invoke()
-                },onClose={introMode=null;introGo=null})}
+                },onClose={introMode=null;introGo=null},reduceMotion=prefs.reduceMotion)}
                 if(showLayers)LayersSheet(prefs,{vm.updateFrontendPreferences(it)},{showLayers=false})
             }
         }
-        if(stopDialog)NgDialog("Stop this trip?","You can plan another route after stopping.","Stop",{vm.stopNavigation();stopDialog=false},{stopDialog=false},"Keep navigating",confirmEnabled=!ui.stopPending,icon=Icons.Rounded.StopCircle)
+        if(stopDialog&&!inPip)NgDialog("Stop this trip?","You can plan another route after stopping.","Stop",{vm.stopNavigation();stopDialog=false},{stopDialog=false},"Keep going",confirmEnabled=!ui.stopPending,destructive=true,icon=Icons.Rounded.StopCircle)
         feedback?.let{message->NgDialog("NavGate",message,"OK",{feedback=null},{feedback=null})}
-        if(clearHistoryDialog)NgDialog("Clear trip history?","Saved places, recent places and an active trip are retained.","Clear",{vm.clearRouteHistory();clearHistoryDialog=false},{clearHistoryDialog=false},"Cancel")
-        if(clearDialog)NgDialog("Clear recent places?","Your saved places will remain available.","Clear",{vm.clearRecents();clearDialog=false},{clearDialog=false},"Cancel")
+        if(clearHistoryDialog)NgDialog("Clear trip history?","Saved places, recent places and an active trip are retained.","Clear",{vm.clearRouteHistory();clearHistoryDialog=false},{clearHistoryDialog=false},"Cancel",destructive=true)
+        if(clearDialog)NgDialog("Clear recent places?","Your saved places will remain available.","Clear",{vm.clearRecents();clearDialog=false},{clearDialog=false},"Cancel",destructive=true)
     }}
 }
 

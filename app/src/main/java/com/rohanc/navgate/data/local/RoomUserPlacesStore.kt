@@ -43,6 +43,13 @@ class RoomUserPlacesStore(context: Context, private val database: NavGateDatabas
     override suspend fun recentPlaces(): List<PlaceSearchResult> { initialize(); return places(RECENTS,30) }
     override suspend fun routeHistory(): List<RouteHistoryEntry> { initialize(); return dao.records(HISTORY,100).map { Json.decodeFromString(it.payload) } }
 
+    override suspend fun saveTripFeedback(tripId: String, tags: Set<String>) {
+        initialize()
+        if (tags.isEmpty()) dao.remove(FEEDBACK, tripId) else dao.put(UserRecord(FEEDBACK, tripId, Json.encodeToString(tags.toList().sorted()), System.currentTimeMillis()))
+    }
+
+    override suspend fun tripFeedback(tripId: String): Set<String> { initialize(); return dao.record(FEEDBACK, tripId)?.let { runCatching { Json.decodeFromString<List<String>>(it.payload).toSet() }.getOrNull() } ?: emptySet() }
+
     override suspend fun toggleSaved(place: PlaceSearchResult): List<PlaceSearchResult> {
         initialize()
         database.withTransaction {
@@ -85,5 +92,6 @@ class RoomUserPlacesStore(context: Context, private val database: NavGateDatabas
         private const val SAVED = "saved"
         private const val RECENTS = "recent"
         private const val HISTORY = "history"
+        private const val FEEDBACK = "trip-feedback"
     }
 }
