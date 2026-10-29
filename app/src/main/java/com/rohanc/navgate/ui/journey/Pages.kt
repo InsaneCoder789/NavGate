@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +29,7 @@ import com.rohanc.navgate.core.RegionStatus
 import com.rohanc.navgate.model.Coordinate
 import com.rohanc.navgate.model.RouteHistoryEntry
 import com.rohanc.navgate.ui.ar.VoiceAvailability
+import com.rohanc.navgate.model.asMetersLabel
 import com.rohanc.navgate.model.tidy
 import com.rohanc.navgate.ui.state.CityMode
 import com.rohanc.navgate.ui.state.NavGateUiState
@@ -39,9 +41,9 @@ import java.util.Date
 fun GlassPage(title: String, onBack: (() -> Unit)?, modifier: Modifier = Modifier, actions: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
     GlassPanel(modifier.fillMaxSize(), shape = RectangleShape, weight = GlassWeight.Thick, shadow = false, minOpacity = 0.62f, solidInLight = true) {
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            Row(Modifier.padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } else Spacer(Modifier.width(12.dp))
-                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Medium)
+            Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (onBack != null) com.rohanc.navgate.ui.components.MapControlButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } else Spacer(Modifier.width(6.dp))
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
                 actions()
             }
             content()
@@ -81,13 +83,13 @@ fun BoxScope.SavedScreen(ui: NavGateUiState, userLocation: Coordinate?, a: Journ
 @Composable
 fun BoxScope.RecentsScreen(ui: NavGateUiState, userLocation: Coordinate?, a: JourneyActions) {
     var trips by rememberSaveable { mutableStateOf(false) }
-    TabPage("Recents", "Recent", a, actions = { TextButton(onClick = if (trips) a.clearHistory else a.clearRecents) { Text("Clear") } }) {
+    TabPage("Recents", "Recents", a, actions = { TextButton(onClick = if (trips) a.clearHistory else a.clearRecents) { Text("Clear") } }) {
         Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(!trips, { trips = false }, { Text("Places") }); FilterChip(trips, { trips = true }, { Text("Trips") })
         }
         if (trips) {
             if (ui.routeHistory.isEmpty()) EmptyState(Icons.Rounded.History, "Your trips will appear here.", "Completed and stopped trips are kept on this phone.")
-            else Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) { ui.routeHistory.forEach { TripRow(it, a) } }
+            else Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) { TripSections(ui.routeHistory, a) }
         } else {
             if (ui.recentPlaces.isEmpty()) EmptyState(Icons.Rounded.History, "Places you choose will appear here.", "Search for somewhere to get started.")
             else Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
@@ -100,19 +102,20 @@ fun BoxScope.RecentsScreen(ui: NavGateUiState, userLocation: Coordinate?, a: Jou
 @Composable
 internal fun TripRow(trip: RouteHistoryEntry, a: JourneyActions) {
     Row(Modifier.fillMaxWidth().clickable { a.planAgain(trip.destinationTitle) }.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Box(Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(if (trip.travelMode == com.rohanc.navgate.model.TravelProfile.Driving) Icons.Rounded.DirectionsCar else Icons.Rounded.DirectionsWalk, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        Box(Modifier.size(44.dp).background(com.rohanc.navgate.ui.theme.NavTokens.pulse(), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(if (trip.travelMode == com.rohanc.navgate.model.TravelProfile.Driving) Icons.Rounded.DirectionsCar else Icons.Rounded.DirectionsWalk, null, tint = androidx.compose.ui.graphics.Color.White)
         }
         Column(Modifier.weight(1f)) {
-            Text(trip.destinationTitle.tidy(), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(trip.destinationTitle.tidy(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("${tripStatusLabel(trip.status)} · ${tripWhen(trip.recordedAtEpochMillis)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Text("Again", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        trip.estimatedDistanceMeters?.takeIf { it > 0 }?.let { Text(it.asMetersLabel(), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false) }
+            ?: Text("Again", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     }
 }
 
 @Composable
-private fun EmptyState(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, hint: String) {
+internal fun EmptyState(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, hint: String) {
     Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Icon(icon, null, Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(title, style = MaterialTheme.typography.titleMedium)
@@ -132,11 +135,7 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
     CompositionLocalProvider(LocalGlassOpacity provides level) { GlassPage("Settings", a.back) {
         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             SettingsGroup("Appearance") {
-                Row(Modifier.selectableGroup().fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (key, label) ->
-                        FilterChip(model.prefs.appearance == key, { a.setPrefs(model.prefs.copy(appearance = key)) }, { Text(label) }, Modifier.weight(1f))
-                    }
-                }
+                SegmentedRow(listOf("system" to "System", "light" to "Light", "dark" to "Dark"), model.prefs.appearance) { a.setPrefs(model.prefs.copy(appearance = it)) }
                 Column(Modifier.fillMaxWidth()) {
                     Text("Glass transparency", style = MaterialTheme.typography.bodyLarge)
                     Text("From clear see-through glass to solid panels.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -152,11 +151,7 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
             }
             SettingsGroup("AR smoothness") {
                 Text("Frames per second. How smoothly the AR road line moves. ARCore's camera tops out at 60 frames a second; Max also redraws the line at your screen's own rate (up to 120 Hz) by predicting the camera between frames, which uses more battery.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.selectableGroup().fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("auto" to "Auto", "saver" to "30", "smooth" to "60", "max" to "Max").forEach { (key, label) ->
-                        FilterChip(model.prefs.arFps == key, { a.setPrefs(model.prefs.copy(arFps = key)) }, { Text(label, maxLines = 1, softWrap = false) }, Modifier.weight(1f), shape = RoundedCornerShape(16.dp))
-                    }
-                }
+                SegmentedRow(listOf("auto" to "Auto", "saver" to "30", "smooth" to "60", "max" to "Max"), model.prefs.arFps) { a.setPrefs(model.prefs.copy(arFps = it)) }
                                 NgTonalButton("Try AR here (practice path)", Icons.Rounded.ViewInAr, a.practiceAr, Modifier.fillMaxWidth())
                 NgTonalButton("Share AR diagnostics", Icons.Rounded.Share, a.exportArDiagnostics, Modifier.fillMaxWidth())
             }
@@ -181,7 +176,7 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
             }
             SettingsGroup("Privacy") {
                 listOf(
-                    "Your position stays on this phone. It is used to guide you.",
+                    "Live GPS tracking is processed on this phone for guidance. Online search and routing share the location information described below.",
                     "Searches send the words you type and a rough area to Photon.",
                     "Routes send the start and destination to Valhalla (OpenStreetMap Germany).",
                     "Map tiles come from OpenFreeMap.",
@@ -213,15 +208,15 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
 
 @Composable private fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(horizontal = 4.dp))
-        GlassPanel(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), weight = GlassWeight.Thin, shadow = false) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content) }
+        Text(title.uppercase(), style = MaterialTheme.typography.labelSmall, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
+        GlassPanel(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), weight = GlassWeight.Thin, shadow = false, minOpacity = 0.8f) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content) }
     }
 }
 
 @Composable private fun SwitchRow(label: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) { Text(label, style = MaterialTheme.typography.bodyLarge); Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        Switch(checked, onChange)
+        Column(Modifier.weight(1f)) { Text(label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.ExtraBold); Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        Switch(checked, onChange, colors = SwitchDefaults.colors(checkedThumbColor = androidx.compose.ui.graphics.Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary))
     }
 }
 
@@ -236,14 +231,14 @@ fun BoxScope.SettingsScreen(model: SettingsModel, a: JourneyActions) {
 fun BoxScope.OfflineScreen(region: RegionStatus?, tripActive: Boolean, a: JourneyActions) {
     GlassPage("Offline & region data", a.back) {
         Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SettingsGroup("Test places") {
+            SettingsGroup("Regional catalogue") {
                 if (region == null) Text("Region status is not available yet.", style = MaterialTheme.typography.bodyMedium)
                 else {
-                    Text("${region.placeCount} places · ${region.missingCoordinateCount} without coordinates", style = MaterialTheme.typography.bodyMedium)
+                    Text("${region.placeCount} catalogue places · ${region.missingCoordinateCount} without coordinates", style = MaterialTheme.typography.bodyMedium)
                     listOfNotNull(region.version?.let { "Version: $it" }, region.reviewedAt?.let { "Reviewed: $it" }, region.source?.let { "Source: $it" }, region.attribution, region.license?.let { "License: $it" })
                         .forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
-                Text("Without a saved offline map, map tiles need a connection. Campus data and saved places are stored on this phone.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("These counts cover the selected regional catalogue, not the separate India, Mumbai or Odisha search indexes. Saved places stay on this phone. Map tiles need a connection unless you have saved an offline map.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             OfflineMapAndRoutingGroups(tripActive)
         }
@@ -255,8 +250,9 @@ fun BoxScope.OfflineScreen(region: RegionStatus?, tripActive: Boolean, a: Journe
 fun BoxScope.PickPrompt(text: String, a: JourneyActions) {
     GlassPanel(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(12.dp), shape = CircleShape) {
         Row(Modifier.padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge)
-            TextButton(onClick = a.cancelPick) { Text("Cancel") }
+            Icon(Icons.Rounded.Place, null, Modifier.size(20.dp).align(Alignment.CenterVertically), tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(10.dp))
+            Text(text, Modifier.weight(1f, fill = false), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.ExtraBold)
+            TextButton(onClick = a.cancelPick) { Text("Cancel", fontWeight = FontWeight.ExtraBold) }
         }
     }
 }
@@ -279,4 +275,41 @@ internal fun tripWhen(millis: Long): String {
         sameYear && dayDiff == 1 -> "Yesterday, $time"
         else -> java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(Date(millis)) + ", $time"
     }
+}
+
+/** Equal choices in one pill: the chosen one is the white (light) or blue (dark) segment. */
+@Composable
+internal fun SegmentedRow(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
+    val dark = com.rohanc.navgate.ui.theme.NavTokens.isDark()
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)).padding(4.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        options.forEach { (key, label) ->
+            val on = key == selected
+            Box(Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(12.dp))
+                .then(if (on) (if (dark) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)) else Modifier.background(com.rohanc.navgate.ui.theme.NavTokens.porcelain())) else Modifier)
+                .selectable(on, role = Role.RadioButton, onClick = { onSelect(key) }), contentAlignment = Alignment.Center) {
+                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, maxLines = 1, softWrap = false, color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+/** Trips grouped by day (Today, Yesterday, then the date), each group one card, newest first. */
+@Composable
+internal fun TripSections(trips: List<RouteHistoryEntry>, a: JourneyActions) {
+    val groups = trips.sortedByDescending { it.recordedAtEpochMillis }.groupBy { tripDay(it.recordedAtEpochMillis) }
+    groups.forEach { (day, entries) ->
+        Text(day.uppercase(), Modifier.padding(start = 20.dp, top = 14.dp, bottom = 4.dp), style = MaterialTheme.typography.labelSmall, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        GlassPanel(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(22.dp), weight = GlassWeight.Regular, minOpacity = 0.8f, shadow = false) {
+            Column { entries.forEachIndexed { i, trip -> if (i > 0) HorizontalDivider(Modifier.padding(start = 76.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .6f)); TripRow(trip, a) } }
+        }
+    }
+}
+
+/** "Today", "Yesterday" or "26 Oct". */
+internal fun tripDay(millis: Long): String {
+    val then = java.util.Calendar.getInstance().apply { timeInMillis = millis }; val now = java.util.Calendar.getInstance()
+    fun same(a: java.util.Calendar, b: java.util.Calendar) = a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) && a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR)
+    if (same(then, now)) return "Today"
+    if (same(then, (now.clone() as java.util.Calendar).apply { add(java.util.Calendar.DAY_OF_YEAR, -1) })) return "Yesterday"
+    return java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(millis))
 }

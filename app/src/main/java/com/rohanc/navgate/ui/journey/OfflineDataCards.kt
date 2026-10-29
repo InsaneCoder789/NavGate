@@ -100,7 +100,7 @@ private fun OfflineMapsGroup(store: MapPackStore, tripActive: Boolean) {
             MapPackStore.Status.Idle -> Unit
         }
         message?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
-        listOf(10.0 to "Around me · 10 km", 25.0 to "Around me · 25 km", 50.0 to "Around me · 50 km (a whole city region)").forEach { (radius, label) ->
+        listOf(10.0 to "Around me · 10 km", 25.0 to "Around me · 25 km", 50.0 to "Around me · 50 km").forEach { (radius, label) ->
             NgTonalButton(label, Icons.Rounded.Download, {
                 val here = lastKnown(context)
                 if (here == null) message = "Turn on location (and open the map once) so NavGate knows which area to save."
@@ -126,7 +126,7 @@ private fun OfflineRoutingGroup(data: RoutingDataStore) {
     val suggestion = remember(here) { here?.let { RoutingTiles.nameFor(it) } }
     LaunchedEffect(suggestion) { if (suggestion != null && suggestion !in sizes) sizes = sizes + (suggestion to data.remoteSize(suggestion)) }
     OfflineGroup("Offline routing") {
-        Text("With routing data on the phone, NavGate can plan and re-plan driving and walking routes with no connection. It is used when the online router cannot answer.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("New routes and rerouting currently use Valhalla online. A previously cached route may remain available without a connection. Downloaded BRouter data is stored locally but is not used by the current router.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (installed.isEmpty()) Text("No routing data yet.", style = MaterialTheme.typography.bodyMedium)
         installed.forEach { tile ->
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -152,7 +152,8 @@ private fun OfflineRoutingGroup(data: RoutingDataStore) {
         }
         if (suggestion != null && !data.isInstalled(suggestion) && suggestion !in progress) {
             val size = sizes[suggestion]
-            NgPrimaryButton("Download routing data here" + (size?.let { " · ${megabytes(it)}" } ?: ""), Icons.Rounded.Download, { data.download(suggestion) }, Modifier.fillMaxWidth())
+            Text(size?.let { "Download size: ${megabytes(it)}" } ?: "Download size: unavailable", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            NgPrimaryButton("Download", Icons.Rounded.Download, { data.download(suggestion) }, Modifier.fillMaxWidth())
             Text("Covers ${areaLabel(suggestion)}, a 5° by 5° area. Trips near its edge may need the neighbouring area too.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else if (suggestion == null) {
             Text("Turn on location to see which routing data covers where you are.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

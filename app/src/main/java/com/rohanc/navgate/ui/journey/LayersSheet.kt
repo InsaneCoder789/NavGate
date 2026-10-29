@@ -18,21 +18,17 @@ fun BoxScope.LayersSheet(prefs: FrontendPreferences, onChange: (FrontendPreferen
     NgSheet(Modifier.align(Alignment.BottomCenter)) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Map details", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                Text("Map details", Modifier.weight(1f), style = MaterialTheme.typography.headlineMedium)
                 NgRoundButton(Icons.Rounded.Close, "Close map details", onDismiss)
             }
-            Text("Map style", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Row(Modifier.selectableGroup().fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("system" to "Auto", "light" to "Light", "dark" to "Dark").forEach { (key, label) ->
-                    FilterChip(prefs.appearance == key, { onChange(prefs.copy(appearance = key)) }, { Text(label) }, Modifier.weight(1f), shape = RoundedCornerShape(16.dp))
-                }
-            }
+            Text("STYLE", style = MaterialTheme.typography.labelSmall, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            SegmentedRow(listOf("system" to "Auto", "light" to "Light", "dark" to "Dark"), prefs.appearance) { onChange(prefs.copy(appearance = it)) }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("3D buildings", style = MaterialTheme.typography.bodyLarge)
                     Text("Show building heights when the map is tilted.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(prefs.buildings3d, { onChange(prefs.copy(buildings3d = it)) })
+                Switch(prefs.buildings3d, { onChange(prefs.copy(buildings3d = it)) }, colors = SwitchDefaults.colors(checkedThumbColor = androidx.compose.ui.graphics.Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary))
             }
         }
     }
