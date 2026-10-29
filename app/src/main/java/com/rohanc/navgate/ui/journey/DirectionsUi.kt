@@ -18,6 +18,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.rohanc.navgate.model.asMetersLabel
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -56,12 +60,12 @@ private fun BoxScope.DirectionsContent(ui: NavGateUiState, steps: List<RouteStep
             IconButton(onClick = a.back, modifier = Modifier.size(44.dp)) { Icon(Icons.Rounded.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onSurface) }
             RouteStepper(Modifier.padding(start = 2.dp, end = 6.dp))
             Column(Modifier.weight(1f)) {
-                EndpointText(origin?.title ?: if (permission) "Your location" else "Choose start", origin == null || origin.id.startsWith("live"), { a.openSearch("from") })
+                EndpointText("FROM", origin?.title ?: if (permission) "Your location" else "Choose start", origin == null || origin.id.startsWith("live"), { a.openSearch("from") })
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
-                EndpointText(destination?.title ?: "Choose destination", false, { a.openSearch("to") })
+                EndpointText("TO", destination?.title ?: "Choose destination", false, { a.openSearch("to") })
             }
             val canSwap = origin != null && destination != null
-            IconButton(onClick = a.swap, enabled = canSwap, modifier = Modifier.size(44.dp)) {
+            com.rohanc.navgate.ui.components.MapControlButton(onClick = a.swap, enabled = canSwap) {
                 Icon(Icons.Rounded.SwapVert, "Swap start and destination", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (canSwap) 1f else 0.38f))
             }
         }
@@ -69,8 +73,8 @@ private fun BoxScope.DirectionsContent(ui: NavGateUiState, steps: List<RouteStep
     val screenDp = LocalConfiguration.current.screenHeightDp
     val topDp = with(density) { topPx.toDp().value }
     // Expanded steps may grow until just below the route card, never over it.
-    val maxHeight = (if (showSteps) (screenDp - topDp - 12f).coerceAtLeast(240f) else screenDp * 0.44f).dp
-    NgSheet(Modifier.align(Alignment.BottomCenter).heightIn(max = maxHeight).onSizeChanged { bottomPx = it.height }, onGrabber = { showSteps = !showSteps }) {
+    val maxHeight = (if (showSteps) (screenDp - topDp - 12f).coerceAtLeast(240f) else screenDp * 0.54f).dp
+    NgSheet(Modifier.align(Alignment.BottomCenter).heightIn(max = maxHeight).onSizeChanged { bottomPx = it.height }, onGrabber = { showSteps = !showSteps }, onGrabberDrag = { expand -> showSteps = expand }) {
         Column(Modifier.navigationBarsPadding()) {
             Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(if (driving) "Drive" else "Walk", Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
@@ -100,11 +104,12 @@ private fun BoxScope.DirectionsContent(ui: NavGateUiState, steps: List<RouteStep
     }
 }
 
-/** One line of the route card: just the place name, 48 dp high, so the stepper beside it lines up. */
+/** One line of the route card: a small FROM or TO label over the place name, 52 dp high, so the stepper beside it lines up. */
 @Composable
-private fun EndpointText(text: String, highlight: Boolean, onClick: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(48.dp).clickable(onClick = onClick), contentAlignment = Alignment.CenterStart) {
-        Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium,
+private fun EndpointText(label: String, text: String, highlight: Boolean, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().height(52.dp).clickable(onClick = onClick), verticalArrangement = Arrangement.Center) {
+        Text(label, style = MaterialTheme.typography.labelSmall, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold,
             color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
     }
 }
@@ -112,32 +117,37 @@ private fun EndpointText(text: String, highlight: Boolean, onClick: () -> Unit) 
 /** The start dot, three dots joining it to the destination and the destination pin: the route drawn as a path (97 dp = two rows and the line between them). */
 @Composable
 private fun RouteStepper(modifier: Modifier = Modifier) {
-    Box(modifier.width(22.dp).height(97.dp)) {
-        Icon(Icons.Rounded.RadioButtonChecked, null, Modifier.align(Alignment.TopCenter).padding(top = 15.dp).size(18.dp), tint = MaterialTheme.colorScheme.primary)
+    Box(modifier.width(22.dp).height(105.dp)) {
+        Icon(Icons.Rounded.RadioButtonUnchecked, null, Modifier.align(Alignment.TopCenter).padding(top = 18.dp).size(16.dp), tint = MaterialTheme.colorScheme.primary)
         Column(Modifier.align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             repeat(3) { Box(Modifier.size(3.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.75f), androidx.compose.foundation.shape.CircleShape)) }
         }
-        Icon(Icons.Rounded.Place, null, Modifier.align(Alignment.BottomCenter).padding(bottom = 13.dp).size(22.dp), tint = MaterialTheme.colorScheme.error)
+        Icon(Icons.Rounded.Flag, null, Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp).size(18.dp), tint = com.rohanc.navgate.ui.theme.NavTokens.coral())
     }
 }
 
+/** The ways to go, side by side as minutes: the chosen one is outlined in the pulse blue, the others are quiet cards. */
 @Composable
 private fun ModeTabs(ui: NavGateUiState, a: JourneyActions) {
-    Row(Modifier.fillMaxWidth().selectableGroup().padding(top = 4.dp)) {
-        listOf(TravelProfile.Driving to Icons.Rounded.DirectionsCar, TravelProfile.Walking to Icons.Rounded.DirectionsWalk).forEach { (profile, icon) ->
+    Row(Modifier.fillMaxWidth().selectableGroup().padding(horizontal = 20.dp).padding(top = 6.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf(TravelProfile.Walking to Icons.Rounded.DirectionsWalk, TravelProfile.Driving to Icons.Rounded.DirectionsCar).forEach { (profile, icon) ->
             val chosen = ui.travelProfile == profile
             val estimate: ModeEstimate? = ui.modeEstimates[profile]
-            val label = if (chosen && ui.preview != null) ui.preview.etaLabel else estimate?.etaLabel ?: "—"
-            Column(Modifier.weight(1f).selectable(chosen, role = Role.Tab, onClick = { a.setProfile(profile) }), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(icon, if (profile == TravelProfile.Driving) "Car" else "Walking", Modifier.size(24.dp), tint = if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(label, style = MaterialTheme.typography.titleMedium, color = if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            val label = if (chosen && ui.preview != null) ui.preview.etaLabel else estimate?.etaLabel ?: "\u2014"
+            val shape = RoundedCornerShape(22.dp)
+            val tint = if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            Column(Modifier.weight(1f).heightIn(min = 76.dp).clip(shape)
+                .background(if (chosen) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                .border(if (chosen) 1.5.dp else 1.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+                .selectable(chosen, role = Role.Tab, onClick = { a.setProfile(profile) }).padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(icon, if (profile == TravelProfile.Driving) "Car" else "Walking", Modifier.size(20.dp), tint = tint)
+                    Text(if (profile == TravelProfile.Driving) "DRIVE" else "WALK", color = tint, fontSize = 11.sp, letterSpacing = 1.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
                 }
-                Box(Modifier.fillMaxWidth().height(3.dp).background(if (chosen) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)))
+                Text(label, color = MaterialTheme.colorScheme.onSurface, fontFamily = com.rohanc.navgate.ui.theme.NavDisplay, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 24.sp, maxLines = 1, softWrap = false)
             }
         }
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 @Composable
@@ -178,34 +188,49 @@ private fun Banner(text: String, action: String, onAction: () -> Unit) {
     }
 }
 
+/** The steps as a timeline: a tile with the turn, the instruction and its length; the step you are on is filled with the pulse blue and earlier ones are quiet. */
 @Composable
 fun StepsList(steps: List<RouteStep>, originLabel: String, currentIndex: Int = -1) {
-    Text("Steps", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-    Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Icon(Icons.Rounded.RadioButtonChecked, null, tint = MaterialTheme.colorScheme.secondary); Text(originLabel, style = MaterialTheme.typography.titleMedium)
+    Text("Steps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 8.dp))
+    Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.RadioButtonUnchecked, null, tint = MaterialTheme.colorScheme.primary) }
+        Text(originLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold)
     }
     steps.forEachIndexed { index, step ->
-        HorizontalDivider(Modifier.padding(start = 40.dp), color = MaterialTheme.colorScheme.outlineVariant)
-        Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Icon(maneuverIcon(step.maneuverType), null, Modifier.size(24.dp))
-            Column {
-                Text(step.instruction, style = MaterialTheme.typography.bodyLarge, fontWeight = if (index == currentIndex) FontWeight.Bold else FontWeight.Normal)
+        val current = index == currentIndex
+        val past = currentIndex >= 0 && index < currentIndex
+        val tile = if (current) Modifier.background(com.rohanc.navgate.ui.theme.NavTokens.pulse(), RoundedCornerShape(14.dp)) else Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+        Row(Modifier.padding(vertical = 8.dp).then(if (past) Modifier.alpha(0.5f) else Modifier), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(Modifier.size(44.dp).then(tile), contentAlignment = Alignment.Center) { Icon(maneuverIcon(step.maneuverType), null, Modifier.size(24.dp), tint = if (current) Color.White else MaterialTheme.colorScheme.primary) }
+            Column(Modifier.weight(1f)) {
+                Text(step.instruction, style = MaterialTheme.typography.bodyLarge, fontWeight = if (current) FontWeight.ExtraBold else FontWeight.Bold)
                 // A step's length is the distance to the next manoeuvre, shown under its instruction.
                 val length = steps.getOrNull(index + 1)?.distanceMeters ?: 0.0
                 if (length > 0) Text(length.asMetersLabel(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            if (current) Text("Next", Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp), color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
 
 /** Fastest, shortest and alternative routes, loaded in the background; tap one to preview it. */
+/** Each route offered, as a card: its name and distance, the time as the headline. The chosen one is outlined and tinted. */
 @Composable
 private fun RouteChoices(choices: List<com.rohanc.navgate.ui.state.RouteChoice>, onChoose: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         choices.forEach { c ->
-            FilterChip(c.selected, { onChoose(c.id) }, label = {
-                Column { Text(c.label, style = MaterialTheme.typography.labelLarge); Text("${c.etaLabel} · ${c.distanceLabel}", style = MaterialTheme.typography.labelSmall) }
-            }, shape = RoundedCornerShape(16.dp))
+            val shape = RoundedCornerShape(20.dp)
+            Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(shape)
+                .background(if (c.selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                .border(if (c.selected) 1.5.dp else 1.dp, if (c.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+                .selectable(c.selected, role = Role.RadioButton, onClick = { onChoose(c.id) }).padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(c.label, style = MaterialTheme.typography.titleSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold, maxLines = 1)
+                    Text(c.distanceLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text(c.etaLabel, fontFamily = com.rohanc.navgate.ui.theme.NavDisplay, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 20.sp, maxLines = 1, softWrap = false, color = if (c.selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+            }
         }
     }
 }
