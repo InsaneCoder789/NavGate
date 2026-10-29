@@ -37,7 +37,7 @@ enum class GlassWeight { Thin, Regular, Thick }
  */
 @Composable
 fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(28.dp), weight: GlassWeight = GlassWeight.Regular,
-    shadow: Boolean = true, tint: Color? = null, contentColor: Color? = null, onClick: (() -> Unit)? = null, minOpacity: Float = 0f, solidInLight: Boolean = false, content: @Composable BoxScope.() -> Unit) {
+    shadow: Boolean = true, tint: Color? = null, contentColor: Color? = null, onClick: (() -> Unit)? = null, minOpacity: Float = 0f, solidInLight: Boolean = false, whiteGradientInLight: Boolean = false, content: @Composable BoxScope.() -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val dark = scheme.surface.luminance() < 0.5f
     val solid = LocalSolidGlass.current
@@ -60,11 +60,20 @@ fun GlassPanel(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(
     val effect = if (frosted) Modifier.hazeEffect(haze!!, HazeStyle(
         backgroundColor = base.copy(alpha = if (dark) 1f else 0f), tints = listOf(HazeTint(base.copy(alpha = tintAlpha))), blurRadius = blur, noiseFactor = 0.02f)) else Modifier
     val fallbackAlpha = if (solid) 1f else if (frosted) 0f else tintAlpha
-    val rim = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.55f else 0.95f), Color.White.copy(alpha = if (dark) 0.10f else 0.25f), Color.White.copy(alpha = if (dark) 0.32f else 0.7f)))
-    val sheen = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.16f else 0.35f), Color.Transparent, Color.White.copy(alpha = if (dark) 0.05f else 0.12f)))
+    val rim = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.28f else 0.95f), Color.White.copy(alpha = if (dark) 0.06f else 0.25f), Color.White.copy(alpha = if (dark) 0.16f else 0.7f)))
+    val sheen = Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.08f else 0.35f), Color.Transparent, Color.White.copy(alpha = if (dark) 0.025f else 0.12f)))
     // A drop shadow under a see-through round button shows as a pale box in light mode, so small circles go without.
     val shadowDp = if (shadow && !(!dark && shape == androidx.compose.foundation.shape.CircleShape)) (8f * (0.4f + opacity)).dp else 0.dp
+    // Buttons in light mode are a white gradient, not see-through glass: bright at the top, a cool pale white at the bottom, with a hairline edge and a soft shadow.
+    val whiteButton = !dark && !solidInLight && (whiteGradientInLight || tint == null || tint == scheme.surface)
+    if (whiteButton) {
+        val edge = Brush.verticalGradient(listOf(Color.White, com.rohanc.navgate.ui.theme.NavTokens.PorcelainEdge))
+        val face: @Composable () -> Unit = { Box(Modifier.clip(shape).background(com.rohanc.navgate.ui.theme.NavTokens.porcelain()), content = content) }
+        if (onClick != null) Surface(onClick = onClick, modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.dp, edge), shadowElevation = 5.dp) { face() }
+        else Surface(modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.dp, edge), shadowElevation = 5.dp) { face() }
+        return
+    }
     val body: @Composable () -> Unit = { Box(Modifier.clip(shape).then(effect).background(base.copy(alpha = fallbackAlpha)).background(sheen), content = content) }
-    if (onClick != null) Surface(onClick = onClick, modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.2.dp, rim), shadowElevation = shadowDp) { body() }
-    else Surface(modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.2.dp, rim), shadowElevation = shadowDp) { body() }
+    if (onClick != null) Surface(onClick = onClick, modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.dp, rim), shadowElevation = shadowDp) { body() }
+    else Surface(modifier = modifier, shape = shape, color = Color.Transparent, contentColor = onBase, border = BorderStroke(1.dp, rim), shadowElevation = shadowDp) { body() }
 }
