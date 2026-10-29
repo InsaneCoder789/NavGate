@@ -54,8 +54,10 @@ fun BoxScope.ResultsScreen(ui: NavGateUiState, userLocation: Coordinate?, onInse
     }
     NgSheet(Modifier.align(Alignment.BottomCenter).heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.5f).dp).onSizeChanged { bottomPx = it.height }) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
-            Text(if (ui.isLoadingPlaces) "Searching…" else "${ui.places.size} ${if (ui.places.size == 1) "place" else "places"}", Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (ui.isLoadingPlaces) "Searching…" else "${ui.places.size} ${if (ui.places.size == 1) "place" else "places"} nearby", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                if (!ui.isLoadingPlaces && ui.places.size > 1) Text("NEAREST FIRST", style = MaterialTheme.typography.labelSmall, letterSpacing = androidx.compose.ui.unit.TextUnit(1f, androidx.compose.ui.unit.TextUnitType.Sp), fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             if (ui.isLoadingPlaces) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 20.dp))
             ui.searchNotice?.let { Text(it, Modifier.padding(horizontal = 20.dp, vertical = 2.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
@@ -72,11 +74,11 @@ internal fun ResultRow(place: PlaceSearchResult, userLocation: Coordinate?, onCl
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         PlaceBadge(place, 42.dp)
         Column(Modifier.weight(1f)) {
-            Text(place.title.tidy(), style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(place.title.tidy(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(place.subtitle.tidy(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             status?.let { Text(it.label, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (it.open) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error) }
         }
-        distanceFrom(userLocation, place)?.let { Text(it, style = MaterialTheme.typography.labelLarge, softWrap = false, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        distanceFrom(userLocation, place)?.let { Text(it, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, softWrap = false, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 }
 
@@ -85,13 +87,13 @@ internal fun ResultRow(place: PlaceSearchResult, userLocation: Coordinate?, onCl
 internal fun PlaceBadge(place: PlaceSearchResult, size: androidx.compose.ui.unit.Dp) {
     val kind = remember(place.category) { com.rohanc.navgate.data.search.PinKind.of("", place.category.orEmpty()) }
     if (kind == com.rohanc.navgate.data.search.PinKind.Other) {
-        Box(Modifier.size(size).background(MaterialTheme.colorScheme.primaryContainer, CircleShape).testTag("place-badge"), contentAlignment = Alignment.Center) {
-            Icon(PoiCategory.fromSlug(place.category.orEmpty())?.let { categoryIcon(it) } ?: placeIcon(place), null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        Box(Modifier.size(size).background(com.rohanc.navgate.ui.theme.NavTokens.pulse(), androidx.compose.foundation.shape.RoundedCornerShape(size * 0.32f)).testTag("place-badge"), contentAlignment = Alignment.Center) {
+            Icon(PoiCategory.fromSlug(place.category.orEmpty())?.let { categoryIcon(it) } ?: placeIcon(place), null, tint = androidx.compose.ui.graphics.Color.White)
         }
     } else {
         val tint = com.rohanc.navgate.ui.map.MapIcons.color(kind)
-        Box(Modifier.size(size).background(tint.copy(alpha = 0.14f), CircleShape).testTag("place-badge"), contentAlignment = Alignment.Center) {
-            Icon(com.rohanc.navgate.ui.map.MapIcons.icon(kind), null, Modifier.size(size * 0.55f), tint = tint)
+        Box(Modifier.size(size).background(tint, androidx.compose.foundation.shape.RoundedCornerShape(size * 0.32f)).testTag("place-badge"), contentAlignment = Alignment.Center) {
+            Icon(com.rohanc.navgate.ui.map.MapIcons.icon(kind), null, Modifier.size(size * 0.55f), tint = androidx.compose.ui.graphics.Color.White)
         }
     }
 }
