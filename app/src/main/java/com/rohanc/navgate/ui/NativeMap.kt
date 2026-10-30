@@ -12,6 +12,8 @@ import com.rohanc.navgate.ui.map.TrackInput
 import kotlinx.coroutines.flow.StateFlow
 import com.rohanc.navgate.data.local.NavGateServices
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -30,6 +32,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
 import com.rohanc.navgate.data.local.toAppPlace
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.rounded.North
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rohanc.navgate.core.*
@@ -86,6 +90,8 @@ import io.github.dellisd.spatialk.geojson.Position
     val viewport=LocalConfiguration.current
     val connection=rememberMapConnection()
     var following by rememberSaveable { mutableStateOf(true) }
+    // Heading-up (the front of the car is the top of the screen) or north-up (north is the top and the car turns): the compass arrow switches between them.
+    var northUp by rememberSaveable { mutableStateOf(false) }
     var centeredOnLocation by rememberSaveable { mutableStateOf(false) }
     var followingSession by rememberSaveable { mutableStateOf<String?>(null) }
     var perspective by rememberSaveable { mutableStateOf(false) }
@@ -93,6 +99,7 @@ import io.github.dellisd.spatialk.geojson.Position
     var failed by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(true) }
     val flat=!ui.frontendPreferences.buildings3d
+    val inPip by com.rohanc.navgate.nav.NavigationEvents.inPictureInPicture.collectAsState()
     // 3D shows the buildings standing up: the map is tipped back while browsing, and more so while guiding. 2D stays top-down.
     val browseTilt=if(flat)0.0 else 50.0
     val guideTilt=if(flat)0.0 else 60.0
@@ -107,7 +114,7 @@ import io.github.dellisd.spatialk.geojson.Position
         val asset="navgate-map-${if(dark)"dark" else "daylight"}${if(flat)"-flat" else ""}.json"
         BaseStyle.Uri((if(useOffline)mapPacks.offlineStyleUrl(asset) else null) ?: "asset://$asset")
     }
-    val options=remember(bottomInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(isLogoEnabled=false,isAttributionEnabled=false,padding=PaddingValues(bottom=(bottomInsetDp+4f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.BottomStart,attributionAlignment=Alignment.BottomCenter,isScaleBarEnabled=false))}
+    val options=remember(bottomInsetDp){MapOptions(renderOptions=RenderOptions(renderMode=RenderOptions.RenderMode.TextureView),ornamentOptions=OrnamentOptions(isLogoEnabled=false,isAttributionEnabled=false,padding=PaddingValues(bottom=(bottomInsetDp+4f).dp,start=12.dp,end=12.dp),logoAlignment=Alignment.BottomStart,attributionAlignment=Alignment.BottomCenter,isScaleBarEnabled=false,isCompassEnabled=false))}
     // Switching to 3D frames the buildings: zoom in to where they have height and tip the map back; 2D lays it flat again.
     LaunchedEffect(flat,loading){if(!loading&&!active&&camera.position.zoom>=12.0)runCatching{camera.animateTo(camera.position.copy(tilt=browseTilt,zoom=if(flat)camera.position.zoom else maxOf(camera.position.zoom,16.3)),650.milliseconds)}}
     suspend fun move(next:CameraPosition){if(ui.frontendPreferences.reduceMotion)camera.position=next else camera.animateTo(next,400.milliseconds)}
@@ -193,8 +200,9 @@ import io.github.dellisd.spatialk.geojson.Position
                 if(json!=areaJson){areaPins=pins;areaJson=json}
             }
     }
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)){
-        key(retry){MaplibreMap(modifier=Modifier.fillMaxSize(),baseStyle=style,options=options,cameraState=camera,onMapClick={position,_->
+    // MapLibre 0.11 remembers its native callback adapter. Dispatch through updated state so
+    // entering pin mode and changing search results cannot leave an old Explore click handler installed.
+    val currentMapClick by rememberUpdatedState<(Position) -> ClickResult> { position ->
             if(onPin!=null){onPin(GeoPoint(position.latitude,position.longitude));ClickResult.Consume}else {
             val nearest=ui.places.filter{it.coordinate!=null}.minByOrNull{val c=it.coordinate!!;hypot((c.latitude-position.latitude)*111000,(c.longitude-position.longitude)*111000*cos(Math.toRadians(position.latitude)))}
             val c=nearest?.coordinate;val radius=(camera.metersPerDpAtTarget*24).takeIf{it.isFinite()}?.coerceIn(8.0,100.0) ?: 40.0
@@ -205,7 +213,10 @@ import io.github.dellisd.spatialk.geojson.Position
                 }else ClickResult.Pass
             }
             }
-        },onMapLoadFailed={failed=true;loading=false},onMapLoadFinished={failed=false;loading=false}){
+
+    }
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)){
+        key(retry){MaplibreMap(modifier=Modifier.fillMaxSize(),baseStyle=style,options=options,cameraState=camera,onMapClick={position,_->currentMapClick(position)},onMapLoadFailed={failed=true;loading=false},onMapLoadFinished={failed=false;loading=false}){
             val area=rememberGeoJsonSource(GeoJsonData.JsonString(areaJson))
             // Every place kind has its own icon (hospital, restaurant, fuel ...); the urgent ones are never hidden by crowding.
             // Only while browsing: during guidance there are no place icons to build, rasterize or re-register at every step.
@@ -239,19 +250,27 @@ import io.github.dellisd.spatialk.geojson.Position
             val route=rememberGeoJsonSource(GeoJsonData.JsonString(nearJson ?: MapRouteGeoJson.lineString(if(screenIsExplore)null else ui.snapshot.route)))
             val routeFar=rememberGeoJsonSource(GeoJsonData.JsonString(farJson ?: """{"type":"FeatureCollection","features":[]}"""))
             val routeColor=if(dark)NavRouteDark else NavRouteLight
-            val casing=if(dark)Color(0xFF0B1B33) else Color.White
-            // 3D only: the route glows over the buildings, so the two views no longer look alike.
-            if(!flat&&active){
-                LineLayer(id="route-glow-far",source=routeFar,color=const(routeColor.copy(alpha=.30f)),width=const(20.dp))
-                LineLayer(id="route-glow",source=route,color=const(routeColor.copy(alpha=.30f)),width=const(20.dp))
+            // Previewing a route keeps the plain line (casing and one colour). While guiding it is drawn as in the NavGate Next design: a wide soft glow, a white
+            // (dark: pale blue) casing, the pulse-blue core and, in 3D, a thin white dotted line along the middle.
+            val casing=if(active)(if(dark)Color(0xFFDDE8FF) else Color.White) else (if(dark)Color(0xFF0B1B33) else Color.White)
+            val lineColor=if(active)(if(dark)Color(0xFF3DB8FF) else Color(0xFF2F6BFF)) else routeColor
+            val glowWidth=if(flat)20.dp else 30.dp
+            if(active){
+                LineLayer(id="route-glow-far",source=routeFar,color=const(lineColor.copy(alpha=if(dark).38f else .28f)),width=const(glowWidth),blur=const(6.dp),cap=const(org.maplibre.compose.expressions.value.LineCap.Round))
+                LineLayer(id="route-glow",source=route,color=const(lineColor.copy(alpha=if(dark).38f else .28f)),width=const(glowWidth),blur=const(6.dp),cap=const(org.maplibre.compose.expressions.value.LineCap.Round))
             }
-            LineLayer(id="walking-route-far-casing",source=routeFar,color=const(casing),width=const(11.dp))
-            LineLayer(id="walking-route-casing",source=route,color=const(casing),width=const(11.dp))
-            LineLayer(id="walking-route-far",source=routeFar,color=const(routeColor),width=const(if(live)9.dp else 7.dp),cap=const(org.maplibre.compose.expressions.value.LineCap.Round))
+            val casingWidth=if(active&&!flat)15.dp else 11.dp; val coreWidth=if(live)9.dp else if(active&&!flat)10.dp else 7.dp
+            LineLayer(id="walking-route-far-casing",source=routeFar,color=const(casing),width=const(casingWidth))
+            LineLayer(id="walking-route-casing",source=route,color=const(casing),width=const(casingWidth))
+            LineLayer(id="walking-route-far",source=routeFar,color=const(lineColor),width=const(coreWidth),cap=const(org.maplibre.compose.expressions.value.LineCap.Round))
             LineLayer(
-                id="walking-route", source=route, color=const(routeColor), width=const(if(live)9.dp else 7.dp),
+                id="walking-route", source=route, color=const(lineColor), width=const(coreWidth),
                 cap=const(org.maplibre.compose.expressions.value.LineCap.Round), dasharray=if(live)const(listOf(0.1f,1.8f)) else const(listOf(1f,0f))
             )
+            if(!flat&&active&&!live){
+                LineLayer(id="route-flow-far",source=routeFar,color=const(Color.White),width=const(3.dp),dasharray=const(listOf(0.1f,2.2f)),cap=const(org.maplibre.compose.expressions.value.LineCap.Round))
+                LineLayer(id="route-flow",source=route,color=const(Color.White),width=const(3.dp),dasharray=const(listOf(0.1f,2.2f)),cap=const(org.maplibre.compose.expressions.value.LineCap.Round))
+            }
             // Ordinary turns carry no marker on the map: the green banner says where to turn. A roundabout is drawn as the route sweeping round it (RoundaboutRewriter).
             val customPoints=manualPins.map{Coordinate(it.point.latitude,it.point.longitude)}
             val customLine=if(customPoints.size>=2)"""{"type":"LineString","coordinates":[${customPoints.joinToString(","){"[${it.longitude},${it.latitude}]"}}]}"""else """{"type":"FeatureCollection","features":[]}"""
@@ -290,20 +309,30 @@ import io.github.dellisd.spatialk.geojson.Position
                 camera, motion, routeGeometry, trackInput, ui.travelProfile==TravelProfile.Driving, following, if(live)58.0 else guideTilt,
                 if(dark)NavRouteDark else NavRouteLight, VehicleModel.of(ui.frontendPreferences.vehicleModel),
                 VehicleColor.of(ui.frontendPreferences.vehicleColor).paint, if(live)0.60f else 0.46f, if(live)-1.0 else 0.0, if(live)liveHeading else null,
-                if(live)laneOffset else 0.0, onUserPan={following=false}
+                if(live)laneOffset else 0.0, onUserPan={following=false}, northUp=northUp, turnDistanceMeters=ui.snapshot.distanceToNextStep,
+                // The flat map and the floating window keep the arrow in the middle of the free map, between the header and the footer; the tipped views keep it low to show the road ahead.
+                centreInViewport=(flat&&!live)||inPip, headerDp=topInsetDp, footerDp=bottomInsetDp
             )
         }
-        // Guidance gets the full set of map buttons; the home map keeps only the 3D button; everywhere else the map is left clear.
-        if((showControls||screenIsExplore)&&(controlsBottomDp==null || controlsBottomDp<viewport.screenHeightDp*0.6f))Column(Modifier.align(if(controlsBottomDp!=null)Alignment.BottomEnd else Alignment.TopEnd).let{if(controlsBottomDp!=null)it.navigationBarsPadding().padding(bottom=controlsBottomDp.dp,end=16.dp) else it.statusBarsPadding().padding(top=topInsetDp.dp,end=16.dp)},verticalArrangement=Arrangement.spacedBy(8.dp)){
-            if(showControls)MapControlButton(onClick={val fix=ui.displayLocation ?: ui.snapshot.userLocation;if(!permission)onRequestLocation()else if(fix==null)onFeedback("Looking for your location… You can also choose a starting place manually.")else{following=true;scope.launch{move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=maxOf(camera.position.zoom,16.0),bearing=0.0))}}}){Icon(Icons.Rounded.MyLocation,if(following)"Following current location"else"Recenter on current location")}
-            if(showControls)MapControlButton(onClick=onOpenLayers){Icon(Icons.Rounded.Layers,"Map details")}
-            // GPS cannot always tell lanes apart, so the user can say which one they are in: Auto, then Left, then Right.
-            if(showControls&&active){val side=ui.frontendPreferences.laneSide
-                MapControlButton(onClick={onLaneSide(when(side){"auto"->"left";"left"->"right";else->"auto"})}){
-                    Text(when(side){"left"->"L";"right"->"R";else->"A"},fontWeight=androidx.compose.ui.text.font.FontWeight.Bold,modifier=Modifier.semantics{contentDescription="Lane: "+when(side){"left"->"left";"right"->"right";else->"automatic"}+". Tap to change"})}}
-            if(!showControls)MapControlButton(onClick=onToggle3d){Icon(if(flat)Icons.Rounded.LocationCity else Icons.Rounded.Map,if(flat)"Show 3D buildings" else "Show flat 2D map")}
-            // (3D toggle removed: guidance tilts the map itself)
-            if(showControls&&ui.snapshot.route!=null)MapControlButton(enabled=!loading&&!failed,onClick={fitRoute()}){Icon(Icons.Rounded.ZoomOutMap,"Fit route")}
+        val controlRoom = (viewport.screenHeightDp-topInsetDp-bottomInsetDp-16f).coerceAtLeast(0f)
+        if((showControls||screenIsExplore) && controlRoom >= 52f) {
+            val controls = buildList<com.rohanc.navgate.ui.components.MapControlAction> {
+                add(com.rohanc.navgate.ui.components.MapControlAction("Recenter on current location", Icons.Rounded.MyLocation) {
+                    val fix=ui.displayLocation ?: ui.snapshot.userLocation
+                    if(!permission) onRequestLocation() else if(fix==null) onFeedback("Looking for your location… You can also choose a starting place manually.")
+                    else { following=true;scope.launch { move(camera.position.copy(target=Position(latitude=fix.latitude,longitude=fix.longitude),zoom=maxOf(camera.position.zoom,16.0),bearing=0.0)) } }
+                })
+                add(com.rohanc.navgate.ui.components.MapControlAction("Map details", Icons.Rounded.Layers, onClick=onOpenLayers))
+                if(!showControls) add(com.rohanc.navgate.ui.components.MapControlAction("Turn map to north", Icons.Rounded.North, rotation=(-camera.position.bearing).toFloat()) { scope.launch { move(camera.position.copy(bearing=0.0)) } })
+                if(showControls&&active) {
+                    add(com.rohanc.navgate.ui.components.MapControlAction(if(northUp) "Turn map with the car" else "Keep north up", Icons.Rounded.North, rotation=if(northUp)0f else (-camera.position.bearing).toFloat()) { northUp=!northUp })
+                    val side=ui.frontendPreferences.laneSide
+                    add(com.rohanc.navgate.ui.components.MapControlAction("Lane: $side. Tap to change", text=when(side){"left"->"L";"right"->"R";else->"A"}) { onLaneSide(when(side){"auto"->"left";"left"->"right";else->"auto"}) })
+                }
+                if(showControls&&ui.snapshot.route!=null) add(com.rohanc.navgate.ui.components.MapControlAction("Fit route", Icons.Rounded.ZoomOutMap, enabled=!loading&&!failed) { fitRoute() })
+            }
+            com.rohanc.navgate.ui.components.MapControlRail(controls, controlRoom,
+                Modifier.align(Alignment.TopEnd).padding(top=(topInsetDp+8f).dp,end=12.dp))
         }
         if(!connection&&!loading&&!failed)Text(if(activePack!=null)"No connection. Drawing your saved offline map; local places are still available." else "No map connection. Cached tiles may remain visible; local places are still available.",Modifier.align(Alignment.TopStart).padding(top=132.dp,start=16.dp,end=80.dp).background(MaterialTheme.colorScheme.surface).padding(12.dp))
         if(loading)Text("Loading map…",Modifier.align(Alignment.Center).background(MaterialTheme.colorScheme.surface).padding(12.dp))
