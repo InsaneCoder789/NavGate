@@ -15,6 +15,12 @@ class PlaceSearchRankingTest {
         val alias=place("geonames:3","Old Hospital",aliases=listOf("Cafe Central"))
         assertEquals(listOf(exact,alias,prefix),PlaceSearchRanking.merge("cafe central",listOf(prefix,alias,exact),GeoPoint(19.0,72.8)))
     }
+    @Test fun `a one word query prefers the nearby place over a same named one far away`() {
+        val nearby=place("osm:n:1","Central Library",19.01)
+        val far=place("osm:n:2","Library",51.5)
+        assertEquals(listOf(nearby,far),PlaceSearchRanking.merge("library",listOf(far,nearby),GeoPoint(19.0,72.8)))
+        assertEquals(listOf(far,nearby),PlaceSearchRanking.merge("library",listOf(nearby,far),null))
+    }
     @Test fun `proximity orders equal matches but distant branches remain separate`() {
         val near=place("osm:n:1","Hospital",19.01)
         val far=place("geonames:2","Hospital",28.0)

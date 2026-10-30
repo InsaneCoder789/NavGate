@@ -64,9 +64,26 @@ internal object PlaceSearchRanking {
         "worship" -> listOf("TMPL", "MSQE", "CH")
         else -> emptyList()
     }
-    private fun quality(query: String, place: CampusPlace): Int {
+    /** A one-word query ("library", "pharmacy") names a kind of place, so the exact "Library" on another continent must not beat the nearby "Central Library":
+     *  a far exact match drops to tier 2 and a place within 25 km that holds the word rises to it, so distance then decides. Longer names are untouched. */
+    private fun quality(query: String, place: CampusPlace, bias: GeoPoint? = null): Int {
         val q = normalize(query)
         val title = normalize(place.title)
+        val base = baseQuality(q, query, title, place)
+        val d = bias?.let { b -> place.point?.let { b.distanceTo(it) } }
+        if (d == null || q.length < 3 || ' ' in q) return base
+        return when {
+            d > GENERIC_FAR_METERS && base < GENERIC_TIER -> GENERIC_TIER
+            d <= GENERIC_NEAR_METERS && base > GENERIC_TIER && q in title -> GENERIC_TIER
+            else -> base
+        }
+    }
+
+    private const val GENERIC_NEAR_METERS = 25_000.0
+    private const val GENERIC_FAR_METERS = 100_000.0
+    private const val GENERIC_TIER = 2
+
+    private fun baseQuality(q: String, query: String, title: String, place: CampusPlace): Int {
         return when {
             requestedCategory(query)?.let { it == category(place.category) } == true -> 0
             title == q -> 0
@@ -90,7 +107,7 @@ internal object PlaceSearchRanking {
             }
             if (!duplicate) unique += candidate
         }
-        return unique.sortedWith(compareBy<CampusPlace> { quality(query, it) }
+        return unique.sortedWith(compareBy<CampusPlace> { quality(query, it, bias) }
             .thenBy { place -> bias?.let { origin -> place.point?.let { origin.distanceTo(it).coerceAtMost(2_000_000.0) } } ?: 2_000_000.0 }
             .thenByDescending { it.reviewed }.thenBy { if (it.id.startsWith("osm:")) 0 else 1 }
             .thenBy { sourceOrder[it.id] ?: Int.MAX_VALUE }.thenBy { normalize(it.title) }.thenBy { it.id }).take(60)
