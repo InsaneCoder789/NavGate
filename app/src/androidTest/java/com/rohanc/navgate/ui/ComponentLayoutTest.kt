@@ -87,12 +87,14 @@ class ComponentLayoutTest {
             val stop = compose.onNodeWithContentDescription("Stop navigation").fetchSemanticsNode().boundsInRoot
             val d = 2.75f
             assertTrue("$w dp, scale $scale: the End button touches the footer edge ($stop in $root)", stop.left >= root.left + 8 * d && stop.right <= root.right - 8 * d)
-            val a = compose.onNodeWithText(a0).fetchSemanticsNode().boundsInRoot; val l = compose.onNodeWithText(l0).fetchSemanticsNode().boundsInRoot; val m = compose.onNodeWithText(m0).fetchSemanticsNode().boundsInRoot
-            assertTrue("$w dp, scale $scale, $a0/$l0/$m0: figures overlap ($a $l $m)", a.right <= l.left && l.right <= m.left)
-            assertTrue("$w dp, scale $scale, $a0/$l0/$m0: a figure touches the screen edge", a.left >= root.left + 8 * d && m.right <= root.right - 8 * d)
+            // The new footer: the time left is the headline, arrival and distance share the line under it, then End and Steps.
+            val head = compose.onNodeWithText(l0).fetchSemanticsNode().boundsInRoot
+            val sub = compose.onNodeWithText("Arrive $a0", substring = true).fetchSemanticsNode().boundsInRoot
+            assertTrue("$w dp, scale $scale, $a0/$l0/$m0: the headline runs into the line under it ($head $sub)", head.bottom <= sub.top + 2 * d)
+            assertTrue("$w dp, scale $scale, $a0/$l0/$m0: a figure touches the screen edge", head.left >= root.left + 8 * d && head.right <= root.right - 8 * d && sub.left >= root.left + 8 * d && sub.right <= root.right - 8 * d)
             val steps = compose.onNodeWithContentDescription("Steps").fetchSemanticsNode().boundsInRoot
             assertTrue("$w dp, scale $scale: the buttons overlap each other", stop.right <= steps.left)
-            assertTrue("$w dp, scale $scale, $a0/$l0/$m0: the figures touch the buttons (${m.bottom} vs ${stop.top})", m.bottom + 6 * d <= stop.top)
+            assertTrue("$w dp, scale $scale, $a0/$l0/$m0: the figures touch the buttons (${sub.bottom} vs ${stop.top})", sub.bottom + 6 * d <= stop.top)
         }
     }
 
