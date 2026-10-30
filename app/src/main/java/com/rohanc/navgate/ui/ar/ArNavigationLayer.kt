@@ -19,7 +19,6 @@ import com.rohanc.navgate.ui.map.TrackInput
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private val Lime = Color(0xFFFF8A65)   // coral: the AR accent
 private val Ink = Color(0xFF121B2E)    // deep navy glass
 
 /**
@@ -28,11 +27,14 @@ private val Ink = Color(0xFF121B2E)    // deep navy glass
  * and action label over the turn, tracking help, and the live frame rates.
  */
 @Composable
-fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: TrackInput?, snapped: GeoPoint?, gps: GeoPoint?, distanceToTurnMeters: Double, driving: Boolean, fpsMode: ArFpsMode, modifier: Modifier = Modifier, objectAwareness: Boolean = true, sessionTurnKind: String? = null, domeTop: Float = 0f) {
+fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: TrackInput?, snapped: GeoPoint?, gps: GeoPoint?, distanceToTurnMeters: Double, driving: Boolean, fpsMode: ArFpsMode, modifier: Modifier = Modifier, objectAwareness: Boolean = true, sessionTurnKind: String? = null, domeTop: Float = 0f, onCameraHeading: (Double?) -> Unit = {}, statusTopDp: Float = 178f, statusBottomDp: Float = 0f) {
     val inputs = remember { ArInputs() }
     var status by remember { mutableStateOf<ArSessionStatus>(ArSessionStatus.Starting) }
     var hud by remember { mutableStateOf<ArHud?>(null) }
     val latestGps = rememberUpdatedState(gps)
+    val latestHeadingSink = rememberUpdatedState(onCameraHeading)
+    // The map arrow follows the way the walker goes (ARCore's own movement carried to true north by the aligned world), or where the camera faces while standing; before the world is aligned, the camera's own axis from the sensors. About ten times a second.
+    LaunchedEffect(inputs) { while (true) { latestHeadingSink.value(inputs.cameraHeading ?: inputs.compassAzimuth); kotlinx.coroutines.delay(100) } }
     rememberCameraBasis(true, { latestGps.value }) { basis ->
         inputs.compassAzimuth = basis.takeIf { kotlin.math.abs(it.pitchDegrees) < 55 }?.headingDegrees
         inputs.compassUpAzimuth = (Math.toDegrees(kotlin.math.atan2(basis.up[0], basis.up[1])) + 360.0) % 360.0
@@ -67,7 +69,7 @@ fun ArNavigationLayer(route: CampusRoute, geometry: RouteGeometry?, track: Track
                 Modifier.align(Alignment.Center).padding(32.dp).clip40().background(Ink.copy(alpha = 0.85f)).padding(horizontal = 20.dp, vertical = 14.dp), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         } else {
             ArSessionView(inputs, fpsMode, { status = it; if (it is ArSessionStatus.Running) Unit }, { hud = it; if (status !is ArSessionStatus.Running) status = ArSessionStatus.Running }, Modifier.fillMaxSize(), domeTop)
-            ArTextLayer(hud, sessionTurnKind ?: turnKind, turnLabel, distanceToTurnMeters, fpsMode, showStatus = domeTop == 0f, showBeacon = domeTop == 0f)
+            ArTextLayer(hud, sessionTurnKind ?: turnKind, turnLabel, distanceToTurnMeters, fpsMode, showStatus = domeTop == 0f, showBeacon = domeTop == 0f, statusTopDp = statusTopDp, statusBottomDp = statusBottomDp)
         }
     }
 }

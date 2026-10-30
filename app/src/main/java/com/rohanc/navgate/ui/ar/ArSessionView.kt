@@ -59,6 +59,8 @@ class ArInputs {
     @Volatile var fixElapsedMillis = 0L
     /** Where the fused position puts the user, which differs from the road when they are on the pavement. */
     @Volatile var rawGps: GeoPoint? = null
+    /** The way the walker travels (or, standing, where the camera faces), degrees from north, once the world is aligned; written by the render thread, read by the map. */
+    @Volatile var cameraHeading: Double? = null
     @Volatile var compassAzimuth: Double? = null
     /** True-north heading of the top edge of the phone, used when the camera looks at the ground. */
     @Volatile var compassUpAzimuth: Double? = null
@@ -384,8 +386,12 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
         val z = axis(2)
         val reading = ArCameraReading(doubleArrayOf(pose.tx().toDouble(), pose.ty().toDouble(), pose.tz().toDouble()), doubleArrayOf(-z[0], -z[1], -z[2]), axis(0), axis(1), now)
         lastAxes = reading.forward to reading.up
-        world.align(reading, inputs.compassAzimuth, inputs.compassUpAzimuth, geometry, alongNow, inputs.speedMps, inputs.rawGps, 8.0)
+        world.align(reading, inputs.compassAzimuth, inputs.compassUpAzimuth, geometry, alongNow, inputs.speedMps, inputs.rawGps, 8.0, fixAgeSeconds())
+        inputs.cameraHeading = world.travelHeadingDegrees() ?: world.cameraHeadingDegrees(reading.forward[0], reading.forward[2])
     }
+
+    /** Seconds since the last position fix (0 before the first): the line carries on by ARCore's steps once this passes a few seconds. */
+    private fun fixAgeSeconds(): Double = if (inputs.fixElapsedMillis <= 0L) 0.0 else ((android.os.SystemClock.elapsedRealtime() - inputs.fixElapsedMillis) / 1000.0).coerceAtLeast(0.0)
 
     private fun predictedPose(): Pose? {
         val l = last ?: return null; val p = previous ?: return null
@@ -398,7 +404,7 @@ private class ArSessionHolder(private val context: Context, private val inputs: 
     // ---- what to draw -------------------------------------------------------------------------------------------------------------------
 
     private fun buildScene(cameraY: Double, cameraGround: GroundPoint): ArScene? =
-        world.buildScene(inputs.path, inputs.roadEndMeters, inputs.turnKind, ground.groundY(cameraY, assumedPhoneHeight()), cameraGround)
+        world.buildScene(world.pathAhead(inputs.path, inputs.geometry, fixAgeSeconds()), inputs.roadEndMeters, inputs.turnKind, ground.groundY(cameraY, assumedPhoneHeight()), cameraGround, lastAxes?.first?.let { GroundPoint(it[0], it[2]) })
 
     /** Object awareness costs battery, so the 30 fps saver mode leaves it off. */
     private val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
