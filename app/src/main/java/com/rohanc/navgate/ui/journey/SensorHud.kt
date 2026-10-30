@@ -22,19 +22,6 @@ import kotlin.math.roundToInt
 
 private const val G = 9.80665
 
-/** Compact speed readout for driving; tap it for the full sensor panel. */
-@Composable
-fun SpeedBubble(motion: StateFlow<MotionEstimate?>, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val e by motion.collectAsStateWithLifecycle()
-    val speed = ((e?.speedMps ?: 0.0) * 3.6).roundToInt()
-    GlassPanel(modifier.size(84.dp), shape = androidx.compose.foundation.shape.CircleShape, weight = GlassWeight.Regular, onClick = onClick) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text("$speed", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Text("km/h", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
 /** Live speed, acceleration (as a g-force ring) and heading from the fused sensors, with the calibration state. */
 @Composable
 fun SensorHud(motion: StateFlow<MotionEstimate?>, modifier: Modifier = Modifier) {
