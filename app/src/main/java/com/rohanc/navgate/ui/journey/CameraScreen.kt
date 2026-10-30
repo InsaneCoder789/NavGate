@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
@@ -19,7 +21,11 @@ import com.rohanc.navgate.ui.ar.AlignmentStatus
 /** Camera guidance: the live camera is drawn behind this by the app; this adds the direction cue and controls. */
 @Composable
 fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, alignment: AlignmentStatus, instruction: String, distanceLabel: String,
-    voiceOn: Boolean, turnKind: String?, a: JourneyActions, nextKind: String? = null, tripEta: String? = null, tripLeft: String = "", tripDistance: String = "") {
+    voiceOn: Boolean, turnKind: String?, a: JourneyActions, nextKind: String? = null, tripEta: String? = null, tripLeft: String = "", tripDistance: String = "", onInsets: (Float, Float) -> Unit = { _, _ -> }) {
+    val density = LocalDensity.current
+    var headerPx by remember { mutableIntStateOf(0) }
+    var footerPx by remember { mutableIntStateOf(0) }
+    LaunchedEffect(headerPx, footerPx) { with(density) { onInsets(headerPx.toDp().value, footerPx.toDp().value) } }
     if (!hasCameraPermission) {
         GlassPage("Camera guidance", a.closeCamera) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -30,17 +36,17 @@ fun BoxScope.CameraScreen(hasCameraPermission: Boolean, cuesAvailable: Boolean, 
         }
         return
     }
-    // The reminder is shown once, then fades away so it never sits over the road.
+    // Brief, static reminder: disappearing copy needs no motion while the user is navigating.
     var reminder by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(7_000); reminder = false }
-    Column(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(horizontal = 14.dp, vertical = 8.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.align(Alignment.TopCenter).onSizeChanged { headerPx=it.height }.statusBarsPadding().padding(horizontal = 14.dp, vertical = 8.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         com.rohanc.navgate.ui.ar.ArTurnCard(turnKind, distanceLabel, instruction, nextKind)
-        androidx.compose.animation.AnimatedVisibility(reminder, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut()) {
+        if (reminder) {
             Text("Guidance only. Keep watching where you walk.", Modifier.clip(RoundedCornerShape(14.dp)).background(com.rohanc.navgate.ui.ar.ArNavy.copy(alpha = 0.5f)).padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
         }
     }
-    Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 14.dp).padding(bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.align(Alignment.BottomCenter).onSizeChanged { footerPx=it.height }.navigationBarsPadding().padding(horizontal = 14.dp).padding(bottom = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (tripEta != null) com.rohanc.navgate.ui.ar.ArTripCard(tripEta, tripLeft, tripDistance)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             com.rohanc.navgate.ui.ar.ArControl(Icons.Rounded.Close, "Stop navigation", a.requestStop)
