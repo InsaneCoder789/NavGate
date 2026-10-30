@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "regionId": "kiit",
-  "version": "catalog-2026-10-18",
+  "version": "catalog-2026-10-26",
   "city": "Bhubaneswar",
   "coverage": {
     "boundary": [
@@ -23,10 +23,10 @@
       }
     ]
   },
-  "source": "Existing NavGate KIIT workbook import; coordinates and access not field verified",
-  "attribution": "NavGate campus source workbook; original Maps links retained per place for review",
+  "source": "NavGate KIIT campus workbook, every row (campuses, hostels, cafeterias, sports, KIMS, KISS, guest houses, unassigned); a few coordinates matched by name to OpenStreetMap; none field verified",
+  "attribution": "NavGate campus source workbook; coordinate sources are recorded per place in the import report; OpenStreetMap contributors (ODbL) for name-matched places",
   "license": "Source workbook redistribution and coordinate provenance require review before public data release",
-  "generatedAt": "2026-10-18",
+  "generatedAt": "2026-10-26",
   "reviewedAt": null,
   "nodes": [],
   "edges": [],
@@ -44,25 +44,30 @@
         "commercial",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 244,
       "sourceUrl": null
     },
     {
-      "id": "campus-1-admission-office-https-maps-google-com-q-20-346226-85-823535",
-      "title": "Admission Office https://maps.google.com/?q=20.346226,85.823535",
+      "id": "campus-1-admission-office",
+      "title": "Admission Office",
       "subtitle": "Campus 1 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 1",
-      "point": null,
+      "point": {
+        "latitude": 20.346226,
+        "longitude": 85.823535
+      },
       "aliases": [
         "kiit",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 248,
@@ -80,7 +85,8 @@
         "commercial",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 245,
@@ -101,11 +107,12 @@
         "kiit",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 143,
-      "sourceUrl": "https://maps.google.com/?q=20.346318,85.823554"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiit-founder-s-office-white-house",
@@ -119,7 +126,8 @@
         "kiit",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 246,
@@ -140,11 +148,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 201,
-      "sourceUrl": "https://maps.google.com/?q=20.36208,85.809977"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1",
@@ -161,11 +170,12 @@
         "kiss",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 158,
-      "sourceUrl": "https://maps.google.com/?q=20.357765,85.809472"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-basketball",
@@ -182,11 +192,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 183,
-      "sourceUrl": "https://maps.google.com/?q=20.358687,85.808926"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-football-ground",
@@ -203,11 +214,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 199,
-      "sourceUrl": "https://maps.google.com/?q=20.36208,85.809977"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-judo-hall",
@@ -224,11 +236,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 202,
-      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-kabaddi-ground",
@@ -245,11 +258,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 206,
-      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-kho-kho-ground",
@@ -266,11 +280,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 208,
-      "sourceUrl": "https://maps.google.com/?q=20.36208,85.809977"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-rugby-ground",
@@ -287,11 +302,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 212,
-      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-sepak-takraw",
@@ -308,11 +324,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 213,
-      "sourceUrl": "https://maps.google.com/?q=20.363748,85.809991"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-soft-tennis-court",
@@ -329,11 +346,12 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 215,
-      "sourceUrl": "https://maps.google.com/?q=20.363922,85.81197"
+      "sourceUrl": null
     },
     {
       "id": "campus-1-kiss-campus-1-volleyball-court",
@@ -350,43 +368,52 @@
         "sports",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 241,
-      "sourceUrl": "https://maps.google.com/?q=20.363865,85.812609"
+      "sourceUrl": null
     },
     {
-      "id": "campus-1-school-of-computer-application-https-maps-google-com-q-20-346389-85-823532",
-      "title": "School of Computer Application https://maps.google.com/?q=20.346389,85.823532",
+      "id": "campus-1-school-of-computer-application",
+      "title": "School of Computer Application",
       "subtitle": "Campus 1 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 1",
-      "point": null,
+      "point": {
+        "latitude": 20.346389,
+        "longitude": 85.823532
+      },
       "aliases": [
         "kiit",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 247,
       "sourceUrl": null
     },
     {
-      "id": "campus-1-think-tank-office-https-maps-google-com-q-20-346226-85-823535",
-      "title": "Think Tank Office https://maps.google.com/?q=20.346226,85.823535",
+      "id": "campus-1-think-tank-office",
+      "title": "Think Tank Office",
       "subtitle": "Campus 1 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 1",
-      "point": null,
+      "point": {
+        "latitude": 20.346226,
+        "longitude": 85.823535
+      },
       "aliases": [
         "kiit",
         "campus 1",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 249,
@@ -404,7 +431,8 @@
         "other",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 285,
@@ -425,11 +453,12 @@
         "sports",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 185,
-      "sourceUrl": "https://maps.google.com/?q=20.349551,85.817067"
+      "sourceUrl": null
     },
     {
       "id": "campus-10-campus-10-football-ground",
@@ -446,11 +475,12 @@
         "sports",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 197,
-      "sourceUrl": "https://maps.google.com/?q=20.350405,85.815177"
+      "sourceUrl": null
     },
     {
       "id": "campus-10-campus-10-squash",
@@ -467,11 +497,12 @@
         "sports",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 216,
-      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+      "sourceUrl": null
     },
     {
       "id": "campus-10-campus-10-swimming-pool",
@@ -488,11 +519,12 @@
         "sports",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 223,
-      "sourceUrl": "https://maps.google.com/?q=20.349758,85.817435"
+      "sourceUrl": null
     },
     {
       "id": "campus-10-campus-10-table-tennis",
@@ -509,11 +541,12 @@
         "sports",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 230,
-      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+      "sourceUrl": null
     },
     {
       "id": "campus-10-campus-10-volleyball-court",
@@ -530,11 +563,12 @@
         "sports",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 236,
-      "sourceUrl": "https://maps.google.com/?q=20.349796,85.817256"
+      "sourceUrl": null
     },
     {
       "id": "campus-10-kp-7-block",
@@ -548,7 +582,8 @@
         "boys hostel",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 283,
@@ -566,7 +601,8 @@
         "boys hostel",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 287,
@@ -584,7 +620,8 @@
         "sports",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 286,
@@ -602,7 +639,8 @@
         "other",
         "campus 10",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 284,
@@ -623,11 +661,12 @@
         "sports",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 180,
-      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+      "sourceUrl": null
     },
     {
       "id": "campus-11-campus-11-billiards-snooker",
@@ -644,11 +683,12 @@
         "sports",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 186,
-      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+      "sourceUrl": null
     },
     {
       "id": "campus-11-campus-11-lawn-tennis-court",
@@ -665,11 +705,12 @@
         "sports",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 210,
-      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+      "sourceUrl": null
     },
     {
       "id": "campus-11-campus-11-squash",
@@ -686,11 +727,12 @@
         "sports",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 217,
-      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+      "sourceUrl": null
     },
     {
       "id": "campus-11-campus-11-swimming-pool",
@@ -707,11 +749,12 @@
         "sports",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 224,
-      "sourceUrl": "https://maps.google.com/?q=20.360051,85.822513"
+      "sourceUrl": null
     },
     {
       "id": "campus-11-campus-11-table-tennis",
@@ -728,11 +771,12 @@
         "sports",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 231,
-      "sourceUrl": "https://maps.google.com/?q=20.359741,85.822549"
+      "sourceUrl": null
     },
     {
       "id": "campus-11-crazy-burger",
@@ -746,7 +790,8 @@
         "cafeteria",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 288,
@@ -767,11 +812,12 @@
         "kiit",
         "campus 11",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 114,
-      "sourceUrl": "https://maps.google.com/?q=20.359552,85.82241"
+      "sourceUrl": null
     },
     {
       "id": "campus-12-campus-12-basketball",
@@ -788,11 +834,12 @@
         "sports",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 181,
-      "sourceUrl": "https://maps.google.com/?q=20.355093,85.821649"
+      "sourceUrl": null
     },
     {
       "id": "campus-12-campus-12-billiards-snooker",
@@ -809,11 +856,12 @@
         "sports",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 187,
-      "sourceUrl": "https://maps.google.com/?q=20.355093,85.821649"
+      "sourceUrl": null
     },
     {
       "id": "campus-12-campus-12-lawn-tennis-court",
@@ -830,11 +878,12 @@
         "sports",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 211,
-      "sourceUrl": "https://maps.google.com/?q=20.355093,85.821649"
+      "sourceUrl": null
     },
     {
       "id": "campus-12-campus-12-swimming-pool",
@@ -851,11 +900,12 @@
         "sports",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 225,
-      "sourceUrl": "https://maps.google.com/?q=20.355351,85.821989"
+      "sourceUrl": null
     },
     {
       "id": "campus-12-campus-12-table-tennis",
@@ -872,11 +922,12 @@
         "sports",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 232,
-      "sourceUrl": "https://maps.google.com/?q=20.355413,85.821966"
+      "sourceUrl": null
     },
     {
       "id": "campus-12-khao-gali",
@@ -890,7 +941,8 @@
         "cafeteria",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 290,
@@ -911,11 +963,12 @@
         "kiit",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 118,
-      "sourceUrl": "https://maps.google.com/?q=20.355506,85.820735"
+      "sourceUrl": null
     },
     {
       "id": "campus-12-kiit-hotel-and-resorts",
@@ -929,28 +982,11 @@
         "guest house",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 292,
-      "sourceUrl": null
-    },
-    {
-      "id": "campus-12-kp-14",
-      "title": "Kp -14",
-      "subtitle": "Campus 12 • Boys Hostel",
-      "category": "Boys Hostel",
-      "city": "Bhubaneswar",
-      "campus": "Campus 12",
-      "point": null,
-      "aliases": [
-        "boys hostel",
-        "campus 12",
-        "kiit",
-        "bhubaneswar"
-      ],
-      "reviewed": false,
-      "sourceRow": 289,
       "sourceUrl": null
     },
     {
@@ -965,7 +1001,8 @@
         "boys hostel",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 291,
@@ -983,7 +1020,8 @@
         "boys hostel",
         "campus 12",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 293,
@@ -1004,11 +1042,12 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 176,
-      "sourceUrl": "https://maps.google.com/?q=20.357208,85.818942"
+      "sourceUrl": null
     },
     {
       "id": "campus-13-campus-13-beach-volleyball-court",
@@ -1025,11 +1064,12 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 242,
-      "sourceUrl": "https://maps.google.com/?q=20.357603,85.816304"
+      "sourceUrl": null
     },
     {
       "id": "campus-13-campus-13-judo-hall",
@@ -1046,11 +1086,12 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 203,
-      "sourceUrl": "https://maps.google.com/?q=20.357181,85.818941"
+      "sourceUrl": null
     },
     {
       "id": "campus-13-campus-13-kabaddi-ground",
@@ -1067,11 +1108,12 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 204,
-      "sourceUrl": "https://maps.google.com/?q=20.357181,85.818941"
+      "sourceUrl": null
     },
     {
       "id": "campus-13-campus-13-kho-kho-ground",
@@ -1088,11 +1130,12 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 207,
-      "sourceUrl": "https://maps.google.com/?q=20.357195,85.81895"
+      "sourceUrl": null
     },
     {
       "id": "campus-13-campus-13-volleyball-court",
@@ -1109,11 +1152,12 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 237,
-      "sourceUrl": "https://maps.google.com/?q=20.357173,85.818932"
+      "sourceUrl": null
     },
     {
       "id": "campus-13-indoor-badminton-basketball-court",
@@ -1127,7 +1171,8 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 294,
@@ -1148,11 +1193,12 @@
         "kiit",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 120,
-      "sourceUrl": "https://maps.google.com/?q=20.356762,85.818521"
+      "sourceUrl": null
     },
     {
       "id": "campus-13-kiit-cricket-stadium",
@@ -1166,7 +1212,8 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 296,
@@ -1184,7 +1231,8 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 298,
@@ -1202,7 +1250,8 @@
         "other",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 295,
@@ -1220,7 +1269,8 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 297,
@@ -1238,28 +1288,11 @@
         "sports",
         "campus 13",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 299,
-      "sourceUrl": null
-    },
-    {
-      "id": "campus-14-central-library",
-      "title": "Central library",
-      "subtitle": "Campus 14 • KIIT",
-      "category": "KIIT",
-      "city": "Bhubaneswar",
-      "campus": "Campus 14",
-      "point": null,
-      "aliases": [
-        "kiit",
-        "campus 14",
-        "kiit",
-        "bhubaneswar"
-      ],
-      "reviewed": false,
-      "sourceRow": 301,
       "sourceUrl": null
     },
     {
@@ -1274,7 +1307,8 @@
         "kiit",
         "campus 14",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 300,
@@ -1295,11 +1329,12 @@
         "kiit",
         "campus 14",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 97,
-      "sourceUrl": "https://maps.google.com/?q=20.356275,85.815313"
+      "sourceUrl": null
     },
     {
       "id": "campus-14-school-of-cse",
@@ -1313,7 +1348,8 @@
         "kiit",
         "campus 14",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 302,
@@ -1334,11 +1370,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 177,
-      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-campus-15-basketball",
@@ -1355,11 +1392,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 182,
-      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-campus-15-beach-kabaddi-ground",
@@ -1376,11 +1414,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 205,
-      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-campus-15-boxing",
@@ -1397,11 +1436,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 189,
-      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-campus-15-carom",
@@ -1418,11 +1458,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 191,
-      "sourceUrl": "https://maps.google.com/?q=20.349248,85.816774"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-campus-15-swimming-pool",
@@ -1439,11 +1480,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 226,
-      "sourceUrl": "https://maps.google.com/?q=20.349566,85.816847"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-campus-15-table-tennis",
@@ -1460,11 +1502,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 233,
-      "sourceUrl": "https://maps.google.com/?q=20.349563,85.817067"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-campus-15-volleyball-court",
@@ -1481,11 +1524,12 @@
         "sports",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 240,
-      "sourceUrl": "https://maps.google.com/?q=20.349281,85.816539"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-kiit-campus-15",
@@ -1502,11 +1546,12 @@
         "kiit",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 147,
-      "sourceUrl": "https://maps.google.com/?q=20.348529,85.81618"
+      "sourceUrl": null
     },
     {
       "id": "campus-15-kp-9d",
@@ -1520,7 +1565,8 @@
         "boys hostel",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 304,
@@ -1538,7 +1584,8 @@
         "other",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 305,
@@ -1556,7 +1603,8 @@
         "other",
         "campus 15",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 303,
@@ -1577,11 +1625,12 @@
         "sports",
         "campus 16",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 195,
-      "sourceUrl": "https://maps.google.com/?q=20.361165,85.823516"
+      "sourceUrl": null
     },
     {
       "id": "campus-16-campus-16-football-ground",
@@ -1598,11 +1647,12 @@
         "sports",
         "campus 16",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 198,
-      "sourceUrl": "https://maps.google.com/?q=20.362056,85.823513"
+      "sourceUrl": null
     },
     {
       "id": "campus-16-kiit-campus-16",
@@ -1619,11 +1669,12 @@
         "kiit",
         "campus 16",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 130,
-      "sourceUrl": "https://maps.google.com/?q=20.362233,85.822864"
+      "sourceUrl": null
     },
     {
       "id": "campus-16-kp-11",
@@ -1637,7 +1688,8 @@
         "boys hostel",
         "campus 16",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 306,
@@ -1655,7 +1707,8 @@
         "kiit",
         "campus 17",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 307,
@@ -1676,11 +1729,12 @@
         "sports",
         "campus 17",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 188,
-      "sourceUrl": "https://maps.google.com/?q=20.348268,85.819568"
+      "sourceUrl": null
     },
     {
       "id": "campus-17-campus-17-table-tennis",
@@ -1697,11 +1751,12 @@
         "sports",
         "campus 17",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 234,
-      "sourceUrl": "https://maps.google.com/?q=20.348255,85.81956"
+      "sourceUrl": null
     },
     {
       "id": "campus-17-kiit-campus-17",
@@ -1718,11 +1773,12 @@
         "kiit",
         "campus 17",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 148,
-      "sourceUrl": "https://maps.google.com/?q=20.349309,85.819459"
+      "sourceUrl": null
     },
     {
       "id": "campus-17-mba-garden",
@@ -1736,7 +1792,8 @@
         "sports",
         "campus 17",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 308,
@@ -1757,11 +1814,12 @@
         "kiit",
         "campus 18",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 132,
-      "sourceUrl": "https://maps.google.com/?q=20.356391,85.823814"
+      "sourceUrl": null
     },
     {
       "id": "campus-18-kiit-tower-guest-house",
@@ -1775,28 +1833,11 @@
         "guest house",
         "campus 18",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 311,
-      "sourceUrl": null
-    },
-    {
-      "id": "campus-18-kp-18",
-      "title": "Kp-18",
-      "subtitle": "Campus 18 • Boys Hostel",
-      "category": "Boys Hostel",
-      "city": "Bhubaneswar",
-      "campus": "Campus 18",
-      "point": null,
-      "aliases": [
-        "boys hostel",
-        "campus 18",
-        "kiit",
-        "bhubaneswar"
-      ],
-      "reviewed": false,
-      "sourceRow": 309,
       "sourceUrl": null
     },
     {
@@ -1811,7 +1852,8 @@
         "sports",
         "campus 18",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 310,
@@ -1832,11 +1874,12 @@
         "kiit",
         "campus 19",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 100,
-      "sourceUrl": "https://maps.google.com/?q=20.354276,85.818336"
+      "sourceUrl": null
     },
     {
       "id": "campus-2-kiit-auto-stand",
@@ -1850,7 +1893,8 @@
         "other",
         "campus 2",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 251,
@@ -1871,25 +1915,30 @@
         "kiit",
         "campus 2",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 137,
-      "sourceUrl": "https://maps.google.com/?q=20.354093,85.820605"
+      "sourceUrl": null
     },
     {
-      "id": "campus-2-kiit-polytechnic-https-maps-google-com-q-20-354154-85-820584",
-      "title": "KIIT Polytechnic https://maps.google.com/?q=20.354154,85.820584",
+      "id": "campus-2-kiit-polytechnic",
+      "title": "KIIT Polytechnic",
       "subtitle": "Campus 2 • Other",
       "category": "Other",
       "city": "Bhubaneswar",
       "campus": "Campus 2",
-      "point": null,
+      "point": {
+        "latitude": 20.354154,
+        "longitude": 85.820584
+      },
       "aliases": [
         "other",
         "campus 2",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 252,
@@ -1902,12 +1951,16 @@
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 2",
-      "point": null,
+      "point": {
+        "latitude": 20.346738712815466,
+        "longitude": 85.80277907379968
+      },
       "aliases": [
         "kiit",
         "campus 2",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 250,
@@ -1928,11 +1981,12 @@
         "kiss",
         "campus 2",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 159,
-      "sourceUrl": "https://maps.google.com/?q=20.366313,85.813692"
+      "sourceUrl": null
     },
     {
       "id": "campus-2-kiss-campus-2-swimming-pool",
@@ -1949,11 +2003,12 @@
         "sports",
         "campus 2",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 227,
-      "sourceUrl": "https://maps.google.com/?q=20.366111,85.814551"
+      "sourceUrl": null
     },
     {
       "id": "campus-20-driveev",
@@ -1967,7 +2022,8 @@
         "other",
         "campus 20",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 313,
@@ -1988,11 +2044,12 @@
         "kiit",
         "campus 20",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 103,
-      "sourceUrl": "https://maps.google.com/?q=20.35413,85.816185"
+      "sourceUrl": null
     },
     {
       "id": "campus-20-koraput-coffee",
@@ -2006,7 +2063,8 @@
         "cafeteria",
         "campus 20",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 312,
@@ -2027,11 +2085,12 @@
         "kiit",
         "campus 21",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 108,
-      "sourceUrl": "https://maps.google.com/?q=20.355337,85.808722"
+      "sourceUrl": null
     },
     {
       "id": "campus-22-kiit-campus-22",
@@ -2048,11 +2107,12 @@
         "kiit",
         "campus 22",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 110,
-      "sourceUrl": "https://maps.google.com/?q=20.354528,85.81468"
+      "sourceUrl": null
     },
     {
       "id": "campus-22-research-tower-for-cse-under-construction",
@@ -2066,7 +2126,8 @@
         "kiit",
         "campus 22",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 314,
@@ -2084,7 +2145,8 @@
         "commercial",
         "campus 23",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 317,
@@ -2102,7 +2164,8 @@
         "boys hostel",
         "campus 23",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 316,
@@ -2120,7 +2183,8 @@
         "boys hostel",
         "campus 23",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 315,
@@ -2138,7 +2202,8 @@
         "other",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 324,
@@ -2156,7 +2221,8 @@
         "cafeteria",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 325,
@@ -2174,7 +2240,8 @@
         "other",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 318,
@@ -2192,7 +2259,8 @@
         "cafeteria",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 327,
@@ -2213,11 +2281,12 @@
         "kiit",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 112,
-      "sourceUrl": "https://maps.google.com/?q=20.364657,85.816969"
+      "sourceUrl": null
     },
     {
       "id": "campus-25-kiit-main-road",
@@ -2231,7 +2300,8 @@
         "other",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 322,
@@ -2249,7 +2319,8 @@
         "boys hostel",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 320,
@@ -2267,7 +2338,8 @@
         "other",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 319,
@@ -2285,7 +2357,8 @@
         "other",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 323,
@@ -2303,7 +2376,8 @@
         "other",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 326,
@@ -2321,7 +2395,8 @@
         "other",
         "campus 25",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 321,
@@ -2339,7 +2414,8 @@
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 255,
@@ -2357,7 +2433,8 @@
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 256,
@@ -2375,7 +2452,8 @@
         "cafeteria",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 258,
@@ -2396,11 +2474,12 @@
         "sports",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 175,
-      "sourceUrl": "https://maps.google.com/?q=20.352709,85.818639"
+      "sourceUrl": null
     },
     {
       "id": "campus-3-campus-3-carom",
@@ -2417,11 +2496,12 @@
         "sports",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 190,
-      "sourceUrl": "https://maps.google.com/?q=20.35272,85.818612"
+      "sourceUrl": null
     },
     {
       "id": "campus-3-campus-3-swimming-pool",
@@ -2438,11 +2518,12 @@
         "sports",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 218,
-      "sourceUrl": "https://maps.google.com/?q=20.352701,85.818627"
+      "sourceUrl": null
     },
     {
       "id": "campus-3-campus-3-table-tennis",
@@ -2459,25 +2540,30 @@
         "sports",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 228,
-      "sourceUrl": "https://maps.google.com/?q=20.352701,85.818627"
+      "sourceUrl": null
     },
     {
-      "id": "campus-3-central-research-facility-https-maps-google-com-q-20-352256-85-816382",
-      "title": "Central Research Facility https://maps.google.com/?q=20.352256,85.816382",
+      "id": "campus-3-central-research-facility",
+      "title": "Central Research Facility",
       "subtitle": "Campus 3 • Other",
       "category": "Other",
       "city": "Bhubaneswar",
       "campus": "Campus 3",
-      "point": null,
+      "point": {
+        "latitude": 20.352256,
+        "longitude": 85.816382
+      },
       "aliases": [
         "other",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 267,
@@ -2495,7 +2581,8 @@
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 253,
@@ -2513,7 +2600,8 @@
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 257,
@@ -2531,7 +2619,8 @@
         "cafeteria",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 260,
@@ -2552,11 +2641,12 @@
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 87,
-      "sourceUrl": "https://maps.google.com/?q=20.353712,85.816527"
+      "sourceUrl": null
     },
     {
       "id": "campus-3-kiss-campus-3",
@@ -2573,11 +2663,12 @@
         "kiss",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 161,
-      "sourceUrl": "https://maps.google.com/?q=20.357746,85.80915"
+      "sourceUrl": null
     },
     {
       "id": "campus-3-kiss-campus-3-football-ground",
@@ -2594,11 +2685,12 @@
         "sports",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 200,
-      "sourceUrl": "https://maps.google.com/?q=20.358804,85.812484"
+      "sourceUrl": null
     },
     {
       "id": "campus-3-outside-food-stalls",
@@ -2612,7 +2704,8 @@
         "cafeteria",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 261,
@@ -2630,7 +2723,8 @@
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 254,
@@ -2648,115 +2742,140 @@
         "cafeteria",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 259,
       "sourceUrl": null
     },
     {
-      "id": "campus-3-school-of-applied-sciences-https-maps-google-com-q-20-352907-85-817979",
-      "title": "School of Applied Sciences https://maps.google.com/?q=20.352907,85.817979",
+      "id": "campus-3-school-of-applied-sciences",
+      "title": "School of Applied Sciences",
       "subtitle": "Campus 3 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 3",
-      "point": null,
+      "point": {
+        "latitude": 20.352907,
+        "longitude": 85.817979
+      },
       "aliases": [
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 262,
       "sourceUrl": null
     },
     {
-      "id": "campus-3-school-of-civil-engineering-https-maps-google-com-q-20-352812-85-816911",
-      "title": "School of Civil Engineering https://maps.google.com/?q=20.352812,85.816911",
+      "id": "campus-3-school-of-civil-engineering",
+      "title": "School of Civil Engineering",
       "subtitle": "Campus 3 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 3",
-      "point": null,
+      "point": {
+        "latitude": 20.352812,
+        "longitude": 85.816911
+      },
       "aliases": [
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 263,
       "sourceUrl": null
     },
     {
-      "id": "campus-3-school-of-economics-commerce-https-maps-google-com-q-20-352683-85-817662",
-      "title": "School of Economics & Commerce https://maps.google.com/?q=20.352683,85.817662",
+      "id": "campus-3-school-of-economics-commerce",
+      "title": "School of Economics & Commerce",
       "subtitle": "Campus 3 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 3",
-      "point": null,
+      "point": {
+        "latitude": 20.352683,
+        "longitude": 85.817662
+      },
       "aliases": [
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 266,
       "sourceUrl": null
     },
     {
-      "id": "campus-3-school-of-electrical-engineering-https-maps-google-com-q-20-355382-85-82069",
-      "title": "School of Electrical Engineering https://maps.google.com/?q=20.355382,85.82069",
+      "id": "campus-3-school-of-electrical-engineering",
+      "title": "School of Electrical Engineering",
       "subtitle": "Campus 3 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 3",
-      "point": null,
+      "point": {
+        "latitude": 20.355382,
+        "longitude": 85.82069
+      },
       "aliases": [
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 264,
       "sourceUrl": null
     },
     {
-      "id": "campus-3-school-of-liberal-studies-https-maps-google-com-q-20-355382-85-82069",
-      "title": "School of Liberal Studies https://maps.google.com/?q=20.355382,85.82069",
+      "id": "campus-3-school-of-liberal-studies",
+      "title": "School of Liberal Studies",
       "subtitle": "Campus 3 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 3",
-      "point": null,
+      "point": {
+        "latitude": 20.355382,
+        "longitude": 85.82069
+      },
       "aliases": [
         "kiit",
         "campus 3",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 265,
       "sourceUrl": null
     },
     {
-      "id": "campus-4-chintan-building-administrative-block-https-maps-google-com-q-20-354079-85-819689",
-      "title": "Chintan Building (Administrative Block) https://maps.google.com/?q=20.354079,85.819689",
+      "id": "campus-4-chintan-building-administrative-block",
+      "title": "Chintan Building (Administrative Block)",
       "subtitle": "Campus 4 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 4",
-      "point": null,
+      "point": {
+        "latitude": 20.354079,
+        "longitude": 85.819689
+      },
       "aliases": [
         "kiit",
         "campus 4",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 268,
@@ -2777,25 +2896,30 @@
         "kiit",
         "campus 4",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 139,
-      "sourceUrl": "https://maps.google.com/?q=20.354018,85.819918"
+      "sourceUrl": null
     },
     {
-      "id": "campus-4-kiit-hr-department-https-maps-google-com-q-20-353781-85-819934",
-      "title": "KIIT HR Department https://maps.google.com/?q=20.353781,85.819934",
+      "id": "campus-4-kiit-hr-department",
+      "title": "KIIT HR Department",
       "subtitle": "Campus 4 • KIIT",
       "category": "KIIT",
       "city": "Bhubaneswar",
       "campus": "Campus 4",
-      "point": null,
+      "point": {
+        "latitude": 20.353781,
+        "longitude": 85.819934
+      },
       "aliases": [
         "kiit",
         "campus 4",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 269,
@@ -2816,11 +2940,12 @@
         "sports",
         "campus 5",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 178,
-      "sourceUrl": "https://maps.google.com/?q=20.351041,85.814751"
+      "sourceUrl": null
     },
     {
       "id": "campus-5-campus-5-cricket-ground",
@@ -2837,11 +2962,12 @@
         "sports",
         "campus 5",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 194,
-      "sourceUrl": "https://maps.google.com/?q=20.350387,85.815231"
+      "sourceUrl": null
     },
     {
       "id": "campus-5-campus-5-swimming-pool",
@@ -2858,11 +2984,12 @@
         "sports",
         "campus 5",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 219,
-      "sourceUrl": "https://maps.google.com/?q=20.350835,85.814785"
+      "sourceUrl": null
     },
     {
       "id": "campus-5-campus-5-volleyball-court",
@@ -2879,11 +3006,12 @@
         "sports",
         "campus 5",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 238,
-      "sourceUrl": "https://maps.google.com/?q=20.350424,85.814746"
+      "sourceUrl": null
     },
     {
       "id": "campus-5-kiims-ground",
@@ -2897,7 +3025,8 @@
         "sports",
         "campus 5",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 271,
@@ -2915,7 +3044,8 @@
         "other",
         "campus 5",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 270,
@@ -2936,11 +3066,12 @@
         "kims",
         "campus 5",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 153,
-      "sourceUrl": "https://maps.google.com/?q=20.352824,85.813966"
+      "sourceUrl": null
     },
     {
       "id": "campus-6-campus-6-billiards-snooker",
@@ -2957,11 +3088,12 @@
         "sports",
         "campus 6",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 184,
-      "sourceUrl": "https://maps.google.com/?q=20.35272,85.818612"
+      "sourceUrl": null
     },
     {
       "id": "campus-6-campus-6-guest-house",
@@ -2978,11 +3110,12 @@
         "guest house",
         "campus 6",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 28,
-      "sourceUrl": "https://maps.google.com/?q=20.353483,85.819581"
+      "sourceUrl": null
     },
     {
       "id": "campus-6-campus-6-swimming-pool",
@@ -2999,11 +3132,12 @@
         "sports",
         "campus 6",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 220,
-      "sourceUrl": "https://maps.google.com/?q=20.351814,85.820087"
+      "sourceUrl": null
     },
     {
       "id": "campus-6-ict-cell",
@@ -3017,7 +3151,8 @@
         "other",
         "campus 6",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 273,
@@ -3038,11 +3173,12 @@
         "kiit",
         "campus 6",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 123,
-      "sourceUrl": "https://maps.google.com/?q=20.353683,85.819628"
+      "sourceUrl": null
     },
     {
       "id": "campus-6-kiit-guest-house",
@@ -3056,7 +3192,8 @@
         "guest house",
         "campus 6",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 274,
@@ -3074,7 +3211,8 @@
         "other",
         "campus 6",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 272,
@@ -3095,11 +3233,12 @@
         "sports",
         "campus 7",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 221,
-      "sourceUrl": "https://maps.google.com/?q=20.34845,85.819822"
+      "sourceUrl": null
     },
     {
       "id": "campus-7-kiit-campus-7",
@@ -3116,11 +3255,12 @@
         "kiit",
         "campus 7",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 125,
-      "sourceUrl": "https://maps.google.com/?q=20.35094,85.8196"
+      "sourceUrl": null
     },
     {
       "id": "campus-7-qc-5a",
@@ -3134,7 +3274,8 @@
         "other",
         "campus 7",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 276,
@@ -3147,12 +3288,16 @@
       "category": "Other",
       "city": "Bhubaneswar",
       "campus": "Campus 7",
-      "point": null,
+      "point": {
+        "latitude": 20.3538011,
+        "longitude": 85.8165894
+      },
       "aliases": [
         "other",
         "campus 7",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 275,
@@ -3173,11 +3318,12 @@
         "sports",
         "campus 8",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 235,
-      "sourceUrl": "https://maps.google.com/?q=20.351543,85.819588"
+      "sourceUrl": null
     },
     {
       "id": "campus-8-kiit-campus-8",
@@ -3194,11 +3340,12 @@
         "kiit",
         "campus 8",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 128,
-      "sourceUrl": "https://maps.google.com/?q=20.351454,85.819446"
+      "sourceUrl": null
     },
     {
       "id": "campus-8-nift",
@@ -3212,7 +3359,8 @@
         "other",
         "campus 8",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 277,
@@ -3230,7 +3378,8 @@
         "sports",
         "campus 8",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 278,
@@ -3248,7 +3397,8 @@
         "sports",
         "campus 8",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 279,
@@ -3269,11 +3419,12 @@
         "sports",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 179,
-      "sourceUrl": "https://maps.google.com/?q=20.353953,85.810429"
+      "sourceUrl": null
     },
     {
       "id": "campus-9-campus-9-girls-hostel",
@@ -3287,7 +3438,8 @@
         "boys hostel",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 281,
@@ -3308,11 +3460,12 @@
         "sports",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 209,
-      "sourceUrl": "https://maps.google.com/?q=20.353977,85.8098"
+      "sourceUrl": null
     },
     {
       "id": "campus-9-campus-9-practice-cricket-pitch",
@@ -3329,11 +3482,12 @@
         "sports",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 196,
-      "sourceUrl": "https://maps.google.com/?q=20.353838,85.811223"
+      "sourceUrl": null
     },
     {
       "id": "campus-9-campus-9-swimming-pool",
@@ -3350,11 +3504,12 @@
         "sports",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 222,
-      "sourceUrl": "https://maps.google.com/?q=20.353108,85.810594"
+      "sourceUrl": null
     },
     {
       "id": "campus-9-campus-9-table-tennis",
@@ -3371,11 +3526,12 @@
         "sports",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 229,
-      "sourceUrl": "https://maps.google.com/?q=20.353293,85.810494"
+      "sourceUrl": null
     },
     {
       "id": "campus-9-campus-9-volleyball-court",
@@ -3392,11 +3548,12 @@
         "sports",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 239,
-      "sourceUrl": "https://maps.google.com/?q=20.353832,85.811005"
+      "sourceUrl": null
     },
     {
       "id": "campus-9-international-school-garden",
@@ -3410,7 +3567,8 @@
         "sports",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 280,
@@ -3431,11 +3589,12 @@
         "kiit",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 95,
-      "sourceUrl": "https://maps.google.com/?q=20.353848,85.811736"
+      "sourceUrl": null
     },
     {
       "id": "campus-9-kiit-institute-of-nursing-sciences",
@@ -3444,15 +3603,2941 @@
       "category": "KIMS",
       "city": "Bhubaneswar",
       "campus": "Campus 9",
-      "point": null,
+      "point": {
+        "latitude": 20.35110029,
+        "longitude": 85.81277026
+      },
       "aliases": [
         "kims",
         "campus 9",
         "kiit",
-        "bhubaneswar"
+        "bhubaneswar",
+        "odisha"
       ],
       "reviewed": false,
       "sourceRow": 282,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-aryapalli-guest-house",
+      "title": "Aryapalli Guest house",
+      "subtitle": "Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355041,
+        "longitude": 85.82316
+      },
+      "aliases": [
+        "guest house",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 26,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-bcci-approved-kiit-cricket-stadium",
+      "title": "BCCI Approved KIIT Cricket Stadium",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.357311,
+        "longitude": 85.8179
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 168,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-beach-kabaddi-ground",
+      "title": "Beach Kabaddi Ground",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349361,
+        "longitude": 85.816481
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 172,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-biju-patnaik-multipurpose-indoor-stadium",
+      "title": "Biju Patnaik Multipurpose Indoor Stadium",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.357224,
+        "longitude": 85.818928
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 166,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-camus-9-chess-hall",
+      "title": "Camus 9 Chess Hall",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353198,
+        "longitude": 85.810133
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 192,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-central-canteen-1",
+      "title": "Central canteen 1",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353249,
+        "longitude": 85.815845
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 3,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-central-canteen-2",
+      "title": "Central canteen 2",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352212,
+        "longitude": 85.812365
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 4,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-central-canteen-4",
+      "title": "Central canteen 4",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359881,
+        "longitude": 85.822363
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 5,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-central-canteen-kalinga-tv",
+      "title": "Central Canteen Kalinga TV",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.293126,
+        "longitude": 85.808136
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 2,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-central-library",
+      "title": "Central Library",
+      "subtitle": "Campus 14 • KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": "Campus 14",
+      "point": {
+        "latitude": 20.35413,
+        "longitude": 85.816185
+      },
+      "aliases": [
+        "kiit",
+        "campus 14",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 105,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-convention-centre-1",
+      "title": "Convention Centre - 1",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353416,
+        "longitude": 85.819819
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 124,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-convention-centre-3",
+      "title": "Convention Centre - 3",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.350702,
+        "longitude": 85.820385
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 127,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-corporate-guest-house",
+      "title": "Corporate Guest house",
+      "subtitle": "Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.344549,
+        "longitude": 85.825513
+      },
+      "aliases": [
+        "guest house",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 27,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-crrip",
+      "title": "CRRIP",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353826,
+        "longitude": 85.818739
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 102,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-dilip-tirkey-hockey-stadium",
+      "title": "Dilip Tirkey Hockey Stadium",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.358904,
+        "longitude": 85.816887
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 171,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-dutee-chand-athletics-stadium",
+      "title": "Dutee Chand Athletics Stadium",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359588,
+        "longitude": 85.812781
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 164,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-1",
+      "title": "Food court 1",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352698,
+        "longitude": 85.819177
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 8,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-10",
+      "title": "Food court 10",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359881,
+        "longitude": 85.822363
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 17,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-2",
+      "title": "Food court 2",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352176,
+        "longitude": 85.819767
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 9,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-3",
+      "title": "Food court 3",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.362174,
+        "longitude": 85.823155
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 10,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-4",
+      "title": "Food court 4",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.350917,
+        "longitude": 85.815967
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 11,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-5",
+      "title": "Food court 5",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351825,
+        "longitude": 85.814083
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 12,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-6",
+      "title": "Food court 6",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353679,
+        "longitude": 85.817962
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 13,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-7",
+      "title": "Food court 7",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349386,
+        "longitude": 85.815617
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 14,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-8",
+      "title": "Food court 8",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.357416,
+        "longitude": 85.819931
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 15,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-food-court-9",
+      "title": "Food court 9",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349605,
+        "longitude": 85.820204
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 16,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-1",
+      "title": "Kafe-1",
+      "subtitle": "Cafe",
+      "category": "Cafe",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.35226,
+        "longitude": 85.816288
+      },
+      "aliases": [
+        "cafe",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 19,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-2",
+      "title": "Kafe-2",
+      "subtitle": "Cafe",
+      "category": "Cafe",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351825,
+        "longitude": 85.812423
+      },
+      "aliases": [
+        "cafe",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 20,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-3",
+      "title": "Kafe-3",
+      "subtitle": "Cafe",
+      "category": "Cafe",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353805,
+        "longitude": 85.815645
+      },
+      "aliases": [
+        "cafe",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 21,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-4",
+      "title": "Kafe-4",
+      "subtitle": "Cafe",
+      "category": "Cafe",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353805,
+        "longitude": 85.815645
+      },
+      "aliases": [
+        "cafe",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 22,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-5",
+      "title": "Kafe-5",
+      "subtitle": "Cafe",
+      "category": "Cafe",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351658,
+        "longitude": 85.812565
+      },
+      "aliases": [
+        "cafe",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 23,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-6",
+      "title": "Kafe-6",
+      "subtitle": "Cafe",
+      "category": "Cafe",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351084,
+        "longitude": 85.813295
+      },
+      "aliases": [
+        "cafe",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 24,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-7",
+      "title": "Kafe-7",
+      "subtitle": "Cafe",
+      "category": "Cafe",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355541,
+        "longitude": 85.823336
+      },
+      "aliases": [
+        "cafe",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 25,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-delizioso-qsr-1",
+      "title": "Kafe Delizioso (QSR-1)",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349701,
+        "longitude": 85.818066
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 6,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kafe-delizioso-qsr-2",
+      "title": "Kafe Delizioso (QSR-2)",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359881,
+        "longitude": 85.822363
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 7,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kalinga-institute-of-dental-sciences",
+      "title": "Kalinga Institute of Dental Sciences",
+      "subtitle": "KIMS",
+      "category": "KIMS",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.350525,
+        "longitude": 85.813428
+      },
+      "aliases": [
+        "kims",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 155,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kalinga-institute-of-medical-sciences",
+      "title": "Kalinga Institute of Medical Sciences",
+      "subtitle": "KIMS",
+      "category": "KIMS",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352954,
+        "longitude": 85.812114
+      },
+      "aliases": [
+        "kims",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 154,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kalinga-institute-of-nursing-sciences",
+      "title": "Kalinga Institute of Nursing Sciences",
+      "subtitle": "KIMS",
+      "category": "KIMS",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.350017,
+        "longitude": 85.8129
+      },
+      "aliases": [
+        "kims",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 156,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-international-school",
+      "title": "KiiT International School",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353415,
+        "longitude": 85.810492
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 96,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-iti",
+      "title": "KIIT-ITI",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355409,
+        "longitude": 85.815517
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 99,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-kims-kiss-digital",
+      "title": "KIIT/KIMS/KISS Digital",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.35375,
+        "longitude": 85.816546
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 93,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-knowledge-tower",
+      "title": "KIIT Knowledge Tower",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.35413,
+        "longitude": 85.816185
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 104,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-public-school",
+      "title": "KIIT Public School",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355337,
+        "longitude": 85.808722
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 109,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-r-d-and-innovation-centre",
+      "title": "KIIT R&D and Innovation Centre",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354528,
+        "longitude": 85.81468
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 111,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-skill",
+      "title": "KIIT Skill",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355409,
+        "longitude": 85.815517
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 98,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-stadium",
+      "title": "KIIT Stadium",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356665,
+        "longitude": 85.818511
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 121,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-student-activity-centre",
+      "title": "Kiit Student Activity Centre",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356656,
+        "longitude": 85.818917
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 122,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-tbi-convention-centre-2",
+      "title": "KIIT -TBI Convention Centre - 2",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359761,
+        "longitude": 85.822466
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 117,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-tower-with-fine-dine",
+      "title": "KIIT Tower with Fine Dine",
+      "subtitle": "Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355541,
+        "longitude": 85.823336
+      },
+      "aliases": [
+        "guest house",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 30,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-training-placement",
+      "title": "KIIT Training & Placement",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354078,
+        "longitude": 85.820882
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 142,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-transport",
+      "title": "KIIT Transport",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354276,
+        "longitude": 85.818336
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 101,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiit-villa-16-cottages",
+      "title": "KIIT Villa (16 Cottages)",
+      "subtitle": "Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355541,
+        "longitude": 85.823336
+      },
+      "aliases": [
+        "guest house",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 29,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiss-auditorium-hall",
+      "title": "KISS Auditorium Hall",
+      "subtitle": "KISS",
+      "category": "KISS",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356997,
+        "longitude": 85.810226
+      },
+      "aliases": [
+        "kiss",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 160,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiss-camus-1-chess-hall",
+      "title": "KISS Camus 1 Chess Hall",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.362903,
+        "longitude": 85.810314
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 193,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiss-secondary-and-primary-school",
+      "title": "KISS Secondary and Primary School",
+      "subtitle": "KISS",
+      "category": "KISS",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.364036,
+        "longitude": 85.812178
+      },
+      "aliases": [
+        "kiss",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 162,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kiss-university",
+      "title": "KISS UNIVERSITY",
+      "subtitle": "KISS",
+      "category": "KISS",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.357416,
+        "longitude": 85.808862
+      },
+      "aliases": [
+        "kiss",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 163,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-1",
+      "title": "KP-1",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354452,
+        "longitude": 85.82026
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 54,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-10a",
+      "title": "KP-10A",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354604,
+        "longitude": 85.816647
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 70,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-10b",
+      "title": "KP-10B",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354705,
+        "longitude": 85.816261
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 71,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-11a",
+      "title": "KP-11A",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.361584,
+        "longitude": 85.82312
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 72,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-11b",
+      "title": "KP-11B",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.361767,
+        "longitude": 85.823034
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 73,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-12",
+      "title": "KP-12",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351943,
+        "longitude": 85.821423
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 74,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-14",
+      "title": "KP-14",
+      "subtitle": "Campus 12 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 12",
+      "point": {
+        "latitude": 20.35538,
+        "longitude": 85.819416
+      },
+      "aliases": [
+        "boys hostel",
+        "campus 12",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 75,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-15",
+      "title": "KP-15",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356198,
+        "longitude": 85.820783
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 76,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-16a",
+      "title": "KP-16A",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359001,
+        "longitude": 85.818823
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 77,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-16bcd",
+      "title": "KP-16BCD",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359001,
+        "longitude": 85.818823
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 78,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-18",
+      "title": "KP-18",
+      "subtitle": "Campus 18 • Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": "Campus 18",
+      "point": {
+        "latitude": 20.356565,
+        "longitude": 85.823925
+      },
+      "aliases": [
+        "boys hostel",
+        "campus 18",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 79,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-19",
+      "title": "KP-19",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351766,
+        "longitude": 85.814555
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 80,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-2",
+      "title": "KP-2",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354787,
+        "longitude": 85.819042
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 55,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-20",
+      "title": "KP-20",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351525,
+        "longitude": 85.815731
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 81,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-21",
+      "title": "KP-21",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351525,
+        "longitude": 85.815731
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 82,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-22abcd",
+      "title": "KP-22ABCD",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.35083,
+        "longitude": 85.819409
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 83,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-23-pg-hostel",
+      "title": "KP-23 PG HOSTEL",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.347693,
+        "longitude": 85.821186
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 84,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-25",
+      "title": "KP-25",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.363258,
+        "longitude": 85.815742
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 85,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-26-star-city",
+      "title": "KP-26 STAR CITY",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.361918,
+        "longitude": 85.826915
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 86,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-3",
+      "title": "KP-3",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354479,
+        "longitude": 85.819556
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 56,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-4",
+      "title": "KP-4",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.346393,
+        "longitude": 85.823347
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 57,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-5",
+      "title": "KP-5",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356575,
+        "longitude": 85.819756
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 58,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-5a",
+      "title": "KP-5A",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356688,
+        "longitude": 85.819955
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 59,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-6",
+      "title": "KP-6",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.348831,
+        "longitude": 85.816102
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 60,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-6c",
+      "title": "KP-6C",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.348663,
+        "longitude": 85.816872
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 61,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-7ab",
+      "title": "KP-7AB",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351226,
+        "longitude": 85.816314
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 62,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-7c",
+      "title": "KP-7C",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351988,
+        "longitude": 85.81633
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 63,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-7d",
+      "title": "KP-7D",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351199,
+        "longitude": 85.81698
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 64,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-7e",
+      "title": "KP-7E",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.350823,
+        "longitude": 85.817419
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 65,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-7f",
+      "title": "KP-7F",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.350199,
+        "longitude": 85.817762
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 66,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-8a",
+      "title": "KP-8A",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.360482,
+        "longitude": 85.823681
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 67,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-8bc",
+      "title": "KP-8BC",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.360676,
+        "longitude": 85.822936
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 68,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-kp-9",
+      "title": "KP-9",
+      "subtitle": "Boys Hostel",
+      "category": "Boys Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349565,
+        "longitude": 85.814679
+      },
+      "aliases": [
+        "boys hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 69,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-leander-paes-tennis-stadium",
+      "title": "Leander Paes Tennis Stadium",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351102,
+        "longitude": 85.820065
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 173,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-minati-mohapatra-cycling-velodrome",
+      "title": "Minati Mohapatra Cycling Velodrome",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359845,
+        "longitude": 85.813267
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 169,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-patia-guest-house",
+      "title": "Patia Guest house",
+      "subtitle": "Guest House",
+      "category": "Guest House",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.344383,
+        "longitude": 85.821858
+      },
+      "aliases": [
+        "guest house",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 31,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-pramod-bhagat-badminton-indoor-hall",
+      "title": "Pramod Bhagat Badminton Indoor Hall",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355413,
+        "longitude": 85.821966
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 165,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-puri-guest-house",
+      "title": "Puri Guest house",
+      "subtitle": "Guest House",
+      "category": "Guest House",
+      "city": "Puri",
+      "campus": null,
+      "point": {
+        "latitude": 19.790889,
+        "longitude": 85.801649
+      },
+      "aliases": [
+        "guest house",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 32,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-1",
+      "title": "QUEENS' CASTLE -1",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352523,
+        "longitude": 85.818099
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 33,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-10",
+      "title": "QUEENS' CASTLE -10",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352872,
+        "longitude": 85.81566
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 46,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-11",
+      "title": "QUEENS' CASTLE -11",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352807,
+        "longitude": 85.815134
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 47,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-12",
+      "title": "QUEENS' CASTLE -12",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352234,
+        "longitude": 85.814734
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 48,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-14",
+      "title": "QUEENS' CASTLE -14",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.347197,
+        "longitude": 85.822569
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 49,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-15",
+      "title": "QUEENS' CASTLE -15",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352183,
+        "longitude": 85.813993
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 50,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-16",
+      "title": "QUEENS' CASTLE -16",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352183,
+        "longitude": 85.813993
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 51,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-17",
+      "title": "QUEENS' CASTLE -17",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.34808,
+        "longitude": 85.820566
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 52,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-18",
+      "title": "QUEENS' CASTLE -18",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.346119,
+        "longitude": 85.819322
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 53,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-2",
+      "title": "QUEENS' CASTLE -2",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352425,
+        "longitude": 85.818795
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 34,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-3",
+      "title": "QUEENS' CASTLE -3",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352492,
+        "longitude": 85.816939
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 35,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-4",
+      "title": "QUEENS' CASTLE -4",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352644,
+        "longitude": 85.81827
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 36,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-5-block-a",
+      "title": "QUEENS' CASTLE -5, BLOCK-A",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.348524,
+        "longitude": 85.82083
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 37,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-5-block-b",
+      "title": "QUEENS' CASTLE -5, BLOCK-B",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349251,
+        "longitude": 85.819426
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 38,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-5-block-c",
+      "title": "QUEENS' CASTLE -5, BLOCK-C",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349251,
+        "longitude": 85.819426
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 39,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-5-block-d",
+      "title": "QUEENS' CASTLE -5, BLOCK-D",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349127,
+        "longitude": 85.82077
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 40,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-6-block-a",
+      "title": "QUEENS' CASTLE -6, BLOCK-A",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.358336,
+        "longitude": 85.821587
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 41,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-6-block-b",
+      "title": "QUEENS' CASTLE -6, BLOCK-B",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.358336,
+        "longitude": 85.821587
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 42,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-7",
+      "title": "QUEENS' CASTLE -7",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.361829,
+        "longitude": 85.82293
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 43,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-8",
+      "title": "QUEENS' CASTLE -8",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.352716,
+        "longitude": 85.821354
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 44,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-queens-castle-9",
+      "title": "QUEENS' CASTLE -9",
+      "subtitle": "Girls Hostel",
+      "category": "Girls Hostel",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.35254,
+        "longitude": 85.815183
+      },
+      "aliases": [
+        "girls hostel",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 45,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-rahul-bose-rugby-stadium",
+      "title": "Rahul Bose Rugby Stadium",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.358594,
+        "longitude": 85.817809
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 174,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-rooftop-convention-centre",
+      "title": "Rooftop Convention Centre",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354097,
+        "longitude": 85.816751
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 107,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-rose-garden",
+      "title": "Rose Garden",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.35517,
+        "longitude": 85.822503
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 136,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-architecture-planning",
+      "title": "School of Architecture & Planning",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.348647,
+        "longitude": 85.819407
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 150,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-biotechnology",
+      "title": "School of Biotechnology",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.359552,
+        "longitude": 85.82241
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 115,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-chemical-technology",
+      "title": "School of Chemical Technology",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.35946,
+        "longitude": 85.822622
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 116,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-computer-engineering",
+      "title": "School of Computer Engineering",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349266,
+        "longitude": 85.815596
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 113,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-design",
+      "title": "School of Design",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.348647,
+        "longitude": 85.819407
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 152,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-electronics",
+      "title": "School of Electronics",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.355506,
+        "longitude": 85.820735
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 119,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-fashion-technology",
+      "title": "School of Fashion Technology",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356421,
+        "longitude": 85.823795
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 134,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-film-media-sciences",
+      "title": "School of Film & Media Sciences",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356391,
+        "longitude": 85.823814
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 133,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-law",
+      "title": "School of Law",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.362289,
+        "longitude": 85.822593
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 131,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-management-sculpture",
+      "title": "School of Management Sculpture",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.350588,
+        "longitude": 85.820662
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 126,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-mass-communication",
+      "title": "School of Mass Communication",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356255,
+        "longitude": 85.82377
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 135,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-mechanical-engineering",
+      "title": "School of Mechanical Engineering",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351065,
+        "longitude": 85.820497
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 129,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-public-health",
+      "title": "School of Public Health",
+      "subtitle": "KIMS",
+      "category": "KIMS",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.353493,
+        "longitude": 85.813492
+      },
+      "aliases": [
+        "kims",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 157,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-rural-management",
+      "title": "School of Rural Management",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.348839,
+        "longitude": 85.819466
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 149,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-school-of-sports-yogic-sciences",
+      "title": "School of Sports & Yogic Sciences",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.356421,
+        "longitude": 85.823795
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 151,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-shooting-range",
+      "title": "Shooting Range",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.358581,
+        "longitude": 85.813527
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 214,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-south-indian-restaurant-f-c-11",
+      "title": "South Indian Restaurant(F C-11)",
+      "subtitle": "Cafeteria",
+      "category": "Cafeteria",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.351218,
+        "longitude": 85.814083
+      },
+      "aliases": [
+        "cafeteria",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 18,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-souvenir-gallery",
+      "title": "Souvenir Gallery",
+      "subtitle": "KIIT",
+      "category": "KIIT",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.354097,
+        "longitude": 85.816751
+      },
+      "aliases": [
+        "kiit",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 106,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-sradhanjalisamantaray-football-stadium",
+      "title": "SradhanjaliSamantaray Football Stadium",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.358531,
+        "longitude": 85.817769
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 170,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-viswanathan-anand-international-chess-hall",
+      "title": "Viswanathan Anand International Chess Hall",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.349563,
+        "longitude": 85.817067
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 167,
+      "sourceUrl": null
+    },
+    {
+      "id": "unassigned-weightlifting-powerlifting-ground",
+      "title": "Weightlifting/Powerlifting Ground",
+      "subtitle": "Sports",
+      "category": "Sports",
+      "city": "Bhubaneswar",
+      "campus": null,
+      "point": {
+        "latitude": 20.357224,
+        "longitude": 85.818928
+      },
+      "aliases": [
+        "sports",
+        "kiit",
+        "bhubaneswar",
+        "odisha"
+      ],
+      "reviewed": false,
+      "sourceRow": 243,
       "sourceUrl": null
     }
   ]
