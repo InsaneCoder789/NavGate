@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.rohanc.navgate"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.rohanc.navgate"

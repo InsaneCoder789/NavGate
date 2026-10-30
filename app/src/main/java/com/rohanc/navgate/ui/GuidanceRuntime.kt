@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 
 internal interface GuidanceNotifications {
     fun show(title: String, instruction: String)
+    /** The full card (turn, trip figures, status-bar chip). Platforms that only know a title and text keep working. */
+    fun show(note: com.rohanc.navgate.nav.GuidanceNote) = show(note.title, note.instruction)
     fun stop()
 }
 
@@ -29,16 +31,20 @@ internal fun GuidanceRuntime(
     onSignalTick: () -> Unit,
     notifications: GuidanceNotifications? = null,
     speech: GuidanceSpeech? = null,
+    onExit: () -> Unit = {},
 ): VoiceAvailability {
     val context = LocalContext.current
     val platformNotifications = remember(context) { object : GuidanceNotifications {
         override fun show(title: String, instruction: String) = NavigationService.show(context, title, instruction)
+        override fun show(note: com.rohanc.navgate.nav.GuidanceNote) = NavigationService.show(context, note)
         override fun stop() = NavigationService.stop(context)
     } }
     // Tests replace platform effects, keeping user trips, speech and notifications isolated.
     val speaker = if (speech == null) rememberOfflineSpeech() else speech
     val sink = notifications ?: platformNotifications
     val tick by rememberUpdatedState(onSignalTick)
+    val exit by rememberUpdatedState(onExit)
+    LaunchedEffect(Unit) { com.rohanc.navgate.nav.NavigationEvents.exitRequests.collect { exit() } }
     LaunchedEffect(backendState, uiState, permission, sink, speaker) {
         runGuidanceEffects(backendState, uiState, permission, { tick() }, sink, speaker)
     }
@@ -66,9 +72,7 @@ internal suspend fun runGuidanceEffects(
             if (active) {
                 val key = session.instruction to (session.distanceToManeuver / 25).toInt()
                 if (!showing || key != lastNotification) {
-                    val distance = session.distanceToManeuver.toInt()
-                    val label = if (distance >= 1_000) "%.1f km".format(distance / 1000.0) else "$distance m"
-                    notifications.show("In $label", session.instruction)
+                    notifications.show(com.rohanc.navgate.nav.GuidanceNote.of(session.instruction, session.distanceToManeuver, session.remainingSeconds, session.remainingMeters, routeMeters = session.route?.distanceMeters ?: 0.0))
                     showing = true
                     lastNotification = key
                 }
