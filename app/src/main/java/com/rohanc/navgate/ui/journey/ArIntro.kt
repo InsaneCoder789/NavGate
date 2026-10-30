@@ -47,12 +47,12 @@ private fun pagesFor(mode: String): List<IntroPage> = if (mode == "VR") listOf(
     IntroPage("A path drawn on the road", "AR lays your route on the real ground in front of you, so you just follow the blue path.",
         before = "A line on a flat map has to be matched to the street by eye.", now = "The path sits on the road and runs ahead of you to the turn."),
     IntroPage("How it works", "Hold your phone up and sweep it gently.", steps = listOf("The camera finds the ground under your feet.", "A bold blue path is placed on the road and a ring marks where you stand.", "Follow it; the arrow and distance show the next turn.")),
-    IntroPage("Good to know", "AR needs light and a surface with some texture, like pavement.", steps = listOf("In the dark or on blank surfaces it asks you to use the map.", "It is guidance only: it does not see obstacles.", "People and vehicles in view are passed in front of the path.")),
+    IntroPage("Good to know", "AR needs light and a surface with some texture, like pavement.", steps = listOf("In the dark or on blank surfaces it asks you to use the map.", "It is guidance only: it does not see obstacles.", "On supported phones, depth can soften the path behind nearby objects. It may be unavailable or inaccurate.")),
 )
 
 /** First-time walkthrough of AR or of Live view: what changes, how it works and what to expect, with a picture for each step. */
 @Composable
-fun ArIntroOverlay(mode: String, onStart: () -> Unit, onClose: () -> Unit) {
+fun ArIntroOverlay(mode: String, onStart: () -> Unit, onClose: () -> Unit, reduceMotion: Boolean = false) {
     val pages = remember(mode) { pagesFor(mode) }
     val pager = rememberPagerState { pages.size }
     val scope = rememberCoroutineScope()
@@ -96,7 +96,7 @@ fun ArIntroOverlay(mode: String, onStart: () -> Unit, onClose: () -> Unit) {
                     repeat(pages.size) { i -> Box(Modifier.height(8.dp).width(if (i == pager.currentPage) 22.dp else 8.dp).clip(CircleShape).background(if (i == pager.currentPage) Blue else Color.White.copy(alpha = 0.25f))) }
                 }
                 val last = pager.currentPage == pages.lastIndex
-                Button(onClick = { if (last) onStart() else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } }, Modifier.height(52.dp), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = Color.White)) {
+                Button(onClick = { if (last) onStart() else scope.launch { if(reduceMotion) pager.scrollToPage(pager.currentPage + 1) else pager.animateScrollToPage(pager.currentPage + 1) } }, Modifier.height(52.dp), shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = Color.White)) {
                     Text(if (last) "Start $name" else "Next", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 12.dp))
                 }
             }

@@ -3,6 +3,7 @@ package com.rohanc.navgate.ui.ar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -45,13 +46,13 @@ internal fun ArCard(modifier: Modifier = Modifier, radius: Dp = ArTokens.radiusC
 /** The next manoeuvre: a coral badge, the distance as the headline, the road as the sub-line and the turn after it as a small chip. */
 @Composable
 internal fun ArTurnCard(kind: String?, distance: String, instruction: String, thenKind: String?, modifier: Modifier = Modifier) {
-    ArCard(modifier.fillMaxWidth()) {
+    ArCard(modifier.fillMaxWidth().testTag("arTurnCard")) {
         Row(Modifier.padding(ArTokens.space3), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ArTokens.space3)) {
-            Box(Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Color(0xFF6FAEFF), ArBlue))), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(Color(0xFF3D8BFF), Color(0xFF35D0FF)))), contentAlignment = Alignment.Center) {
                 Icon(turnIcon(kind), null, Modifier.size(34.dp), tint = Color.White)
             }
             Column(Modifier.weight(1f)) {
-                Text(distance, color = ArTokens.onGlass, fontSize = 30.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.SansSerif)
+                Text(distance, color = ArTokens.onGlass, fontSize = 34.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold, fontFamily = com.rohanc.navgate.ui.theme.NavDisplay, maxLines = 1, softWrap = false)
                 Text(instruction, color = ArTokens.onGlassMuted, fontSize = 15.sp, lineHeight = 19.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (thenKind != null) Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -87,8 +88,8 @@ internal fun ArTripCard(eta: String, remaining: String, distance: String, modifi
 @Composable
 internal fun ArControl(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, onClick: () -> Unit, primary: Boolean = false) {
     val size = if (primary) 68.dp else 52.dp
-    androidx.compose.material3.IconButton(onClick = onClick, modifier = Modifier.size(size).then(
-        if (primary) Modifier.shadow(12.dp, CircleShape).clip(CircleShape).background(ArBlue)
+    androidx.compose.material3.IconButton(onClick = onClick, modifier = Modifier.testTag("arControl").size(size).then(
+        if (primary) Modifier.shadow(12.dp, CircleShape, ambientColor = ArBlue, spotColor = ArBlue).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFF3D8BFF), Color(0xFF35D0FF))))
         else Modifier.shadow(10.dp, CircleShape).clip(CircleShape).background(Brush.verticalGradient(listOf(ArTokens.glassTop, ArTokens.glassBottom))).border(1.dp, ArTokens.hairline, CircleShape))) {
         Icon(icon, description, Modifier.size(if (primary) 30.dp else 24.dp), tint = Color.White)
     }
