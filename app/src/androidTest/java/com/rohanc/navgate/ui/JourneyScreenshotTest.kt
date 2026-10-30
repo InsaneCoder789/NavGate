@@ -36,6 +36,13 @@ class JourneyScreenshotTest {
         android.os.ParcelFileDescriptor.AutoCloseInputStream(out).use{it.readBytes()}
     }
 
+    /** While guiding, the map and the car redraw every frame, so Compose is never idle: just wait for the tiles and take the picture. */
+    private fun shotLive(name:String){
+        Thread.sleep(8_000)
+        val out=InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("screencap -p /sdcard/Download/navgate-$name.png")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(out).use{it.readBytes()}
+    }
+
     @Test fun captureEveryJourneyScreen(){
         assumeTrue(InstrumentationRegistry.getArguments().getString("screenshots")=="true")
         val context=ApplicationProvider.getApplicationContext<Context>()
@@ -67,7 +74,7 @@ class JourneyScreenshotTest {
             compose.waitUntil(10_000){vm.uiState.value.preferencesLoaded&&!vm.backendState.value.initializing}
             compose.runOnUiThread{vm.onLocationFix(LocationFix(start.point!!,AndroidBackendClock.elapsedMillis(),6.0))}
             shot("1-explore")
-            compose.onNodeWithText("Search here").performClick()
+            compose.onNodeWithText("Where to?").performClick()
             compose.onNode(hasSetTextAction()).performTextInput("Marine")
             android.util.Log.i("SHOT","query after typing=["+vm.uiState.value.searchQuery+"] screen-places="+vm.uiState.value.places.size)
             Thread.sleep(2_000)
@@ -96,17 +103,18 @@ class JourneyScreenshotTest {
             val route=vm.backendState.value.session.route!!
             val at=route.geometry[minOf(3,route.geometry.lastIndex)]
             compose.runOnUiThread{vm.onMotion(MotionEstimate(at,13.9,route.geometry[0].bearingTo(route.geometry[1]),0.9,-0.6,5.0,CalibrationState.Good,false,false,AndroidBackendClock.elapsedMillis()))}
-            shot("7-navigation")
-            compose.onNodeWithContentDescription("Map details").performClick()
-            shot("15-layers")
-            compose.onNodeWithContentDescription("Close map details").performClick()
-            compose.onNodeWithContentDescription("Stop navigation").performClick()
-            compose.onNodeWithText("Stop",substring=false).performClick()
+            shotLive("7-navigation")
+            // Light mode too: the same guidance, on the light map.
+            compose.runOnUiThread{vm.updateFrontendPreferences(vm.uiState.value.frontendPreferences.copy(appearance="light"))}
+            shotLive("7b-navigation-light")
+            compose.runOnUiThread{vm.updateFrontendPreferences(vm.uiState.value.frontendPreferences.copy(appearance="dark"))}
+            compose.runOnUiThread{vm.stopNavigation()}
             compose.waitUntil(8_000){vm.backendState.value.session.status==SessionStatus.Stopped}
             // The camera must fly back to the user after a trip ends (it used to stay on the old route).
             compose.waitForIdle();Thread.sleep(3_000);compose.waitForIdle()
             shot("11-after-stop")
-            compose.onNodeWithText("Search here").performClick()
+            runCatching{compose.onNodeWithContentDescription("Map details").performClick();shot("15-layers");compose.onNodeWithContentDescription("Close map details").performClick()}
+            compose.onNodeWithText("Where to?").performClick()
             compose.onNode(hasSetTextAction()).performTextInput("Marine")
             compose.onNode(hasSetTextAction()).performImeAction()
             compose.waitUntil(8_000){vm.uiState.value.places.any{it.id=="marine"}}
@@ -116,6 +124,10 @@ class JourneyScreenshotTest {
             shot("8-saved")
             compose.onNodeWithText("Recents").performClick()
             shot("9-recents")
+            compose.onNodeWithText("Trips").performClick()
+            shot("19-recents-trips")
+            compose.onNodeWithText("Routes").performClick()
+            shot("18-routes")
             compose.onNodeWithText("Explore").performClick()
             compose.onNodeWithContentDescription("Settings").performClick()
             shot("10-settings")

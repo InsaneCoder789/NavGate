@@ -37,6 +37,10 @@ android {
         storeFile = file(releaseKey[0]!!); storePassword = releaseKey[1]; keyAlias = releaseKey[2]; keyPassword = releaseKey[3]
     }
     buildTypes {
+        getByName("debug") {
+            // Physical-device instrumentation must never share the personal app data directory.
+            if (providers.gradleProperty("navgate.qa").orNull == "true") applicationIdSuffix = ".qa"
+        }
         release {
             signingConfigs.findByName("release")?.let { signingConfig = it }
             // Shrunk and obfuscated for users: smaller download, faster start, harder to reverse. Rules are in proguard-rules.pro.

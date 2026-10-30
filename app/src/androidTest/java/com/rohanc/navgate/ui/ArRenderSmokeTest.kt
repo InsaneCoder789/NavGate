@@ -66,7 +66,7 @@ class ArRenderSmokeTest {
             }
             compose.waitUntil(10_000){vm.uiState.value.preferencesLoaded&&!vm.backendState.value.initializing}
             compose.runOnUiThread{vm.onLocationFix(LocationFix(start.point!!,AndroidBackendClock.elapsedMillis(),6.0))}
-            compose.onNodeWithText("Search here").performClick()
+            compose.onNodeWithText("Where to?").performClick()
             compose.onNode(hasSetTextAction()).performTextInput("Marine")
             compose.waitUntil(8_000){vm.uiState.value.places.any{it.id=="marine"}}
             compose.onAllNodes(hasText("Marine Drive",substring=true) and !hasSetTextAction())[0].performClick()

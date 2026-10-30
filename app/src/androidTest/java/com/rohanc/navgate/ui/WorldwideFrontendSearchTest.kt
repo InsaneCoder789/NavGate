@@ -38,14 +38,14 @@ class WorldwideFrontendSearchTest {
         try {
             compose.setContent{NavGateFrontend(injectedViewModel=vm,renderMap=false,trackLocation=false)}
             compose.waitUntil(10_000){vm.uiState.value.preferencesLoaded}
-            compose.onNodeWithText("Search here").performClick()
+            compose.onNodeWithText("Where to?").performClick()
             compose.onNode(hasSetTextAction()).performTextInput("Eiffel Tower")
             compose.waitUntil(10_000){vm.uiState.value.places.any{it.id==worldPlace.id}}
             compose.onNode(hasText("Eiffel Tower",substring=false) and !hasSetTextAction()).performClick()
             compose.waitUntil(5_000){vm.uiState.value.focusedPlace?.id==worldPlace.id}
             assertEquals(48.8584,vm.uiState.value.focusedPlace!!.latitude!!,0.00001)
             compose.onNodeWithText("Paris, France",substring=false).assertExists()
-            compose.onNodeWithText("Save").performClick()
+            compose.onNodeWithContentDescription("Save").performClick()
             compose.waitUntil(5_000){vm.uiState.value.savedPlaces.any{it.id==worldPlace.id}}
         } finally {compose.runOnUiThread{store.clear()}}
     }

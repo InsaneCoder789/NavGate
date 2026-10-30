@@ -58,7 +58,7 @@ class NativeFrontendFlowTest {
         compose.onNodeWithText("Navigate with confidence").assertIsDisplayed()
         screenshot("navigate")
         compose.onNodeWithText("Explore first").performClick()
-        compose.onNodeWithText("Search here").assertExists()
+        compose.onNodeWithText("Where to?").assertExists()
         assertFalse(vm.uiState.value.showOnboarding)
         assertNull(vm.uiState.value.selectedDestination)
         assertNull(vm.backendState.value.session.route)
@@ -66,11 +66,11 @@ class NativeFrontendFlowTest {
 
     @Test fun searchSavePlaceAndPlanDirectionsUsingTheMapsStyleScreens(){
         dismissOnboarding()
-        compose.onNodeWithText("Search here").performClick()
+        compose.onNodeWithText("Where to?").performClick()
         typeInSearch("Place")
         compose.waitUntil(5_000){vm.uiState.value.places.size==3}
         compose.onNodeWithText("Destination Place").performClick()
-        compose.onNodeWithText("Save").performClick()
+        compose.onNodeWithContentDescription("Save").performClick()
         compose.waitUntil(5_000){vm.uiState.value.savedPlaces.any{it.id=="b"}}
         assertEquals("b",runBlocking{fixture.users.savedPlaces()}.single().id)
         compose.onNodeWithText("Directions",substring=false).performClick()
@@ -96,7 +96,7 @@ class NativeFrontendFlowTest {
         compose.onNodeWithContentDescription("Search saved places").assertExists()
         compose.onNodeWithText("Recents",substring=false).performClick()
         compose.onNodeWithText("Explore",substring=false).performClick()
-        compose.onNodeWithText("Search here").assertExists()
+        compose.onNodeWithText("Where to?").assertExists()
         compose.onNodeWithContentDescription("Directions").performClick()
         compose.onNodeWithText("Choose destination").assertExists()
     }
@@ -135,7 +135,7 @@ class NativeFrontendFlowTest {
         compose.onNodeWithContentDescription("Stop navigation").performClick()
         compose.onNodeWithText("Stop",substring=false).performClick()
         compose.waitUntil(5_000){vm.backendState.value.session.status==SessionStatus.Stopped}
-        compose.onNodeWithText("Search here").assertIsDisplayed()
+        compose.onNodeWithText("Where to?").assertIsDisplayed()
     }
 
     private class Fixture:BackendClock,RegionStore,BackendData {
