@@ -2,6 +2,8 @@ package com.rohanc.navgate.ui.journey
 
 import com.rohanc.navgate.ui.components.NavGlassSurface
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +12,8 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -20,17 +24,18 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.unit.dp
 import com.rohanc.navgate.core.SessionSnapshot
 import com.rohanc.navgate.core.SessionStatus
+import com.rohanc.navgate.core.distanceToManeuverAt
 import com.rohanc.navgate.model.RouteStep
 import com.rohanc.navgate.model.asEtaLabel
 import com.rohanc.navgate.model.asMetersLabel
 import java.text.DateFormat
 import java.util.Date
 
-private val GuidanceTeal = com.rohanc.navgate.ui.theme.NavGuidance
 
 /** Turn-by-turn guidance: next manoeuvre on top, trip summary and exit at the bottom. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions, online: Boolean = true, locationIssue: String? = null) {
+fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voiceOn: Boolean, driving: Boolean, motion: kotlinx.coroutines.flow.StateFlow<com.rohanc.navgate.core.MotionEstimate?>?, onInsets: (Float, Float) -> Unit, a: JourneyActions, online: Boolean = true, locationIssue: String? = null, signal: com.rohanc.navgate.core.SignalState = com.rohanc.navgate.core.SignalState()) {
     val density = LocalDensity.current
     // How long since the last accepted position: past a few seconds the map and the speed are guesses, and the screen says so instead of freezing quietly.
     val clockNow by produceState(android.os.SystemClock.elapsedRealtime()) { while (true) { kotlinx.coroutines.delay(1000); value = android.os.SystemClock.elapsedRealtime() } }
@@ -43,51 +48,30 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
     var hint by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(6_000); hint = false }
     val next = steps.getOrNull(session.maneuverIndex + 1)
-    Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged { topPx = it.height }.statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        NavGlassSurface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(28.dp), baseColor = GuidanceTeal, contentColor = Color.White, dense = true, shadowElevation = 6.dp) {
-            Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Icon(maneuverIcon(current?.maneuverType ?: com.rohanc.navgate.model.ManeuverType.Straight), null, Modifier.size(56.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(session.distanceToManeuver.asMetersLabel(), style = MaterialTheme.typography.displaySmall)
-                    // Far from the turn, "Bear left" would be premature: say to keep going on this road, and the turn comes up when it is near.
-                    val farFromTurn = session.distanceToManeuver > 3_000.0 && current?.maneuverType != com.rohanc.navgate.model.ManeuverType.Arrive
-                    val road = Regex("(?:onto|on)\\s+(.+?)\\.?$").find(session.instruction)?.groupValues?.get(1)
-                    Text(if (farFromTurn) (road?.let { "Continue on $it" } ?: "Continue straight") else session.instruction, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-            }
-        }
-        if (next != null && current?.maneuverType != com.rohanc.navgate.model.ManeuverType.Arrive && session.distanceToManeuver <= 3_000.0) {
-            NavGlassSurface(shape = RoundedCornerShape(20.dp), baseColor = GuidanceTeal, contentColor = Color.White, dense = true, shadowElevation = 3.dp) {
-                Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Then", style = MaterialTheme.typography.titleMedium); Icon(maneuverIcon(next.maneuverType), null, Modifier.size(26.dp))
-                }
-            }
+    Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().onSizeChanged { topPx = it.height }.testTag("navigationHeader").heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.48f).dp).verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        val toTurn by produceState(session.distanceToManeuver, session) { while (true) { value = session.distanceToManeuverAt(android.os.SystemClock.elapsedRealtime()); kotlinx.coroutines.delay(150) } }
+        // Far from the turn, "Bear left" would be premature: say to keep going on this road, and the turn comes up when it is near.
+        val farFromTurn = session.distanceToManeuver > 3_000.0 && current?.maneuverType != com.rohanc.navgate.model.ManeuverType.Arrive
+        val road = Regex("(?:onto|on)\\s+(.+?)\\.?$").find(session.instruction)?.groupValues?.get(1)
+        val showThen = next != null && current?.maneuverType != com.rohanc.navgate.model.ManeuverType.Arrive && session.distanceToManeuver <= 3_000.0
+        TurnCard(maneuverIcon(current?.maneuverType ?: com.rohanc.navgate.model.ManeuverType.Straight), toTurn.asMetersLabel(),
+            if (farFromTurn) (road?.let { "Continue on $it" } ?: "Continue straight") else session.instruction, if (showThen) maneuverIcon(next!!.maneuverType) else null)
+        // The status chips on the left, voice (and on foot the sensor readings) on the right: one row under the card, so a banner that appears below it can never sit on them.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) { SignalChip(signal); CoolModeChip() }
+            if (motion != null && !driving) NgMapButton(Icons.Rounded.Sensors, if (showSensors) "Hide sensor readings" else "Show sensor readings", { showSensors = !showSensors })
+            NgMapButton(if (voiceOn) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff, if (voiceOn) "Mute spoken directions" else "Turn on spoken directions", a.toggleVoice)
         }
         if (hint && driving) GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false) {
-            Text("Mount your phone safely. Spoken directions are on.", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium)
+            Text(if (voiceOn) "Mount your phone safely. Spoken directions are on." else "Mount your phone safely. Spoken directions are off.", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), style = MaterialTheme.typography.bodyMedium)
         }
         if (locationIssue != null) LocationNotice(locationIssue, a)
-        else if (noSignal) GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false, minOpacity = 0.7f) {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                Column { Text("Searching for GPS", style = MaterialTheme.typography.titleSmall); Text("The map moves again when the signal returns.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
-        }
+        else if (noSignal) StateBanner("Searching for GPS", detail = "The map moves again when the signal returns.", spinner = true)
         val offlineOffRoute = !online && session.offRoute
         if (!online) OfflineNotice(offlineOffRoute, if (offlineOffRoute) rejoinHint(session) else null)
-        if (session.status == SessionStatus.Rerouting) GlassPanel(shape = RoundedCornerShape(16.dp), weight = GlassWeight.Regular, shadow = false) {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp); Text("Finding a new route…", style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+        if (session.status == SessionStatus.Rerouting) StateBanner("Finding a new route…", spinner = true)
     }
     if (motion != null && showSensors) SensorHud(motion, Modifier.align(Alignment.CenterStart).padding(start = 88.dp))
-    // Voice and sensors sit under the turn banner; the map's own buttons (recentre, layers, lane, fit) keep the lower right, so the two sets never overlap.
-    Column(Modifier.align(Alignment.TopEnd).padding(top = with(density) { topPx.toDp() } + 6.dp, end = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        NgMapButton(if (voiceOn) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff, if (voiceOn) "Mute spoken directions" else "Turn on spoken directions", a.toggleVoice)
-        // Driving has the speedometer for this (tap it); on foot there is no gauge, so the button stays.
-        if (motion != null && !driving) NgMapButton(Icons.Rounded.Sensors, if (showSensors) "Hide sensor readings" else "Show sensor readings", { showSensors = !showSensors })
-    }
     // Time to go: the route's figure, scaled by how the trip is really going; a stop keeps it as it was (EtaEstimator). The clock ticks on while stopped.
     val estimator = remember(session.sessionId) { com.rohanc.navgate.core.EtaEstimator() }
     val seconds = remember(session.alongMeters, session.remainingSeconds, session.remainingMeters) {
@@ -99,7 +83,7 @@ fun BoxScope.NavigationUi(session: SessionSnapshot, steps: List<RouteStep>, voic
     // The speedometer is for driving; on a walk it is not shown.
     if (motion != null && driving) SpeedGauge(motion, { showSensors = !showSensors }, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = with(density) { bottomPx.toDp() } + 8.dp), noSignal = noSignal)
     TripDock(null, arrival, seconds.asEtaLabel(), session.remainingMeters.asMetersLabel(), a.requestStop, a.showSteps,
-        Modifier.align(Alignment.BottomCenter).onSizeChanged { bottomPx = it.height }.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp))
+        Modifier.align(Alignment.BottomCenter).testTag("navigationFooter").onSizeChanged { bottomPx = it.height }.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 10.dp))
 }
 
 /** Guidance cannot continue without a position, so say exactly why and how to fix it. */
@@ -142,8 +126,9 @@ internal fun rejoinHint(session: SessionSnapshot): String? {
 
 /** Shown once guidance reaches the destination. */
 @Composable
-fun BoxScope.ArrivalUi(destination: com.rohanc.navgate.model.PlaceSearchResult?, destinationTitle: String, driving: Boolean, tripSummary: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions) {
+fun BoxScope.ArrivalUi(destination: com.rohanc.navgate.model.PlaceSearchResult?, destinationTitle: String, driving: Boolean, tripSummary: String?, onInsets: (Float, Float) -> Unit, a: JourneyActions, tripId: String? = null, initialFeedback: Set<String> = emptySet()) {
     val density = LocalDensity.current
+    val feedback = initialFeedback
     val kind = com.rohanc.navgate.data.search.PinKind.of("", destination?.category ?: "")
     val tint = com.rohanc.navgate.ui.map.MapIcons.color(kind)
     val address = listOfNotNull(destination?.address?.takeIf { it.isNotBlank() }, destination?.subtitle?.takeIf { it.isNotBlank() && it != destination.address }).firstOrNull()
@@ -158,11 +143,12 @@ fun BoxScope.ArrivalUi(destination: com.rohanc.navgate.model.PlaceSearchResult?,
     NgSheet(Modifier.align(Alignment.BottomCenter).onSizeChanged { with(density) { onInsets(0f, it.height.toDp().value) } }) {
         Column(Modifier.navigationBarsPadding().padding(horizontal = 24.dp).padding(bottom = 20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Box(Modifier.size(52.dp).background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Check, null, Modifier.size(30.dp), tint = MaterialTheme.colorScheme.onPrimary)
+                Box(Modifier.size(56.dp).shadow(8.dp, androidx.compose.foundation.shape.CircleShape, ambientColor = com.rohanc.navgate.ui.theme.NavTokens.go(), spotColor = com.rohanc.navgate.ui.theme.NavTokens.go())
+                    .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(com.rohanc.navgate.ui.theme.NavTokens.go(), Color(0xFF0E9F5B))), androidx.compose.foundation.shape.CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Check, null, Modifier.size(32.dp), tint = Color.White)
                 }
                 Column {
-                    Text("You have arrived", style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                    Text("You have arrived", style = MaterialTheme.typography.headlineSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                     Text(if (driving) "Driving trip complete" else "Walking trip complete", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -190,7 +176,12 @@ fun BoxScope.ArrivalUi(destination: com.rohanc.navgate.model.PlaceSearchResult?,
                 if (driving && top != null) Text("Top speed $top", Modifier.fillMaxWidth().padding(bottom = 14.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
             } else Spacer(Modifier.height(16.dp))
-            Spacer(Modifier.height(16.dp))
+            if (tripId != null) {
+                Text("HOW WAS THE ROUTE?", style = MaterialTheme.typography.labelSmall, letterSpacing = 1.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(10.dp))
+                FeedbackChips(feedback, onToggle = { tag -> a.saveFeedback(tripId, if (tag in feedback) feedback - tag else feedback + tag) })
+                Spacer(Modifier.height(18.dp))
+            }
             ButtonRow(spacing = 12.dp) { item ->
                 if (driving) NgTonalButton("Parking", Icons.Rounded.LocalParking, a.saveParking, item(1f))
                 destination?.let { NgTonalButton("Share", Icons.Rounded.Share, { a.share(it) }, item(1f)) }
@@ -205,6 +196,21 @@ fun BoxScope.ArrivalUi(destination: com.rohanc.navgate.model.PlaceSearchResult?,
 @Composable
 private fun ArrivalFigure(text: String) {
     var size by remember(text) { mutableIntStateOf(22) }
-    Text(text, fontSize = size.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1, softWrap = false, color = MaterialTheme.colorScheme.onSurface,
+    Text(text, fontSize = size.sp, fontFamily = com.rohanc.navgate.ui.theme.NavDisplay, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, maxLines = 1, softWrap = false, color = MaterialTheme.colorScheme.onSurface,
         onTextLayout = { if (it.hasVisualOverflow && size > 13) size -= 1 })
+}
+
+/** The few things worth telling after a walk, as chips you tap. Kept with the trip on this phone and never uploaded. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun FeedbackChips(chosen: Set<String>, onToggle: (String) -> Unit, modifier: Modifier = Modifier) {
+    FlowRow(modifier.fillMaxWidth().testTag("feedbackChips"), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf("Well lit", "Easy to follow", "Too crowded", "Wrong turn").forEach { tag ->
+            val on = tag in chosen
+            GlassPanel(shape = androidx.compose.foundation.shape.CircleShape, weight = GlassWeight.Thin, minOpacity = 0.7f, shadow = false, whiteGradientInLight = true, onClick = { onToggle(tag) }) {
+                Text(tag, Modifier.heightIn(min = 20.dp).padding(horizontal = 16.dp, vertical = 10.dp), color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (on) androidx.compose.ui.text.font.FontWeight.ExtraBold else androidx.compose.ui.text.font.FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
 }
